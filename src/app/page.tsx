@@ -31,7 +31,12 @@ type Room = {
 const CARD_POOL = ["A", "2", "3", "4", "5", "6", "7", "8"];
 const STORAGE_PREFIX = "forehead-mystery-room";
 const PLAYER_ID_KEY = "forehead-mystery-player-id";
-const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3000";
+const appUrl =
+  process.env.NEXT_PUBLIC_APP_URL ||
+  (typeof window !== "undefined"
+    ? window.location.origin
+    : "http://localhost:3000");
+const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || appUrl;
 
 function createId(prefix: string) {
   return `${prefix}-${Math.random().toString(36).slice(2, 8)}`;
@@ -198,7 +203,7 @@ export default function Home() {
       socket.emit("room-update", nextRoom);
     }
 
-    fetch(`/api/rooms/${nextRoom.id}`, {
+    fetch(`${appUrl}/api/rooms/${nextRoom.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(nextRoom),
@@ -221,7 +226,9 @@ export default function Home() {
     setStatus(`Connecting to room ${normalizedCode}...`);
 
     try {
-      const response = await fetch(`/api/rooms?roomCode=${normalizedCode}`);
+      const response = await fetch(
+        `${appUrl}/api/rooms?roomCode=${normalizedCode}`,
+      );
       const rawText = await response.text();
       let data: Record<string, unknown> = {};
 
