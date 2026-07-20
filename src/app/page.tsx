@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { io, Socket } from "socket.io-client";
 
 type CardState = "possible" | "impossible" | "most-likely";
 type GamePhase = "lobby" | "ranking" | "guessing" | "finished";
@@ -30,6 +31,7 @@ type Room = {
 const CARD_POOL = ["A", "2", "3", "4", "5", "6", "7", "8"];
 const STORAGE_PREFIX = "forehead-mystery-room";
 const PLAYER_ID_KEY = "forehead-mystery-player-id";
+const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3000";
 
 function createId(prefix: string) {
   return `${prefix}-${Math.random().toString(36).slice(2, 8)}`;
@@ -87,7 +89,7 @@ export default function Home() {
   );
   const [pendingGuess, setPendingGuess] = useState<string | null>(null);
   const [scratchpad, setScratchpad] = useState<Record<string, CardState>>({});
-  const channelRef = useRef<BroadcastChannel | null>(null);
+  const [socket, setSocket] = useState<Socket | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -109,39 +111,37 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (!roomCode || !playerId) return;
+    if (!playerId) return;
 
-    const channel = new BroadcastChannel(`forehead-mystery-${roomCode}`);
-    channelRef.current = channel;
+    const client = io(socketUrl, {
+      transports: ["websocket"],
+      reconnection: true,
+    });
 
-    channel.addEventListener(
-      "message",
-      (
-        event: MessageEvent<{ roomCode: string; senderId: string; room: Room }>,
-      ) => {
-        if (event.data.roomCode !== roomCode) return;
-        if (event.data.senderId === playerId) return;
-        setRoom(event.data.room);
-        setStatus(`Updated room ${event.data.room.id}`);
-      },
-    );
-
-    const storedRoom = window.localStorage.getItem(
-      `${STORAGE_PREFIX}:${roomCode}`,
-    );
-    if (storedRoom) {
-      try {
-        const parsed = JSON.parse(storedRoom) as Room;
-        setRoom(parsed);
-        setJoined(true);
-        setStatus(`Reconnected to room ${parsed.id}`);
-      } catch {
-        window.localStorage.removeItem(`${STORAGE_PREFIX}:${roomCode}`);
+    client.on("connect", () => {
+      if (roomCode) {
+        client.emit("join-room", roomCode, playerName || "Guest", playerId);
       }
-    }
+    });
 
-    return () => channel.close();
-  }, [roomCode, playerId]);
+    client.on("room-state", (nextRoom: Room) => {
+      setRoom(nextRoom);
+      setJoined(true);
+      setStatus(`Updated room ${nextRoom.id}`);
+    });
+
+    client.on("player-joined", ({ roomCode: joinedRoomCode }) => {
+      if (joinedRoomCode === roomCode) {
+        setStatus(`A player joined room ${joinedRoomCode}`);
+      }
+    });
+
+    setSocket(client);
+
+    return () => {
+      client.disconnect();
+    };
+  }, [playerId, roomCode, playerName]);
 
   useEffect(() => {
     if (!room || typeof window === "undefined") return;
@@ -193,13 +193,15 @@ export default function Home() {
 
   const submitRoomState = (nextRoom: Room) => {
     setRoom(nextRoom);
-    if (channelRef.current) {
-      channelRef.current.postMessage({
-        roomCode: nextRoom.id,
-        senderId: playerId,
-        room: nextRoom,
-      });
+    if (socket) {
+      socket.emit("room-update", nextRoom);
     }
+
+    fetch(`/api/rooms/${nextRoom.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(nextRoom),
+    }).catch(() => undefined);
   };
 
   const joinOrCreateRoom = (code: string, createNew = false) => {
@@ -214,45 +216,56 @@ export default function Home() {
       return;
     }
 
-    const storedRoom =
-      typeof window !== "undefined"
-        ? window.localStorage.getItem(`${STORAGE_PREFIX}:${normalizedCode}`)
-        : null;
+    fetch(`/api/rooms?roomCode=${normalizedCode}`)
+      .then(async (response) => {
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(data?.error || "Room service request failed");
+        }
 
-    let nextRoom: Room;
-    if (storedRoom && !createNew) {
-      const parsed = JSON.parse(storedRoom) as Room;
-      const alreadyJoined = parsed.players.some(
-        (player) => player.id === playerId,
-      );
-      const nextPlayers = alreadyJoined
-        ? parsed.players
-        : [
-            ...parsed.players,
-            {
-              id: playerId,
-              name: playerName.trim(),
-              isHost: false,
-              isReady: true,
-              eliminatedGuesses: [],
-              isCorrectlyIdentified: false,
-            },
-          ];
-      nextRoom = {
-        ...parsed,
-        players: nextPlayers,
-        turnOrder: parsed.turnOrder.length
-          ? parsed.turnOrder
-          : nextPlayers.map((player) => player.id),
-      };
-    } else {
-      nextRoom = createRoom(normalizedCode, playerId, playerName.trim());
-    }
+        const existingRoom = data.room as Room | null;
+        const alreadyJoined = existingRoom?.players.some(
+          (player) => player.id === playerId,
+        );
+        const nextPlayers =
+          existingRoom && !alreadyJoined
+            ? [
+                ...existingRoom.players,
+                {
+                  id: playerId,
+                  name: playerName.trim(),
+                  isHost: false,
+                  isReady: true,
+                  eliminatedGuesses: [],
+                  isCorrectlyIdentified: false,
+                },
+              ]
+            : (existingRoom?.players ?? []);
 
-    setRoomCode(normalizedCode);
-    setJoined(true);
-    submitRoomState(nextRoom);
-    setStatus(`Joined room ${normalizedCode}`);
+        const nextRoom =
+          existingRoom && !createNew
+            ? {
+                ...existingRoom,
+                players: nextPlayers,
+                turnOrder: existingRoom.turnOrder.length
+                  ? existingRoom.turnOrder
+                  : nextPlayers.map((player) => player.id),
+              }
+            : createRoom(normalizedCode, playerId, playerName.trim());
+
+        setRoomCode(normalizedCode);
+        setJoined(true);
+        submitRoomState(nextRoom);
+        setStatus(`Joined room ${normalizedCode}`);
+      })
+      .catch((error) => {
+        console.error(error);
+        setStatus(
+          error instanceof Error
+            ? error.message
+            : "Unable to reach the room service.",
+        );
+      });
   };
 
   const startGame = () => {
@@ -394,7 +407,7 @@ export default function Home() {
   }, [room]);
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top,_#fef3c7,_#fdf2f8_45%,_#fef3c7)] px-4 py-6 text-slate-900 sm:px-6 lg:px-8">
+    <main className="min-h-screen bg-[radial-gradient(circle_at_top,#fef3c7,#fdf2f8_45%,#fef3c7)] px-4 py-6 text-slate-900 sm:px-6 lg:px-8">
       <div className="mx-auto flex max-w-6xl flex-col gap-4">
         <header className="rounded-3xl border border-slate-200 bg-white/80 p-5 shadow-sm backdrop-blur">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
