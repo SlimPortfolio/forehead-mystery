@@ -3,18 +3,16 @@ import { MongoClient } from "mongodb";
 const uri = process.env.MONGODB_URI;
 const dbName = process.env.MONGODB_DB || "forehead-mystery";
 
-if (!uri) {
-  throw new Error("MONGODB_URI environment variable is not set");
-}
-
-const mongoUri = uri as string;
-
 let cachedClient: MongoClient | null = null;
 
 export async function getMongoClient() {
+  if (!uri) {
+    throw new Error("MONGODB_URI environment variable is not set");
+  }
+
   if (cachedClient) return cachedClient;
 
-  cachedClient = new MongoClient(mongoUri);
+  cachedClient = new MongoClient(uri);
   await cachedClient.connect();
   return cachedClient;
 }
