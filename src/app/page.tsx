@@ -88,6 +88,7 @@ export default function Home() {
     "Create or join a room to start playing.",
   );
   const [pendingGuess, setPendingGuess] = useState<string | null>(null);
+  const [isJoining, setIsJoining] = useState(false);
   const [scratchpad, setScratchpad] = useState<Record<string, CardState>>({});
   const [socket, setSocket] = useState<Socket | null>(null);
 
@@ -204,7 +205,7 @@ export default function Home() {
     }).catch(() => undefined);
   };
 
-  const joinOrCreateRoom = (code: string, createNew = false) => {
+  const joinOrCreateRoom = async (code: string, createNew = false) => {
     if (!playerId || !playerName.trim()) {
       setStatus("Please enter your name before joining a room.");
       return;
@@ -216,56 +217,77 @@ export default function Home() {
       return;
     }
 
-    fetch(`/api/rooms?roomCode=${normalizedCode}`)
-      .then(async (response) => {
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok) {
-          throw new Error(data?.error || "Room service request failed");
-        }
+    setIsJoining(true);
+    setStatus(`Connecting to room ${normalizedCode}...`);
 
-        const existingRoom = data.room as Room | null;
-        const alreadyJoined = existingRoom?.players.some(
-          (player) => player.id === playerId,
+    try {
+      const response = await fetch(`/api/rooms?roomCode=${normalizedCode}`);
+      const rawText = await response.text();
+      let data: Record<string, unknown> = {};
+
+      try {
+        data = rawText ? JSON.parse(rawText) : {};
+      } catch {
+        data = { raw: rawText };
+      }
+
+      if (!response.ok) {
+        throw new Error(
+          typeof data.error === "string"
+            ? data.error
+            : `Room service returned ${response.status}`,
         );
-        const nextPlayers =
-          existingRoom && !alreadyJoined
-            ? [
-                ...existingRoom.players,
-                {
-                  id: playerId,
-                  name: playerName.trim(),
-                  isHost: false,
-                  isReady: true,
-                  eliminatedGuesses: [],
-                  isCorrectlyIdentified: false,
-                },
-              ]
-            : (existingRoom?.players ?? []);
+      }
 
-        const nextRoom =
-          existingRoom && !createNew
-            ? {
-                ...existingRoom,
-                players: nextPlayers,
-                turnOrder: existingRoom.turnOrder.length
-                  ? existingRoom.turnOrder
-                  : nextPlayers.map((player) => player.id),
-              }
-            : createRoom(normalizedCode, playerId, playerName.trim());
+      const existingRoom = data.room as Room | null;
+      const alreadyJoined = existingRoom?.players.some(
+        (player) => player.id === playerId,
+      );
+      const nextPlayers =
+        existingRoom && !alreadyJoined
+          ? [
+              ...existingRoom.players,
+              {
+                id: playerId,
+                name: playerName.trim(),
+                isHost: false,
+                isReady: true,
+                eliminatedGuesses: [],
+                isCorrectlyIdentified: false,
+              },
+            ]
+          : (existingRoom?.players ?? []);
 
-        setRoomCode(normalizedCode);
-        setJoined(true);
-        submitRoomState(nextRoom);
-        setStatus(`Joined room ${normalizedCode}`);
-      })
-      .catch((error) => {
-        console.error(error);
-        setStatus(
-          error instanceof Error
-            ? error.message
-            : "Unable to reach the room service.",
-        );
+      const nextRoom =
+        existingRoom && !createNew
+          ? {
+              ...existingRoom,
+              players: nextPlayers,
+              turnOrder: existingRoom.turnOrder.length
+                ? existingRoom.turnOrder
+                : nextPlayers.map((player) => player.id),
+            }
+          : createRoom(normalizedCode, playerId, playerName.trim());
+
+      setRoomCode(normalizedCode);
+      setJoined(true);
+      submitRoomState(nextRoom);
+      setStatus(`Joined room ${normalizedCode}`);
+    } catch (error) {
+      console.error("Room create/join failed", {
+        roomCode: normalizedCode,
+        createNew,
+        playerId,
+        error,
       });
+      setStatus(
+        error instanceof Error
+          ? `Room failed: ${error.message}`
+          : "Unable to reach the room service.",
+      );
+    } finally {
+      setIsJoining(false);
+    }
   };
 
   const startGame = () => {
@@ -458,9 +480,17 @@ export default function Home() {
               <div className="flex flex-wrap gap-3">
                 <button
                   onClick={() => joinOrCreateRoom(roomCode || "MYST", false)}
-                  className="rounded-2xl bg-slate-900 px-4 py-2 font-medium text-white"
+                  disabled={isJoining}
+                  className="flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-2 font-medium text-white disabled:cursor-wait disabled:opacity-70"
                 >
-                  Join room
+                  {isJoining ? (
+                    <>
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                      Connecting...
+                    </>
+                  ) : (
+                    "Join room"
+                  )}
                 </button>
                 <button
                   onClick={() => {
@@ -473,9 +503,17 @@ export default function Home() {
                     setRoomCode(code);
                     joinOrCreateRoom(code, true);
                   }}
-                  className="rounded-2xl border border-slate-300 px-4 py-2 font-medium"
+                  disabled={isJoining}
+                  className="flex items-center gap-2 rounded-2xl border border-slate-300 px-4 py-2 font-medium disabled:cursor-wait disabled:opacity-70"
                 >
-                  Create room
+                  {isJoining ? (
+                    <>
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-700 border-t-transparent" />
+                      Connecting...
+                    </>
+                  ) : (
+                    "Create room"
+                  )}
                 </button>
               </div>
             </div>
