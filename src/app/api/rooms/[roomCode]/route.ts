@@ -5,8 +5,10 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ roomCode: string }> },
 ) {
+  const { roomCode } = await params;
+  const normalizedRoomCode = roomCode.toUpperCase();
+
   try {
-    const { roomCode } = await params;
     const body = await request.json();
     const db = await getMongoDb();
     const rooms = db.collection<any>("rooms");
@@ -16,7 +18,6 @@ export async function PATCH(
       updatedAt: new Date(),
     };
 
-    const normalizedRoomCode = roomCode.toUpperCase();
     const result = await rooms.findOneAndUpdate(
       { _id: normalizedRoomCode },
       { $set: update },
@@ -25,9 +26,16 @@ export async function PATCH(
 
     return NextResponse.json({ room: result.value }, { status: 200 });
   } catch (error) {
-    console.error(error);
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("[rooms PATCH] update room failed", {
+      roomCode: normalizedRoomCode,
+      error: message,
+    });
     return NextResponse.json(
-      { error: "Failed to update room" },
+      {
+        error: "Failed to update room",
+        details: process.env.NODE_ENV === "development" ? message : undefined,
+      },
       { status: 500 },
     );
   }

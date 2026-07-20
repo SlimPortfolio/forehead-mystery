@@ -2,12 +2,16 @@ import { NextResponse } from "next/server";
 import { getMongoDb } from "@/lib/mongodb";
 
 export async function POST(request: Request) {
+  let body: Record<string, unknown> | null = null;
+  let roomCode = "";
+  let hostName = "Player";
+
   try {
-    const body = await request.json();
-    const roomCode = String(body?.roomCode || "")
+    body = await request.json();
+    roomCode = String(body?.roomCode || "")
       .trim()
       .toUpperCase();
-    const hostName = String(body?.hostName || "Player").trim();
+    hostName = String(body?.hostName || "Player").trim();
 
     if (!roomCode || !/^[A-Z0-9]{3,6}$/.test(roomCode)) {
       return NextResponse.json({ error: "Invalid room code" }, { status: 400 });
@@ -46,18 +50,28 @@ export async function POST(request: Request) {
     await rooms.insertOne(room);
     return NextResponse.json({ room }, { status: 201 });
   } catch (error) {
-    console.error(error);
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("[rooms POST] create room failed", {
+      roomCode,
+      hostName,
+      error: message,
+    });
     return NextResponse.json(
-      { error: "Failed to create room" },
+      {
+        error: "Failed to create room",
+        details: process.env.NODE_ENV === "development" ? message : undefined,
+      },
       { status: 500 },
     );
   }
 }
 
 export async function GET(request: Request) {
+  let roomCode = "";
+
   try {
     const { searchParams } = new URL(request.url);
-    const roomCode = searchParams.get("roomCode")?.trim().toUpperCase();
+    roomCode = searchParams.get("roomCode")?.trim().toUpperCase() || "";
 
     if (!roomCode) {
       return NextResponse.json({ error: "Missing roomCode" }, { status: 400 });
@@ -68,9 +82,16 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ room }, { status: 200 });
   } catch (error) {
-    console.error(error);
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("[rooms GET] fetch room failed", {
+      roomCode,
+      error: message,
+    });
     return NextResponse.json(
-      { error: "Failed to fetch room" },
+      {
+        error: "Failed to fetch room",
+        details: process.env.NODE_ENV === "development" ? message : undefined,
+      },
       { status: 500 },
     );
   }
