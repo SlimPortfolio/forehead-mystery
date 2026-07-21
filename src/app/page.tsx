@@ -28,6 +28,7 @@ type Room = {
 };
 
 const CARD_POOL = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
+const POLL_INTERVAL_MS = 2000;
 const STORAGE_PREFIX = "forehead-mystery-room";
 const PLAYER_ID_KEY = "forehead-mystery-player-id";
 const isLocal = typeof window !== "undefined" && (
@@ -143,6 +144,11 @@ export default function Home() {
     playerName: string;
   } | null>(null);
   const previousPhaseRef = useRef<GamePhase | null>(null);
+  const roomRef = useRef<Room | null>(null);
+
+  useEffect(() => {
+    roomRef.current = room;
+  }, [room]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -188,11 +194,12 @@ export default function Home() {
     previousPhaseRef.current = room.phase;
   }, [room?.id, room?.phase, room?.round, room?.currentTurnIndex, playerId]);
 
-  // Poll for room updates every 300ms when in an active game
+  // Poll for room updates. Paused while the tab is hidden/backgrounded to
+  // avoid burning API requests when nobody is looking at the page.
   useEffect(() => {
     if (!roomCode || !joined) return;
 
-    const pollInterval = setInterval(async () => {
+    const pollRoom = async () => {
       try {
         const response = await fetch(
           `${appUrl}/api/rooms?roomCode=${roomCode}`,
@@ -200,19 +207,16 @@ export default function Home() {
         if (response.ok) {
           const data = await response.json();
           const fetchedRoom = data.room as Room | null;
-          if (fetchedRoom && room) {
+          const currentRoom = roomRef.current;
+          if (fetchedRoom && currentRoom) {
             // Deep comparison to detect changes
             if (
-              fetchedRoom.phase !== room.phase ||
-              fetchedRoom.round !== room.round ||
-              fetchedRoom.currentTurnIndex !== room.currentTurnIndex ||
-              fetchedRoom.players.length !== room.players.length ||
-              JSON.stringify(fetchedRoom.players) !== JSON.stringify(room.players)
+              fetchedRoom.phase !== currentRoom.phase ||
+              fetchedRoom.round !== currentRoom.round ||
+              fetchedRoom.currentTurnIndex !== currentRoom.currentTurnIndex ||
+              fetchedRoom.players.length !== currentRoom.players.length ||
+              JSON.stringify(fetchedRoom.players) !== JSON.stringify(currentRoom.players)
             ) {
-              console.log("Room state updated:", {
-                phase: fetchedRoom.phase,
-                round: fetchedRoom.round,
-              });
               setRoom(fetchedRoom);
             }
           }
@@ -220,9 +224,39 @@ export default function Home() {
       } catch (error) {
         console.error("Failed to poll room state:", error);
       }
-    }, 300);
+    };
 
-    return () => clearInterval(pollInterval);
+    let pollInterval: ReturnType<typeof setInterval> | null = null;
+
+    const startPolling = () => {
+      if (pollInterval) return;
+      pollRoom();
+      pollInterval = setInterval(pollRoom, POLL_INTERVAL_MS);
+    };
+
+    const stopPolling = () => {
+      if (!pollInterval) return;
+      clearInterval(pollInterval);
+      pollInterval = null;
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        startPolling();
+      } else {
+        stopPolling();
+      }
+    };
+
+    if (document.visibilityState === "visible") {
+      startPolling();
+    }
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      stopPolling();
+    };
   }, [roomCode, joined, appUrl]);
 
   useEffect(() => {
