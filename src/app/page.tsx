@@ -1023,7 +1023,9 @@ export default function Home() {
                       state === "most-likely"
                         ? "Most likely"
                         : state === "impossible"
-                          ? "Impossible"
+                          ? isDisabled
+                            ? "That's not possible"
+                            : "Impossible"
                           : "Possible";
 
                     let className = `rounded-2xl border px-3 py-2 text-sm font-medium text-left`;
