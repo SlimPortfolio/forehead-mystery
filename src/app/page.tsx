@@ -184,14 +184,14 @@ export default function Home() {
         if (response.ok) {
           const data = await response.json();
           const fetchedRoom = data.room as Room | null;
-          if (fetchedRoom) {
+          if (fetchedRoom && room) {
             // Deep comparison to detect changes
             if (
-              fetchedRoom.phase !== room?.phase ||
-              fetchedRoom.round !== room?.round ||
-              fetchedRoom.currentTurnIndex !== room?.currentTurnIndex ||
-              fetchedRoom.players.length !== room?.players.length ||
-              JSON.stringify(fetchedRoom.players) !== JSON.stringify(room?.players)
+              fetchedRoom.phase !== room.phase ||
+              fetchedRoom.round !== room.round ||
+              fetchedRoom.currentTurnIndex !== room.currentTurnIndex ||
+              fetchedRoom.players.length !== room.players.length ||
+              JSON.stringify(fetchedRoom.players) !== JSON.stringify(room.players)
             ) {
               console.log("Room state updated:", {
                 phase: fetchedRoom.phase,
@@ -207,7 +207,7 @@ export default function Home() {
     }, 300);
 
     return () => clearInterval(pollInterval);
-  }, [roomCode, joined, room, appUrl]);
+  }, [roomCode, joined, appUrl]);
 
   useEffect(() => {
     if (!room || typeof window === "undefined") return;
