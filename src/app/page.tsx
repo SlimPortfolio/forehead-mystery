@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { io, Socket } from "socket.io-client";
 
 type CardState = "possible" | "impossible" | "most-likely";
-type GamePhase = "lobby" | "ranking" | "guessing" | "finished";
+type GamePhase = "lobby" | "ranking" | "guessing" | "confirmation" | "finished";
 
 type Player = {
   id: string;
@@ -28,7 +28,7 @@ type Room = {
   turnOrder: string[];
 };
 
-const CARD_POOL = ["A", "2", "3", "4", "5", "6", "7", "8"];
+const CARD_POOL = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
 const STORAGE_PREFIX = "forehead-mystery-room";
 const PLAYER_ID_KEY = "forehead-mystery-player-id";
 const appUrl = (
@@ -86,6 +86,43 @@ function formatRank(rank: number) {
   return `${rank}th`;
 }
 
+function getCardValue(card: string): number {
+  const values: Record<string, number> = {
+    A: 1,
+    "2": 2,
+    "3": 3,
+    "4": 4,
+    "5": 5,
+    "6": 6,
+    "7": 7,
+    "8": 8,
+    "9": 9,
+    "10": 10,
+    J: 11,
+    Q: 12,
+    K: 13,
+  };
+  return values[card] || 0;
+}
+
+function getTestPlayerRanking(testPlayer: Player, allPlayers: Player[]): number {
+  if (!testPlayer.card) return 1;
+
+  const testPlayerCardVal = getCardValue(testPlayer.card);
+  const otherPlayers = allPlayers.filter((p) => p.id !== testPlayer.id);
+  const otherCards = otherPlayers
+    .map((p) => p.card)
+    .filter((c): c is string => !!c)
+    .sort((a, b) => getCardValue(a) - getCardValue(b));
+
+  // Calculate the rank based on where the test player's card falls
+  const cardsAbove = otherCards.filter(
+    (card) => getCardValue(card) > testPlayerCardVal,
+  ).length;
+
+  return cardsAbove + 1;
+}
+
 export default function Home() {
   const [roomCode, setRoomCode] = useState("");
   const [playerName, setPlayerName] = useState("");
@@ -99,6 +136,11 @@ export default function Home() {
   const [isJoining, setIsJoining] = useState(false);
   const [scratchpad, setScratchpad] = useState<Record<string, CardState>>({});
   const [socket, setSocket] = useState<Socket | null>(null);
+  const [lastGuessResult, setLastGuessResult] = useState<{
+    wasCorrect: boolean;
+    card: string;
+    playerName: string;
+  } | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -185,6 +227,140 @@ export default function Home() {
       JSON.stringify(scratchpad),
     );
   }, [room, playerId, scratchpad]);
+
+  useEffect(() => {
+    if (!room || !playerId || room.phase !== "ranking") return;
+
+    const currentPlayerId = room.turnOrder[room.currentTurnIndex];
+    const currentPlayerInTurn = room.players.find(
+      (p) => p.id === currentPlayerId,
+    );
+
+    if (
+      !currentPlayerInTurn ||
+      !currentPlayerInTurn.name.startsWith("Test Player") ||
+      currentPlayerInTurn.ranking
+    )
+      return;
+
+    const timer = setTimeout(() => {
+      const testRank = getTestPlayerRanking(
+        currentPlayerInTurn,
+        room.players,
+      );
+      const nextPlayers = room.players.map((p) =>
+        p.id === currentPlayerId ? { ...p, ranking: testRank } : p,
+      );
+
+      const nextRoom: Room = {
+        ...room,
+        players: nextPlayers,
+        phase: "guessing",
+      };
+
+      submitRoomState(nextRoom);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [room, playerId]);
+
+  useEffect(() => {
+    if (!room || !playerId || room.phase !== "guessing") return;
+
+    const currentPlayerId = room.turnOrder[room.currentTurnIndex];
+    const currentPlayerInTurn = room.players.find(
+      (p) => p.id === currentPlayerId,
+    );
+
+    if (
+      !currentPlayerInTurn ||
+      !currentPlayerInTurn.name.startsWith("Test Player")
+    )
+      return;
+
+    const timer = setTimeout(() => {
+      const testGuess = currentPlayerInTurn.card || "A";
+      const wasCorrect = testGuess === currentPlayerInTurn.card;
+
+      const nextPlayers = room.players.map((p) =>
+        p.id === currentPlayerId
+          ? {
+              ...p,
+              guess: testGuess,
+              isCorrectlyIdentified:
+                wasCorrect || p.isCorrectlyIdentified,
+            }
+          : p,
+      );
+
+      const nextRoom: Room = {
+        ...room,
+        players: nextPlayers,
+        phase: "confirmation",
+      };
+
+      setLastGuessResult({
+        wasCorrect,
+        card: testGuess,
+        playerName: currentPlayerInTurn.name,
+      });
+
+      submitRoomState(nextRoom);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [room, playerId]);
+
+  useEffect(() => {
+    if (!room || !playerId || room.phase !== "confirmation") return;
+
+    const currentPlayerId = room.turnOrder[room.currentTurnIndex];
+    const currentPlayerInTurn = room.players.find(
+      (p) => p.id === currentPlayerId,
+    );
+
+    if (!currentPlayerInTurn) return;
+
+    const timer = setTimeout(() => {
+      let nextTurnIndex = room.currentTurnIndex + 1;
+
+      let nextRoom: Room = {
+        ...room,
+      };
+
+      if (nextTurnIndex >= room.turnOrder.length) {
+        // All players have guessed
+        if (room.round >= 2) {
+          // 2 rounds complete - game ends
+          nextRoom.phase = "finished";
+        } else {
+          // Start next round
+          nextRoom.phase = "ranking";
+          nextRoom.round += 1;
+          nextRoom.currentTurnIndex = 0;
+          nextRoom.players = room.players.map((player) => ({
+            ...player,
+            ranking: null,
+            guess: null,
+            eliminatedGuesses: [], // Reset eliminated guesses each round
+          }));
+        }
+      } else {
+        // Next player's turn
+        nextRoom.phase = "guessing";
+        nextRoom.currentTurnIndex = nextTurnIndex;
+        nextRoom.players = room.players.map((player) => ({
+          ...player,
+          guess: null,
+        }));
+      }
+
+      setLastGuessResult(null);
+      submitRoomState(nextRoom);
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, [room, playerId]);
 
   const currentPlayer = useMemo(() => {
     if (!room) return null;
@@ -300,19 +476,71 @@ export default function Home() {
     }
   };
 
-  const startGame = () => {
+  const startNextGame = () => {
+    if (!room || !myPlayer) return;
+
+    // Rotate the turn order so the next player goes first
+    const nextFirstPlayerIndex = (room.turnOrder.indexOf(room.turnOrder[0]) + 1) % room.turnOrder.length;
+    const rotatedTurnOrder = [
+      ...room.turnOrder.slice(nextFirstPlayerIndex),
+      ...room.turnOrder.slice(0, nextFirstPlayerIndex),
+    ];
+
+    // Deal new cards
+    const shuffledCards = shuffle(CARD_POOL).slice(0, room.players.length);
+    const nextPlayers = room.players.map((player, index) => ({
+      ...player,
+      card: shuffledCards[index],
+      ranking: null,
+      guess: null,
+      eliminatedGuesses: [],
+      isCorrectlyIdentified: false,
+    }));
+
+    const nextRoom: Room = {
+      ...room,
+      players: nextPlayers,
+      phase: "ranking",
+      round: 1,
+      currentTurnIndex: 0,
+      turnOrder: rotatedTurnOrder,
+    };
+
+    submitRoomState(nextRoom);
+    setStatus("New game started! Begin with the ranking phase.");
+  };
+
+  const startGame = (useTestPlayers = false) => {
     if (!room || !myPlayer || !room.players.length) return;
-    if (room.players.length < 4 || room.players.length > 8) {
-      setStatus("A game needs between 4 and 8 players to begin.");
-      return;
-    }
     if (room.hostId !== playerId) {
       setStatus("Only the host can begin the game.");
       return;
     }
 
-    const shuffledCards = shuffle(CARD_POOL.slice(0, room.players.length));
-    const nextPlayers = room.players.map((player, index) => ({
+    let playersToUse = room.players;
+    if (useTestPlayers) {
+      const numTestPlayers = 4 - room.players.length;
+      const testPlayers: Player[] = Array.from(
+        { length: Math.max(0, numTestPlayers) },
+        (_, i) => ({
+          id: createId("test-player"),
+          name: `Test Player ${i + 1}`,
+          isHost: false,
+          isReady: true,
+          eliminatedGuesses: [],
+          isCorrectlyIdentified: false,
+        }),
+      );
+      playersToUse = [...room.players, ...testPlayers];
+    }
+
+    if (playersToUse.length < 4 || playersToUse.length > 8) {
+      setStatus("A game needs between 4 and 8 players to begin.");
+      return;
+    }
+
+    const shuffledCards = shuffle(CARD_POOL).slice(0, playersToUse.length);
+    const nextPlayers = playersToUse.map((player, index) => ({
       ...player,
       card: shuffledCards[index],
       ranking: null,
@@ -337,22 +565,50 @@ export default function Home() {
   const submitRanking = (rank: number) => {
     if (!room || !myPlayer || !isMyTurn) return;
 
-    const nextPlayers = room.players.map((player) =>
+    let nextPlayers = room.players.map((player) =>
       player.id === myPlayer.id ? { ...player, ranking: rank } : player,
     );
 
-    const nextTurnIndex = room.currentTurnIndex + 1;
+    let nextTurnIndex = room.currentTurnIndex + 1;
+    let nextPhase: GamePhase = nextTurnIndex >= room.turnOrder.length ? "guessing" : "ranking";
+
+    // Auto-submit rankings for test players
+    while (
+      nextPhase === "ranking" &&
+      nextTurnIndex < room.turnOrder.length
+    ) {
+      const nextPlayerId = room.turnOrder[nextTurnIndex];
+      const nextPlayer = nextPlayers.find((p) => p.id === nextPlayerId);
+
+      if (nextPlayer?.name.startsWith("Test Player")) {
+        const testRank = getTestPlayerRanking(nextPlayer, nextPlayers);
+        nextPlayers = nextPlayers.map((p) =>
+          p.id === nextPlayerId ? { ...p, ranking: testRank } : p,
+        );
+        nextTurnIndex += 1;
+        if (nextTurnIndex >= room.turnOrder.length) {
+          nextPhase = "guessing";
+        }
+      } else {
+        break;
+      }
+    }
+
     const nextRoom: Room = {
       ...room,
       players: nextPlayers,
       currentTurnIndex:
-        nextTurnIndex >= room.turnOrder.length ? 0 : nextTurnIndex,
-      phase: nextTurnIndex >= room.turnOrder.length ? "guessing" : "ranking",
+        nextPhase === "guessing" ? 0 : nextTurnIndex,
+      phase: nextPhase,
     };
 
     submitRoomState(nextRoom);
     setPendingGuess(null);
-    setStatus(`You ranked ${formatRank(rank)}. Waiting for the next player.`);
+    setStatus(
+      nextPhase === "guessing"
+        ? `All players ranked! Starting guessing phase.`
+        : `You ranked ${formatRank(rank)}. Waiting for others to rank.`,
+    );
   };
 
   const submitGuess = (card: string) => {
@@ -363,12 +619,13 @@ export default function Home() {
       return;
     }
 
+    const wasCorrect = myPlayer.card === pendingGuess;
+    const nextEliminated = wasCorrect
+      ? myPlayer.eliminatedGuesses
+      : [...myPlayer.eliminatedGuesses, pendingGuess];
+
     const nextPlayers = room.players.map((player) => {
       if (player.id !== myPlayer.id) return player;
-      const wasCorrect = player.card === pendingGuess;
-      const nextEliminated = wasCorrect
-        ? player.eliminatedGuesses
-        : [...player.eliminatedGuesses, pendingGuess];
       return {
         ...player,
         guess: pendingGuess,
@@ -377,38 +634,25 @@ export default function Home() {
       };
     });
 
-    const nextTurnIndex = room.currentTurnIndex + 1;
     const nextRoom: Room = {
       ...room,
       players: nextPlayers,
-      currentTurnIndex:
-        nextTurnIndex >= room.turnOrder.length ? 0 : nextTurnIndex,
+      phase: "confirmation",
     };
 
-    const allSolved = nextPlayers.every(
-      (player) => player.isCorrectlyIdentified,
-    );
-    if (allSolved) {
-      nextRoom.phase = "finished";
-      setStatus("Every player solved the mystery. The game is over.");
-    } else if (nextTurnIndex >= room.turnOrder.length) {
-      nextRoom.phase = "ranking";
-      nextRoom.round += 1;
-      nextRoom.currentTurnIndex = 0;
-      nextRoom.players = nextPlayers.map((player) => ({
-        ...player,
-        ranking: null,
-        guess: null,
-      }));
-      setStatus(
-        `Round ${nextRoom.round} has started. Submit your new ranking.`,
-      );
-    } else {
-      setStatus(`Your guess is locked. Waiting for the next player.`);
-    }
+    setLastGuessResult({
+      wasCorrect,
+      card: pendingGuess,
+      playerName: myPlayer.name,
+    });
 
     submitRoomState(nextRoom);
     setPendingGuess(null);
+    setStatus(
+      wasCorrect
+        ? `✓ Correct! You have ${pendingGuess}.`
+        : `✗ Incorrect. ${pendingGuess} is now eliminated.`,
+    );
   };
 
   const toggleScratchpad = (card: string) => {
@@ -437,6 +681,20 @@ export default function Home() {
       ),
     ) as string[];
   }, [room]);
+
+  const allPossibleCards = CARD_POOL;
+
+  const guessingCards = useMemo(() => {
+    if (!room || !myPlayer) return [] as string[];
+    const otherPlayersCards = room.players
+      .filter((p) => p.id !== myPlayer.id)
+      .flatMap((p) => (p.card ? [p.card] : []));
+    return CARD_POOL.filter(
+      (card) =>
+        !otherPlayersCards.includes(card) &&
+        !myPlayer.eliminatedGuesses.includes(card),
+    );
+  }, [room, myPlayer]);
 
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top,#fef3c7,#fdf2f8_45%,#fef3c7)] px-4 py-6 text-slate-900 sm:px-6 lg:px-8">
@@ -554,12 +812,20 @@ export default function Home() {
                     <h2 className="text-xl font-semibold">{room.id}</h2>
                   </div>
                   {room.hostId === playerId && (
-                    <button
-                      onClick={startGame}
-                      className="rounded-2xl bg-amber-500 px-4 py-2 font-semibold text-white"
-                    >
-                      Start game
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => startGame(false)}
+                        className="rounded-2xl bg-amber-500 px-4 py-2 font-semibold text-white"
+                      >
+                        Start game
+                      </button>
+                      <button
+                        onClick={() => startGame(true)}
+                        className="rounded-2xl bg-slate-600 px-4 py-2 font-semibold text-white"
+                      >
+                        Start with test players
+                      </button>
+                    </div>
                   )}
                 </div>
                 <div className="mt-4 grid gap-2 sm:grid-cols-2">
@@ -587,7 +853,7 @@ export default function Home() {
               <div className="rounded-3xl border border-slate-200 bg-white/80 p-4 shadow-sm backdrop-blur">
                 <h3 className="text-lg font-semibold">Private scratchpad</h3>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {visibleCards.map((card) => (
+                  {allPossibleCards.map((card) => (
                     <button
                       key={card}
                       onClick={() => toggleScratchpad(card)}
@@ -642,6 +908,14 @@ export default function Home() {
                   <p className="mt-3 text-sm text-slate-500">
                     Total rounds played: {room.round}
                   </p>
+                  {room.hostId === playerId && (
+                    <button
+                      onClick={startNextGame}
+                      className="mt-4 rounded-2xl bg-amber-500 px-4 py-2 font-semibold text-white"
+                    >
+                      Next game
+                    </button>
+                  )}
                 </div>
               ) : (
                 <div className="rounded-3xl border border-slate-200 bg-white/80 p-4 shadow-sm backdrop-blur">
@@ -665,9 +939,38 @@ export default function Home() {
                     <p className="text-sm text-slate-600">
                       {room.phase === "ranking"
                         ? "Select the rank you believe you hold relative to every other player."
-                        : "Choose the card you believe you hold. Confirm before locking it in."}
+                        : room.phase === "guessing"
+                          ? "Choose the card you believe you hold. Confirm before locking it in."
+                          : room.phase === "confirmation"
+                            ? lastGuessResult
+                              ? lastGuessResult.wasCorrect
+                                ? `✓ ${lastGuessResult.playerName} correctly identified their card!`
+                                : `✗ ${lastGuessResult.playerName} guessed ${lastGuessResult.card}.`
+                              : "Revealing result..."
+                            : ""}
                     </p>
-                    {isMyTurn ? (
+                    {room.phase === "confirmation" ? (
+                      <div className="mt-3">
+                        <div
+                          className={`rounded-2xl px-4 py-3 text-center font-semibold ${
+                            lastGuessResult?.wasCorrect
+                              ? "bg-emerald-100 text-emerald-700"
+                              : "bg-rose-100 text-rose-700"
+                          }`}
+                        >
+                          {lastGuessResult?.wasCorrect
+                            ? `✓ Correct! ${lastGuessResult.playerName} has ${lastGuessResult.card}.`
+                            : `✗ Incorrect! ${lastGuessResult?.playerName} guessed ${lastGuessResult?.card}, but their card was ${
+                                room.players.find(
+                                  (p) => p.name === lastGuessResult?.playerName,
+                                )?.card
+                              }.`}
+                        </div>
+                        <p className="mt-2 text-center text-xs text-slate-500">
+                          Next player loading...
+                        </p>
+                      </div>
+                    ) : isMyTurn ? (
                       <div className="mt-3">
                         {room.phase === "ranking" ? (
                           <div className="grid gap-2 sm:grid-cols-2">
@@ -691,7 +994,7 @@ export default function Home() {
                         ) : (
                           <div className="space-y-3">
                             <div className="flex flex-wrap gap-2">
-                              {visibleCards.map((card) => (
+                              {guessingCards.map((card) => (
                                 <button
                                   key={card}
                                   onClick={() => setPendingGuess(card)}
