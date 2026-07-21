@@ -156,7 +156,7 @@ export default function Home() {
     }
   }, []);
 
-  // Poll for room updates every 500ms when in an active game
+  // Poll for room updates every 300ms when in an active game
   useEffect(() => {
     if (!roomCode || !joined) return;
 
@@ -168,14 +168,27 @@ export default function Home() {
         if (response.ok) {
           const data = await response.json();
           const fetchedRoom = data.room as Room | null;
-          if (fetchedRoom && JSON.stringify(fetchedRoom) !== JSON.stringify(room)) {
-            setRoom(fetchedRoom);
+          if (fetchedRoom) {
+            // Deep comparison to detect changes
+            if (
+              fetchedRoom.phase !== room?.phase ||
+              fetchedRoom.round !== room?.round ||
+              fetchedRoom.currentTurnIndex !== room?.currentTurnIndex ||
+              fetchedRoom.players.length !== room?.players.length ||
+              JSON.stringify(fetchedRoom.players) !== JSON.stringify(room?.players)
+            ) {
+              console.log("Room state updated:", {
+                phase: fetchedRoom.phase,
+                round: fetchedRoom.round,
+              });
+              setRoom(fetchedRoom);
+            }
           }
         }
       } catch (error) {
         console.error("Failed to poll room state:", error);
       }
-    }, 500);
+    }, 300);
 
     return () => clearInterval(pollInterval);
   }, [roomCode, joined, room, appUrl]);
@@ -488,6 +501,14 @@ export default function Home() {
       currentTurnIndex: 0,
       turnOrder: rotatedTurnOrder,
     };
+
+    // Clear the scratchpad
+    setScratchpad({});
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(
+        `${STORAGE_PREFIX}:${room.id}:${myPlayer.id}`,
+      );
+    }
 
     submitRoomState(nextRoom);
     setStatus("New game started! Begin with the ranking phase.");
@@ -835,22 +856,31 @@ export default function Home() {
 
               <div className="rounded-3xl border border-slate-200 bg-white/80 p-4 shadow-sm backdrop-blur">
                 <h3 className="text-lg font-semibold">Private scratchpad</h3>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {[...allPossibleCards].reverse().map((card) => (
-                    <button
-                      key={card}
-                      onClick={() => toggleScratchpad(card)}
-                      className={`rounded-2xl border px-3 py-2 text-sm font-medium ${
-                        scratchpad[card] === "most-likely"
-                          ? "border-amber-400 bg-amber-100 text-amber-800"
-                          : scratchpad[card] === "impossible"
-                            ? "border-rose-300 bg-rose-50 text-rose-700"
-                            : "border-slate-300 bg-white text-slate-700"
-                      }`}
-                    >
-                      {card} · {scratchpad[card] ?? "Possible"}
-                    </button>
-                  ))}
+                <div className="mt-3 flex flex-col gap-2">
+                  {[...allPossibleCards].reverse().map((card) => {
+                    const state = scratchpad[card] ?? "possible";
+                    const displayState =
+                      state === "most-likely"
+                        ? "Most likely"
+                        : state === "impossible"
+                          ? "Impossible"
+                          : "Possible";
+                    return (
+                      <button
+                        key={card}
+                        onClick={() => toggleScratchpad(card)}
+                        className={`rounded-2xl border px-3 py-2 text-sm font-medium text-left ${
+                          state === "most-likely"
+                            ? "border-amber-400 bg-amber-100 text-amber-800"
+                            : state === "impossible"
+                              ? "border-rose-300 bg-rose-50 text-rose-700"
+                              : "border-slate-300 bg-white text-slate-700"
+                        }`}
+                      >
+                        {card} · {displayState}
+                      </button>
+                    );
+                  })}
                 </div>
                 <p className="mt-3 text-sm text-slate-500">
                   Mark cards as possible, impossible, or most likely. These
@@ -1013,10 +1043,22 @@ export default function Home() {
                   <div className="mt-4 grid gap-3">
                     {visiblePlayers.map((player) => {
                       const isCurrent = currentPlayer?.id === player.id;
+                      const hasGuessed = player.guess !== null && player.guess !== undefined;
+                      const guessCorrect = hasGuessed && player.guess === player.card;
+
+                      let borderClass = "border-slate-200 bg-white";
+                      if (guessCorrect) {
+                        borderClass = "border-emerald-400 bg-emerald-50";
+                      } else if (hasGuessed && !guessCorrect) {
+                        borderClass = "border-rose-400 bg-rose-50";
+                      } else if (isCurrent) {
+                        borderClass = "border-amber-400 bg-amber-50";
+                      }
+
                       return (
                         <div
                           key={player.id}
-                          className={`rounded-2xl border p-3 ${isCurrent ? "border-amber-400 bg-amber-50" : "border-slate-200 bg-white"}`}
+                          className={`rounded-2xl border p-3 ${borderClass}`}
                         >
                           <div className="flex items-center justify-between">
                             <div>
