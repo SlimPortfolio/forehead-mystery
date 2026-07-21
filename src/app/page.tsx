@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type CardState = "possible" | "impossible" | "most-likely";
 type GamePhase = "lobby" | "ranking" | "guessing" | "confirmation" | "finished";
@@ -142,6 +142,7 @@ export default function Home() {
     card: string;
     playerName: string;
   } | null>(null);
+  const previousPhaseRef = useRef<GamePhase | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -162,13 +163,20 @@ export default function Home() {
     }
   }, []);
 
-  // Poll for room updates every 300ms when in an active game
-  // Clear scratchpad when a new game starts
+  // Clear scratchpad whenever we detect a genuine transition into a fresh
+  // game (round 1, turn 0), rather than relying on those primitive values
+  // happening to differ from whatever they were before.
   useEffect(() => {
-    if (!room || room.round !== 1 || room.currentTurnIndex !== 0) return;
-    // Only clear if scratchpad is not already empty
-    if (Object.keys(scratchpad).length > 0) {
-      console.log("Clearing scratchpad for new game (round 1)");
+    if (!room) return;
+
+    const previousPhase = previousPhaseRef.current;
+    const isFreshGameStart =
+      room.phase === "ranking" &&
+      room.round === 1 &&
+      room.currentTurnIndex === 0 &&
+      previousPhase !== "ranking";
+
+    if (isFreshGameStart) {
       setScratchpad({});
       if (typeof window !== "undefined" && playerId) {
         window.localStorage.removeItem(
@@ -176,7 +184,9 @@ export default function Home() {
         );
       }
     }
-  }, [room?.id, room?.round]);
+
+    previousPhaseRef.current = room.phase;
+  }, [room?.id, room?.phase, room?.round, room?.currentTurnIndex, playerId]);
 
   // Poll for room updates every 300ms when in an active game
   useEffect(() => {
@@ -533,13 +543,11 @@ export default function Home() {
     };
 
     // Clear the scratchpad
-    console.log("Clearing scratchpad for new game");
     setScratchpad({});
     if (typeof window !== "undefined") {
       window.localStorage.removeItem(
         `${STORAGE_PREFIX}:${room.id}:${playerId}`,
       );
-      console.log("Scratchpad localStorage cleared");
     }
 
     submitRoomState(nextRoom);
@@ -692,15 +700,16 @@ export default function Home() {
   };
 
   const toggleScratchpad = (card: string) => {
-    setScratchpad((current) => ({
-      ...current,
-      [card]:
-        current[card] === "possible"
+    setScratchpad((current) => {
+      const currentState: CardState = current[card] ?? "possible";
+      const nextState: CardState =
+        currentState === "possible"
           ? "impossible"
-          : current[card] === "impossible"
+          : currentState === "impossible"
             ? "most-likely"
-            : "possible",
-    }));
+            : "possible";
+      return { ...current, [card]: nextState };
+    });
   };
 
   const visiblePlayers =
@@ -916,7 +925,7 @@ export default function Home() {
                     return (
                       <button
                         key={card}
-                        onClick={() => !isDisabled && toggleScratchpad(card)}
+                        onClick={() => toggleScratchpad(card)}
                         disabled={isDisabled}
                         className={className}
                       >
