@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 
 type CardState = "possible" | "impossible" | "most-likely";
 type GamePhase = "lobby" | "ranking" | "guessing" | "confirmation" | "finished";
@@ -143,9 +144,19 @@ export default function Home() {
     card: string;
     playerName: string;
   } | null>(null);
+  const [winnerForm, setWinnerForm] = useState({
+    teamName: "",
+    date: "",
+    time: "",
+    location: "",
+  });
+  const [winnerSaveStatus, setWinnerSaveStatus] = useState<
+    "idle" | "saving" | "saved" | "error"
+  >("idle");
   const previousPhaseRef = useRef<GamePhase | null>(null);
   const roomRef = useRef<Room | null>(null);
   const suppressPollUntilRef = useRef<number>(0);
+  const winnerFormInitializedRef = useRef(false);
 
   useEffect(() => {
     roomRef.current = room;
@@ -190,10 +201,27 @@ export default function Home() {
           `${STORAGE_PREFIX}:${room.id}:${playerId}`,
         );
       }
+      winnerFormInitializedRef.current = false;
+      setWinnerSaveStatus("idle");
+      setWinnerForm({ teamName: "", date: "", time: "", location: "" });
     }
 
     previousPhaseRef.current = room.phase;
   }, [room?.id, room?.phase, room?.round, room?.currentTurnIndex, playerId]);
+
+  // Default the winner-form date/time to "now" the moment a game finishes.
+  useEffect(() => {
+    if (!room || room.phase !== "finished" || winnerFormInitializedRef.current)
+      return;
+
+    const now = new Date();
+    setWinnerForm((current) => ({
+      ...current,
+      date: now.toISOString().slice(0, 10),
+      time: now.toTimeString().slice(0, 5),
+    }));
+    winnerFormInitializedRef.current = true;
+  }, [room?.phase]);
 
   // Poll for room updates. Paused while the tab is hidden/backgrounded to
   // avoid burning API requests when nobody is looking at the page.
@@ -448,6 +476,50 @@ export default function Home() {
     () => room?.players.find((player) => player.id === playerId) ?? null,
     [room, playerId],
   );
+
+  const allCorrectlyIdentified = Boolean(
+    room &&
+      room.phase === "finished" &&
+      room.players.length > 0 &&
+      room.players.every((player) => player.isCorrectlyIdentified),
+  );
+
+  const submitWinner = async () => {
+    if (!room) return;
+    if (
+      !winnerForm.teamName.trim() ||
+      !winnerForm.date ||
+      !winnerForm.time ||
+      !winnerForm.location.trim()
+    ) {
+      setStatus("Please fill in team name, date, time, and location.");
+      return;
+    }
+
+    setWinnerSaveStatus("saving");
+    try {
+      const response = await fetch(`${appUrl}/api/winners`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          teamName: winnerForm.teamName.trim(),
+          date: winnerForm.date,
+          time: winnerForm.time,
+          location: winnerForm.location.trim(),
+          players: room.players.map((player) => ({
+            name: player.name,
+            card: player.card ?? "",
+          })),
+        }),
+      });
+
+      if (!response.ok) throw new Error("Failed to save winner");
+      setWinnerSaveStatus("saved");
+    } catch (error) {
+      console.error("Failed to save winner", error);
+      setWinnerSaveStatus("error");
+    }
+  };
 
   const submitRoomState = (nextRoom: Room) => {
     setRoom(nextRoom);
@@ -1015,6 +1087,123 @@ export default function Home() {
                   <p className="mt-3 text-sm text-slate-500">
                     Total rounds played: {room.round}
                   </p>
+
+                  {allCorrectlyIdentified && (
+                    <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                      <h4 className="font-semibold text-amber-900">
+                        🏆 Perfect game! Everyone identified their card.
+                      </h4>
+                      {room.hostId !== playerId ? (
+                        <p className="mt-2 text-sm text-amber-800">
+                          Ask your host to save this victory to the{" "}
+                          <Link href="/winners" className="underline">
+                            winners page
+                          </Link>
+                          .
+                        </p>
+                      ) : winnerSaveStatus === "saved" ? (
+                        <p className="mt-2 text-sm text-emerald-700">
+                          Saved! View it on the{" "}
+                          <Link href="/winners" className="underline">
+                            winners page
+                          </Link>
+                          .
+                        </p>
+                      ) : (
+                        <div className="mt-3 space-y-3">
+                          <label className="block text-sm font-medium text-slate-700">
+                            Team name
+                            <input
+                              value={winnerForm.teamName}
+                              onChange={(event) =>
+                                setWinnerForm((current) => ({
+                                  ...current,
+                                  teamName: event.target.value,
+                                }))
+                              }
+                              className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                              placeholder="e.g. The Card Sharks"
+                            />
+                          </label>
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <label className="block text-sm font-medium text-slate-700">
+                              Date
+                              <input
+                                type="date"
+                                value={winnerForm.date}
+                                onChange={(event) =>
+                                  setWinnerForm((current) => ({
+                                    ...current,
+                                    date: event.target.value,
+                                  }))
+                                }
+                                className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                              />
+                            </label>
+                            <label className="block text-sm font-medium text-slate-700">
+                              Time
+                              <input
+                                type="time"
+                                value={winnerForm.time}
+                                onChange={(event) =>
+                                  setWinnerForm((current) => ({
+                                    ...current,
+                                    time: event.target.value,
+                                  }))
+                                }
+                                className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                              />
+                            </label>
+                          </div>
+                          <label className="block text-sm font-medium text-slate-700">
+                            Location
+                            <input
+                              value={winnerForm.location}
+                              onChange={(event) =>
+                                setWinnerForm((current) => ({
+                                  ...current,
+                                  location: event.target.value,
+                                }))
+                              }
+                              className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                              placeholder="e.g. Sarah's living room"
+                            />
+                          </label>
+                          <div>
+                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                              Cards
+                            </p>
+                            <div className="mt-1 flex flex-wrap gap-1.5">
+                              {room.players.map((player) => (
+                                <span
+                                  key={player.id}
+                                  className="rounded-full border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-700"
+                                >
+                                  {player.name}: {player.card}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                          <button
+                            onClick={submitWinner}
+                            disabled={winnerSaveStatus === "saving"}
+                            className="rounded-2xl bg-amber-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-wait disabled:opacity-60"
+                          >
+                            {winnerSaveStatus === "saving"
+                              ? "Saving..."
+                              : "Save victory"}
+                          </button>
+                          {winnerSaveStatus === "error" && (
+                            <p className="text-sm text-rose-600">
+                              Something went wrong saving this. Please try
+                              again.
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {room.hostId === playerId && (
                     <button
                       onClick={startNextGame}
