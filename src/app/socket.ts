@@ -12,6 +12,8 @@ export default function initSocket(server: any) {
   });
 
   io.on("connection", (socket) => {
+    console.log("New socket connection:", socket.id);
+
     socket.on(
       "join-room",
       (roomCode: string, playerName: string, playerId: string) => {
@@ -19,20 +21,27 @@ export default function initSocket(server: any) {
         socket.data.roomCode = roomCode;
         socket.data.playerName = playerName;
         socket.data.playerId = playerId;
-        socket
-          .to(roomCode)
-          .emit("player-joined", { roomCode, playerName, playerId });
+        console.log(`${playerName} joined room ${roomCode}`);
+        io.to(roomCode).emit("player-joined", {
+          roomCode,
+          playerName,
+          playerId,
+        });
       },
     );
 
     socket.on("room-update", (room) => {
       if (!socket.data.roomCode) return;
-      socket.to(socket.data.roomCode).emit("room-state", room);
+      console.log(`Room update in ${socket.data.roomCode}:`, room.phase);
+      io.to(socket.data.roomCode).emit("room-state", room);
     });
 
     socket.on("disconnect", () => {
       if (!socket.data.roomCode) return;
-      socket.to(socket.data.roomCode).emit("player-left", {
+      console.log(
+        `${socket.data.playerName} disconnected from ${socket.data.roomCode}`,
+      );
+      io.to(socket.data.roomCode).emit("player-left", {
         roomCode: socket.data.roomCode,
         playerId: socket.data.playerId,
       });
