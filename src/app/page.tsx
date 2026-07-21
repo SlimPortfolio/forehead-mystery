@@ -1072,13 +1072,13 @@ export default function Home() {
                     {visiblePlayers.map((player) => {
                       const isCurrent = currentPlayer?.id === player.id;
                       const actualPlayer = room?.players.find((p) => p.id === player.id);
-                      const hasGuessed = player.guess !== null && player.guess !== undefined;
-                      const guessCorrect = hasGuessed && player.guess === actualPlayer?.card;
+                      const hasGuessedCorrectly = actualPlayer?.isCorrectlyIdentified || false;
+                      const hasGuessedWrong = (actualPlayer?.eliminatedGuesses.length ?? 0) > 0;
 
                       let borderClass = "border-slate-200 bg-white";
-                      if (guessCorrect) {
+                      if (hasGuessedCorrectly) {
                         borderClass = "border-emerald-400 bg-emerald-50";
-                      } else if (hasGuessed && !guessCorrect) {
+                      } else if (hasGuessedWrong) {
                         borderClass = "border-rose-400 bg-rose-50";
                       } else if (isCurrent) {
                         borderClass = "border-amber-400 bg-amber-50";
