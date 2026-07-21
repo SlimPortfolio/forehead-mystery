@@ -145,6 +145,7 @@ export default function Home() {
   } | null>(null);
   const previousPhaseRef = useRef<GamePhase | null>(null);
   const roomRef = useRef<Room | null>(null);
+  const suppressPollUntilRef = useRef<number>(0);
 
   useEffect(() => {
     roomRef.current = room;
@@ -205,6 +206,12 @@ export default function Home() {
           `${appUrl}/api/rooms?roomCode=${roomCode}`,
         );
         if (response.ok) {
+          if (Date.now() < suppressPollUntilRef.current) {
+            // We just submitted our own optimistic update; skip this poll
+            // so a response fetched before our PATCH landed can't revert it.
+            return;
+          }
+
           const data = await response.json();
           const fetchedRoom = data.room as Room | null;
           const currentRoom = roomRef.current;
@@ -215,6 +222,7 @@ export default function Home() {
               fetchedRoom.round !== currentRoom.round ||
               fetchedRoom.currentTurnIndex !== currentRoom.currentTurnIndex ||
               fetchedRoom.players.length !== currentRoom.players.length ||
+              fetchedRoom.turnOrder.join(",") !== currentRoom.turnOrder.join(",") ||
               JSON.stringify(fetchedRoom.players) !== JSON.stringify(currentRoom.players)
             ) {
               setRoom(fetchedRoom);
@@ -443,6 +451,10 @@ export default function Home() {
 
   const submitRoomState = (nextRoom: Room) => {
     setRoom(nextRoom);
+    // Ignore poll responses for a moment after our own optimistic update,
+    // so a slightly-lagging GET (fetched before our PATCH lands on the
+    // server) can't clobber the state we just set locally.
+    suppressPollUntilRef.current = Date.now() + 1500;
 
     fetch(`${appUrl}/api/rooms/${nextRoom.id}`, {
       method: "PATCH",
@@ -549,12 +561,9 @@ export default function Home() {
   const startNextGame = () => {
     if (!room || !myPlayer) return;
 
-    // Rotate the turn order so the next player goes first
-    const nextFirstPlayerIndex = (room.turnOrder.indexOf(room.turnOrder[0]) + 1) % room.turnOrder.length;
-    const rotatedTurnOrder = [
-      ...room.turnOrder.slice(nextFirstPlayerIndex),
-      ...room.turnOrder.slice(0, nextFirstPlayerIndex),
-    ];
+    // Rotate the turn order so whoever went second last game goes first now
+    const [previousFirstPlayer, ...restOfOrder] = room.turnOrder;
+    const rotatedTurnOrder = [...restOfOrder, previousFirstPlayer];
 
     // Deal new cards
     const shuffledCards = shuffle(CARD_POOL).slice(0, room.players.length);
