@@ -157,6 +157,22 @@ export default function Home() {
   }, []);
 
   // Poll for room updates every 300ms when in an active game
+  // Clear scratchpad when a new game starts
+  useEffect(() => {
+    if (!room || room.round !== 1 || room.currentTurnIndex !== 0) return;
+    // Only clear if scratchpad is not already empty
+    if (Object.keys(scratchpad).length > 0) {
+      console.log("Clearing scratchpad for new game (round 1)");
+      setScratchpad({});
+      if (typeof window !== "undefined" && playerId) {
+        window.localStorage.removeItem(
+          `${STORAGE_PREFIX}:${room.id}:${playerId}`,
+        );
+      }
+    }
+  }, [room?.id, room?.round]);
+
+  // Poll for room updates every 300ms when in an active game
   useEffect(() => {
     if (!roomCode || !joined) return;
 
@@ -503,11 +519,13 @@ export default function Home() {
     };
 
     // Clear the scratchpad
+    console.log("Clearing scratchpad for new game");
     setScratchpad({});
     if (typeof window !== "undefined") {
       window.localStorage.removeItem(
-        `${STORAGE_PREFIX}:${room.id}:${myPlayer.id}`,
+        `${STORAGE_PREFIX}:${room.id}:${playerId}`,
       );
+      console.log("Scratchpad localStorage cleared");
     }
 
     submitRoomState(nextRoom);
