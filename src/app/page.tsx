@@ -30,6 +30,12 @@ type Room = {
 const CARD_POOL = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
 const STORAGE_PREFIX = "forehead-mystery-room";
 const PLAYER_ID_KEY = "forehead-mystery-player-id";
+const isLocal = typeof window !== "undefined" && (
+  window.location.hostname === "localhost" ||
+  window.location.hostname === "127.0.0.1" ||
+  window.location.hostname.startsWith("192.168.")
+);
+
 const appUrl = (
   (process.env.NEXT_PUBLIC_APP_URL ||
     (typeof window !== "undefined"
@@ -476,13 +482,21 @@ export default function Home() {
         roomCode: normalizedCode,
         createNew,
         playerId,
+        appUrl,
+        isLocal,
         error,
       });
-      setStatus(
-        error instanceof Error
-          ? `Room failed: ${error.message}`
-          : "Unable to reach the room service.",
-      );
+
+      let errorMessage = "Unable to reach the room service.";
+      if (error instanceof Error) {
+        errorMessage = `Room failed: ${error.message}`;
+      }
+
+      if (isLocal) {
+        errorMessage += " (Local: Make sure your dev server is running on port 3000)";
+      }
+
+      setStatus(errorMessage);
     } finally {
       setIsJoining(false);
     }
