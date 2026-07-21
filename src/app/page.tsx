@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { io, Socket } from "socket.io-client";
 
 type CardState = "possible" | "impossible" | "most-likely";
 type GamePhase = "lobby" | "ranking" | "guessing" | "confirmation" | "finished";
@@ -36,9 +35,6 @@ const appUrl = (
     (typeof window !== "undefined"
       ? window.location.origin
       : "http://localhost:3000")) as string
-).replace(/\/$/, "");
-const socketUrl = (
-  (process.env.NEXT_PUBLIC_SOCKET_URL || appUrl) as string
 ).replace(/\/$/, "");
 
 function createId(prefix: string) {
@@ -135,7 +131,6 @@ export default function Home() {
   const [pendingGuess, setPendingGuess] = useState<string | null>(null);
   const [isJoining, setIsJoining] = useState(false);
   const [scratchpad, setScratchpad] = useState<Record<string, CardState>>({});
-  const [socket, setSocket] = useState<Socket | null>(null);
   const [lastGuessResult, setLastGuessResult] = useState<{
     wasCorrect: boolean;
     card: string;
@@ -161,38 +156,29 @@ export default function Home() {
     }
   }, []);
 
+  // Poll for room updates every 500ms when in an active game
   useEffect(() => {
-    if (!playerId) return;
+    if (!roomCode || !joined) return;
 
-    const client = io(socketUrl, {
-      transports: ["websocket"],
-      reconnection: true,
-    });
-
-    client.on("connect", () => {
-      if (roomCode) {
-        client.emit("join-room", roomCode, playerName || "Guest", playerId);
+    const pollInterval = setInterval(async () => {
+      try {
+        const response = await fetch(
+          `${appUrl}/api/rooms?roomCode=${roomCode}`,
+        );
+        if (response.ok) {
+          const data = await response.json();
+          const fetchedRoom = data.room as Room | null;
+          if (fetchedRoom && JSON.stringify(fetchedRoom) !== JSON.stringify(room)) {
+            setRoom(fetchedRoom);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to poll room state:", error);
       }
-    });
+    }, 500);
 
-    client.on("room-state", (nextRoom: Room) => {
-      setRoom(nextRoom);
-      setJoined(true);
-      setStatus(`Updated room ${nextRoom.id}`);
-    });
-
-    client.on("player-joined", ({ roomCode: joinedRoomCode }) => {
-      if (joinedRoomCode === roomCode) {
-        setStatus(`A player joined room ${joinedRoomCode}`);
-      }
-    });
-
-    setSocket(client);
-
-    return () => {
-      client.disconnect();
-    };
-  }, [playerId, roomCode, playerName]);
+    return () => clearInterval(pollInterval);
+  }, [roomCode, joined, room, appUrl]);
 
   useEffect(() => {
     if (!room || typeof window === "undefined") return;
@@ -378,9 +364,6 @@ export default function Home() {
 
   const submitRoomState = (nextRoom: Room) => {
     setRoom(nextRoom);
-    if (socket) {
-      socket.emit("room-update", nextRoom);
-    }
 
     fetch(`${appUrl}/api/rooms/${nextRoom.id}`, {
       method: "PATCH",
@@ -853,7 +836,7 @@ export default function Home() {
               <div className="rounded-3xl border border-slate-200 bg-white/80 p-4 shadow-sm backdrop-blur">
                 <h3 className="text-lg font-semibold">Private scratchpad</h3>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {allPossibleCards.map((card) => (
+                  {[...allPossibleCards].reverse().map((card) => (
                     <button
                       key={card}
                       onClick={() => toggleScratchpad(card)}
