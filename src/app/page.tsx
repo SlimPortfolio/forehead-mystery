@@ -233,7 +233,7 @@ export default function Home() {
         );
       }
     }
-  }, [room.id, playerId]);
+  }, [room?.id, playerId]);
 
   useEffect(() => {
     if (!room || !playerId || typeof window === "undefined") return;
