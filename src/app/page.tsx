@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type CardState = "possible" | "impossible" | "most-likely";
 type GamePhase = "lobby" | "ranking" | "guessing" | "confirmation" | "finished";
@@ -28,8 +28,15 @@ type Room = {
 };
 
 const CARD_POOL = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
+const POLL_INTERVAL_MS = 2000;
 const STORAGE_PREFIX = "forehead-mystery-room";
 const PLAYER_ID_KEY = "forehead-mystery-player-id";
+const isLocal = typeof window !== "undefined" && (
+  window.location.hostname === "localhost" ||
+  window.location.hostname === "127.0.0.1" ||
+  window.location.hostname.startsWith("192.168.")
+);
+
 const appUrl = (
   (process.env.NEXT_PUBLIC_APP_URL ||
     (typeof window !== "undefined"
@@ -136,6 +143,12 @@ export default function Home() {
     card: string;
     playerName: string;
   } | null>(null);
+  const previousPhaseRef = useRef<GamePhase | null>(null);
+  const roomRef = useRef<Room | null>(null);
+
+  useEffect(() => {
+    roomRef.current = room;
+  }, [room]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -156,13 +169,20 @@ export default function Home() {
     }
   }, []);
 
-  // Poll for room updates every 300ms when in an active game
-  // Clear scratchpad when a new game starts
+  // Clear scratchpad whenever we detect a genuine transition into a fresh
+  // game (round 1, turn 0), rather than relying on those primitive values
+  // happening to differ from whatever they were before.
   useEffect(() => {
-    if (!room || room.round !== 1 || room.currentTurnIndex !== 0) return;
-    // Only clear if scratchpad is not already empty
-    if (Object.keys(scratchpad).length > 0) {
-      console.log("Clearing scratchpad for new game (round 1)");
+    if (!room) return;
+
+    const previousPhase = previousPhaseRef.current;
+    const isFreshGameStart =
+      room.phase === "ranking" &&
+      room.round === 1 &&
+      room.currentTurnIndex === 0 &&
+      previousPhase !== "ranking";
+
+    if (isFreshGameStart) {
       setScratchpad({});
       if (typeof window !== "undefined" && playerId) {
         window.localStorage.removeItem(
@@ -170,13 +190,16 @@ export default function Home() {
         );
       }
     }
-  }, [room?.id, room?.round]);
 
-  // Poll for room updates every 300ms when in an active game
+    previousPhaseRef.current = room.phase;
+  }, [room?.id, room?.phase, room?.round, room?.currentTurnIndex, playerId]);
+
+  // Poll for room updates. Paused while the tab is hidden/backgrounded to
+  // avoid burning API requests when nobody is looking at the page.
   useEffect(() => {
     if (!roomCode || !joined) return;
 
-    const pollInterval = setInterval(async () => {
+    const pollRoom = async () => {
       try {
         const response = await fetch(
           `${appUrl}/api/rooms?roomCode=${roomCode}`,
@@ -184,19 +207,16 @@ export default function Home() {
         if (response.ok) {
           const data = await response.json();
           const fetchedRoom = data.room as Room | null;
-          if (fetchedRoom) {
+          const currentRoom = roomRef.current;
+          if (fetchedRoom && currentRoom) {
             // Deep comparison to detect changes
             if (
-              fetchedRoom.phase !== room?.phase ||
-              fetchedRoom.round !== room?.round ||
-              fetchedRoom.currentTurnIndex !== room?.currentTurnIndex ||
-              fetchedRoom.players.length !== room?.players.length ||
-              JSON.stringify(fetchedRoom.players) !== JSON.stringify(room?.players)
+              fetchedRoom.phase !== currentRoom.phase ||
+              fetchedRoom.round !== currentRoom.round ||
+              fetchedRoom.currentTurnIndex !== currentRoom.currentTurnIndex ||
+              fetchedRoom.players.length !== currentRoom.players.length ||
+              JSON.stringify(fetchedRoom.players) !== JSON.stringify(currentRoom.players)
             ) {
-              console.log("Room state updated:", {
-                phase: fetchedRoom.phase,
-                round: fetchedRoom.round,
-              });
               setRoom(fetchedRoom);
             }
           }
@@ -204,10 +224,40 @@ export default function Home() {
       } catch (error) {
         console.error("Failed to poll room state:", error);
       }
-    }, 300);
+    };
 
-    return () => clearInterval(pollInterval);
-  }, [roomCode, joined, room, appUrl]);
+    let pollInterval: ReturnType<typeof setInterval> | null = null;
+
+    const startPolling = () => {
+      if (pollInterval) return;
+      pollRoom();
+      pollInterval = setInterval(pollRoom, POLL_INTERVAL_MS);
+    };
+
+    const stopPolling = () => {
+      if (!pollInterval) return;
+      clearInterval(pollInterval);
+      pollInterval = null;
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        startPolling();
+      } else {
+        stopPolling();
+      }
+    };
+
+    if (document.visibilityState === "visible") {
+      startPolling();
+    }
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      stopPolling();
+    };
+  }, [roomCode, joined, appUrl]);
 
   useEffect(() => {
     if (!room || typeof window === "undefined") return;
@@ -233,7 +283,7 @@ export default function Home() {
         );
       }
     }
-  }, [room.id, playerId]);
+  }, [room?.id, playerId]);
 
   useEffect(() => {
     if (!room || !playerId || typeof window === "undefined") return;
@@ -476,13 +526,21 @@ export default function Home() {
         roomCode: normalizedCode,
         createNew,
         playerId,
+        appUrl,
+        isLocal,
         error,
       });
-      setStatus(
-        error instanceof Error
-          ? `Room failed: ${error.message}`
-          : "Unable to reach the room service.",
-      );
+
+      let errorMessage = "Unable to reach the room service.";
+      if (error instanceof Error) {
+        errorMessage = `Room failed: ${error.message}`;
+      }
+
+      if (isLocal) {
+        errorMessage += " (Local: Make sure your dev server is running on port 3000)";
+      }
+
+      setStatus(errorMessage);
     } finally {
       setIsJoining(false);
     }
@@ -519,13 +577,11 @@ export default function Home() {
     };
 
     // Clear the scratchpad
-    console.log("Clearing scratchpad for new game");
     setScratchpad({});
     if (typeof window !== "undefined") {
       window.localStorage.removeItem(
         `${STORAGE_PREFIX}:${room.id}:${playerId}`,
       );
-      console.log("Scratchpad localStorage cleared");
     }
 
     submitRoomState(nextRoom);
@@ -678,15 +734,16 @@ export default function Home() {
   };
 
   const toggleScratchpad = (card: string) => {
-    setScratchpad((current) => ({
-      ...current,
-      [card]:
-        current[card] === "possible"
+    setScratchpad((current) => {
+      const currentState: CardState = current[card] ?? "possible";
+      const nextState: CardState =
+        currentState === "possible"
           ? "impossible"
-          : current[card] === "impossible"
+          : currentState === "impossible"
             ? "most-likely"
-            : "possible",
-    }));
+            : "possible";
+      return { ...current, [card]: nextState };
+    });
   };
 
   const visiblePlayers =
@@ -902,7 +959,7 @@ export default function Home() {
                     return (
                       <button
                         key={card}
-                        onClick={() => !isDisabled && toggleScratchpad(card)}
+                        onClick={() => toggleScratchpad(card)}
                         disabled={isDisabled}
                         className={className}
                       >
@@ -1072,13 +1129,13 @@ export default function Home() {
                     {visiblePlayers.map((player) => {
                       const isCurrent = currentPlayer?.id === player.id;
                       const actualPlayer = room?.players.find((p) => p.id === player.id);
-                      const hasGuessed = player.guess !== null && player.guess !== undefined;
-                      const guessCorrect = hasGuessed && player.guess === actualPlayer?.card;
+                      const hasGuessedCorrectly = actualPlayer?.isCorrectlyIdentified || false;
+                      const hasGuessedWrong = (actualPlayer?.eliminatedGuesses.length ?? 0) > 0;
 
                       let borderClass = "border-slate-200 bg-white";
-                      if (guessCorrect) {
+                      if (hasGuessedCorrectly) {
                         borderClass = "border-emerald-400 bg-emerald-50";
-                      } else if (hasGuessed && !guessCorrect) {
+                      } else if (hasGuessedWrong) {
                         borderClass = "border-rose-400 bg-rose-50";
                       } else if (isCurrent) {
                         borderClass = "border-amber-400 bg-amber-50";
