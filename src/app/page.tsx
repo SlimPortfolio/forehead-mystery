@@ -217,7 +217,7 @@ export default function Home() {
         );
       }
     }
-  }, [room, playerId]);
+  }, [room.id, playerId]);
 
   useEffect(() => {
     if (!room || !playerId || typeof window === "undefined") return;
@@ -858,24 +858,35 @@ export default function Home() {
                 <h3 className="text-lg font-semibold">Private scratchpad</h3>
                 <div className="mt-3 flex flex-col gap-2">
                   {[...allPossibleCards].reverse().map((card) => {
-                    const state = scratchpad[card] ?? "possible";
+                    const otherPlayerCard = myPlayer && room?.players
+                      .filter((p) => p.id !== myPlayer.id)
+                      .some((p) => p.card === card);
+                    const isDisabled = !!otherPlayerCard;
+                    const state = isDisabled ? "impossible" : (scratchpad[card] ?? "possible");
                     const displayState =
                       state === "most-likely"
                         ? "Most likely"
                         : state === "impossible"
                           ? "Impossible"
                           : "Possible";
+
+                    let className = `rounded-2xl border px-3 py-2 text-sm font-medium text-left`;
+                    if (isDisabled) {
+                      className += ` border-slate-300 bg-slate-100 text-slate-500 cursor-not-allowed opacity-60`;
+                    } else if (state === "most-likely") {
+                      className += ` border-amber-400 bg-amber-100 text-amber-800 cursor-pointer`;
+                    } else if (state === "impossible") {
+                      className += ` border-rose-300 bg-rose-50 text-rose-700 cursor-pointer`;
+                    } else {
+                      className += ` border-slate-300 bg-white text-slate-700 cursor-pointer`;
+                    }
+
                     return (
                       <button
                         key={card}
-                        onClick={() => toggleScratchpad(card)}
-                        className={`rounded-2xl border px-3 py-2 text-sm font-medium text-left ${
-                          state === "most-likely"
-                            ? "border-amber-400 bg-amber-100 text-amber-800"
-                            : state === "impossible"
-                              ? "border-rose-300 bg-rose-50 text-rose-700"
-                              : "border-slate-300 bg-white text-slate-700"
-                        }`}
+                        onClick={() => !isDisabled && toggleScratchpad(card)}
+                        disabled={isDisabled}
+                        className={className}
                       >
                         {card} · {displayState}
                       </button>
@@ -883,8 +894,7 @@ export default function Home() {
                   })}
                 </div>
                 <p className="mt-3 text-sm text-slate-500">
-                  Mark cards as possible, impossible, or most likely. These
-                  notes stay on your device.
+                  Mark cards as possible, impossible, or most likely. Cards held by other players are automatically marked impossible.
                 </p>
               </div>
             </section>
@@ -1043,8 +1053,9 @@ export default function Home() {
                   <div className="mt-4 grid gap-3">
                     {visiblePlayers.map((player) => {
                       const isCurrent = currentPlayer?.id === player.id;
+                      const actualPlayer = room?.players.find((p) => p.id === player.id);
                       const hasGuessed = player.guess !== null && player.guess !== undefined;
-                      const guessCorrect = hasGuessed && player.guess === player.card;
+                      const guessCorrect = hasGuessed && player.guess === actualPlayer?.card;
 
                       let borderClass = "border-slate-200 bg-white";
                       if (guessCorrect) {
