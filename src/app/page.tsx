@@ -1123,19 +1123,19 @@ export default function Home() {
                 </div>
               )}
             </section>
-          </div>
 
-          {/* Start new game button for host */}
-          {room && room.hostId === playerId && room.phase !== "lobby" && (
-            <div className="mt-4 flex justify-center">
-              <button
-                onClick={startNextGame}
-                className="rounded-2xl bg-amber-500 px-6 py-2 font-semibold text-white"
-              >
-                Start new game
-              </button>
-            </div>
-          )}
+            {/* Start new game button for host */}
+            {room?.hostId === playerId && room.phase !== "lobby" && (
+              <div className="mt-4 flex justify-center">
+                <button
+                  onClick={startNextGame}
+                  className="rounded-2xl bg-amber-500 px-6 py-2 font-semibold text-white"
+                >
+                  Start new game
+                </button>
+              </div>
+            )}
+          </div>
         ) : null}
       </div>
     </main>
