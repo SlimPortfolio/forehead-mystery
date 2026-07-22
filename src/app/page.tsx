@@ -1,35 +1,31 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
+import {
+  ActiveModal,
+  CARD_POOL,
+  CardState,
+  GamePhase,
+  Player,
+  Room,
+  suitForGame,
+} from "@/components/game/types";
+import JoinScreen from "@/components/game/JoinScreen";
+import LobbyScreen from "@/components/game/LobbyScreen";
+import FinishedScreen from "@/components/game/FinishedScreen";
+import GameHeader from "@/components/game/GameHeader";
+import PlayerList from "@/components/game/PlayerList";
+import ActionBar from "@/components/game/ActionBar";
+import RankSelectModal from "@/components/game/RankSelectModal";
+import GuessCardModal from "@/components/game/GuessCardModal";
+import ScratchpadModal from "@/components/game/ScratchpadModal";
+import WindowViewModal from "@/components/game/WindowViewModal";
+import MenuModal from "@/components/game/MenuModal";
+import CorrectGuessPopup from "@/components/game/CorrectGuessPopup";
+import TransitionOverlay from "@/components/game/TransitionOverlay";
 
-type CardState = "possible" | "impossible" | "most-likely";
-type GamePhase = "lobby" | "ranking" | "guessing" | "confirmation" | "finished";
-
-type Player = {
-  id: string;
-  name: string;
-  isHost: boolean;
-  isReady: boolean;
-  card?: string;
-  ranking?: number | null;
-  guess?: string | null;
-  eliminatedGuesses: string[];
-  isCorrectlyIdentified: boolean;
-};
-
-type Room = {
-  id: string;
-  hostId: string;
-  players: Player[];
-  phase: GamePhase;
-  round: number;
-  currentTurnIndex: number;
-  turnOrder: string[];
-};
-
-const CARD_POOL = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
 const POLL_INTERVAL_MS = 2000;
+const NEW_GAME_TRANSITION_MS = 900;
 const STORAGE_PREFIX = "forehead-mystery-room";
 const PLAYER_ID_KEY = "forehead-mystery-player-id";
 const isLocal = typeof window !== "undefined" && (
@@ -80,14 +76,8 @@ function createRoom(
     round: 1,
     currentTurnIndex: 0,
     turnOrder: [hostPlayerId],
+    gameNumber: 1,
   };
-}
-
-function formatRank(rank: number) {
-  if (rank === 1) return "1st";
-  if (rank === 2) return "2nd";
-  if (rank === 3) return "3rd";
-  return `${rank}th`;
 }
 
 function getCardValue(card: string): number {
@@ -119,7 +109,6 @@ function getTestPlayerRanking(testPlayer: Player, allPlayers: Player[]): number 
     .filter((c): c is string => !!c)
     .sort((a, b) => getCardValue(a) - getCardValue(b));
 
-  // Calculate the rank based on where the test player's card falls
   const cardsAbove = otherCards.filter(
     (card) => getCardValue(card) > testPlayerCardVal,
   ).length;
@@ -153,10 +142,14 @@ export default function Home() {
   const [winnerSaveStatus, setWinnerSaveStatus] = useState<
     "idle" | "saving" | "saved" | "error"
   >("idle");
+  const [activeModal, setActiveModal] = useState<ActiveModal>(null);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [binkPlayerName, setBinkPlayerName] = useState<string | null>(null);
   const previousPhaseRef = useRef<GamePhase | null>(null);
   const roomRef = useRef<Room | null>(null);
   const suppressPollUntilRef = useRef<number>(0);
   const winnerFormInitializedRef = useRef(false);
+  const binkTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     roomRef.current = room;
@@ -222,6 +215,26 @@ export default function Home() {
     }));
     winnerFormInitializedRef.current = true;
   }, [room?.phase]);
+
+  // Show the "BINKED IT" popup for its own duration, decoupled from the
+  // confirmation phase's turn-advance timer so it doesn't get cut short.
+  // Deliberately not cleaned up via the effect's own return — that cleanup
+  // would fire (and cancel the pending clear) the moment the confirmation
+  // phase resets lastGuessResult to null ~2s later, leaving the popup stuck
+  // on screen indefinitely instead of clearing itself.
+  useEffect(() => {
+    if (!lastGuessResult?.wasCorrect) return;
+
+    setBinkPlayerName(lastGuessResult.playerName);
+    if (binkTimeoutRef.current) clearTimeout(binkTimeoutRef.current);
+    binkTimeoutRef.current = setTimeout(() => setBinkPlayerName(null), 3200);
+  }, [lastGuessResult]);
+
+  useEffect(() => {
+    return () => {
+      if (binkTimeoutRef.current) clearTimeout(binkTimeoutRef.current);
+    };
+  }, []);
 
   // Poll for room updates. Paused while the tab is hidden/backgrounded to
   // avoid burning API requests when nobody is looking at the page.
@@ -353,10 +366,15 @@ export default function Home() {
         p.id === currentPlayerId ? { ...p, ranking: testRank } : p,
       );
 
+      const nextTurnIndex = room.currentTurnIndex + 1;
+      const allRanked = nextTurnIndex >= room.turnOrder.length;
+
       const nextRoom: Room = {
         ...room,
         players: nextPlayers,
-        phase: "guessing",
+        phase: allRanked ? "guessing" : "ranking",
+        currentTurnIndex: allRanked ? 0 : nextTurnIndex,
+        round: allRanked ? 2 : room.round,
       };
 
       submitRoomState(nextRoom);
@@ -423,29 +441,15 @@ export default function Home() {
     if (!currentPlayerInTurn) return;
 
     const timer = setTimeout(() => {
-      let nextTurnIndex = room.currentTurnIndex + 1;
+      const nextTurnIndex = room.currentTurnIndex + 1;
 
-      let nextRoom: Room = {
+      const nextRoom: Room = {
         ...room,
       };
 
       if (nextTurnIndex >= room.turnOrder.length) {
-        // All players have guessed
-        if (room.round >= 2) {
-          // 2 rounds complete - game ends
-          nextRoom.phase = "finished";
-        } else {
-          // Start next round
-          nextRoom.phase = "ranking";
-          nextRoom.round += 1;
-          nextRoom.currentTurnIndex = 0;
-          nextRoom.players = room.players.map((player) => ({
-            ...player,
-            ranking: null,
-            guess: null,
-            eliminatedGuesses: [], // Reset eliminated guesses each round
-          }));
-        }
+        // Everyone has guessed - Round 2 (guessing) is complete, game ends
+        nextRoom.phase = "finished";
       } else {
         // Next player's turn
         nextRoom.phase = "guessing";
@@ -655,6 +659,7 @@ export default function Home() {
       round: 1,
       currentTurnIndex: 0,
       turnOrder: rotatedTurnOrder,
+      gameNumber: (room.gameNumber ?? 1) + 1,
     };
 
     // Clear the scratchpad
@@ -665,11 +670,13 @@ export default function Home() {
       );
     }
 
+    setIsTransitioning(true);
     submitRoomState(nextRoom);
     setStatus("New game started! Begin with the ranking phase.");
+    setTimeout(() => setIsTransitioning(false), NEW_GAME_TRANSITION_MS);
   };
 
-  const startGame = (useTestPlayers = false) => {
+  const startGame = (useTestPlayers = false, skipMinPlayers = false) => {
     if (!room || !myPlayer || !room.players.length) return;
     if (room.hostId !== playerId) {
       setStatus("Only the host can begin the game.");
@@ -693,8 +700,13 @@ export default function Home() {
       playersToUse = [...room.players, ...testPlayers];
     }
 
-    if (playersToUse.length < 4 || playersToUse.length > 8) {
-      setStatus("A game needs between 4 and 8 players to begin.");
+    const minPlayers = skipMinPlayers ? 2 : 4;
+    if (playersToUse.length < minPlayers || playersToUse.length > 8) {
+      setStatus(
+        skipMinPlayers
+          ? "A game needs at least 2 players to begin."
+          : "A game needs between 4 and 8 players to begin.",
+      );
       return;
     }
 
@@ -717,8 +729,10 @@ export default function Home() {
       turnOrder: nextPlayers.map((player) => player.id),
     };
 
+    setIsTransitioning(true);
     submitRoomState(nextRoom);
     setStatus("The game has started. Submit your ranking.");
+    setTimeout(() => setIsTransitioning(false), NEW_GAME_TRANSITION_MS);
   };
 
   const submitRanking = (rank: number) => {
@@ -759,24 +773,25 @@ export default function Home() {
       currentTurnIndex:
         nextPhase === "guessing" ? 0 : nextTurnIndex,
       phase: nextPhase,
+      round: nextPhase === "guessing" ? 2 : room.round,
     };
 
     submitRoomState(nextRoom);
     setPendingGuess(null);
+    setActiveModal(null);
     setStatus(
       nextPhase === "guessing"
         ? `All players ranked! Starting guessing phase.`
-        : `You ranked ${formatRank(rank)}. Waiting for others to rank.`,
+        : `You ranked rank ${rank}. Waiting for others to rank.`,
     );
   };
 
-  const submitGuess = (card: string) => {
-    if (!room || !myPlayer || !isMyTurn || room.phase !== "guessing") return;
-    if (!pendingGuess) {
-      setPendingGuess(card);
-      setStatus(`Confirm ${card} as your guess.`);
-      return;
-    }
+  const selectGuessCard = (card: string) => {
+    setPendingGuess(card);
+  };
+
+  const submitGuess = () => {
+    if (!room || !myPlayer || !isMyTurn || room.phase !== "guessing" || !pendingGuess) return;
 
     const wasCorrect = myPlayer.card === pendingGuess;
     const nextEliminated = wasCorrect
@@ -807,11 +822,7 @@ export default function Home() {
 
     submitRoomState(nextRoom);
     setPendingGuess(null);
-    setStatus(
-      wasCorrect
-        ? `✓ Correct! You have ${pendingGuess}.`
-        : `✗ Incorrect. ${pendingGuess} is now eliminated.`,
-    );
+    setActiveModal(null);
   };
 
   const toggleScratchpad = (card: string) => {
@@ -827,22 +838,21 @@ export default function Home() {
     });
   };
 
-  const visiblePlayers =
-    room?.players.map((player) => ({
-      ...player,
-      card: player.id === playerId ? null : (player.card ?? null),
-    })) ?? [];
+  const clearScratchpad = () => setScratchpad({});
 
-  const visibleCards = useMemo(() => {
-    if (!room) return [] as string[];
-    return Array.from(
-      new Set(
-        room.players.flatMap((player) => (player.card ? [player.card] : [])),
-      ),
-    ) as string[];
-  }, [room]);
+  const handleLeaveGame = () => {
+    if (!room) return;
+    submitRoomState({ ...room, phase: "finished" });
+    setActiveModal(null);
+    setJoined(false);
+    setStatus("You left the game.");
+  };
 
-  const allPossibleCards = CARD_POOL;
+  const handleEndGame = () => {
+    if (!room) return;
+    submitRoomState({ ...room, phase: "finished" });
+    setStatus("Game ended by host.");
+  };
 
   const guessingCards = useMemo(() => {
     if (!room || !myPlayer) return [] as string[];
@@ -856,545 +866,174 @@ export default function Home() {
     );
   }, [room, myPlayer]);
 
+  const windowViewTarget =
+    activeModal?.type === "window"
+      ? (room?.players.find((p) => p.id === activeModal.playerId) ?? null)
+      : null;
+
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top,#fef3c7,#fdf2f8_45%,#fef3c7)] px-4 py-6 text-slate-900 sm:px-6 lg:px-8">
-      <div className="mx-auto flex max-w-6xl flex-col gap-4">
-        <header className="rounded-3xl border border-slate-200 bg-white/80 p-5 shadow-sm backdrop-blur">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <main className="min-h-screen bg-[radial-gradient(circle_at_top,#fef3c7,#fdf2f8_45%,#fef3c7)] px-4 py-6 pb-28 text-slate-900 sm:px-6 lg:px-8">
+      <div className="mx-auto flex max-w-3xl flex-col gap-4">
+        <header className="rounded-3xl border border-slate-200 bg-white/80 p-4 shadow-sm backdrop-blur">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.3em] text-amber-600">
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-amber-600">
                 Forehead Mystery
               </p>
-              <h1 className="text-3xl font-semibold">
-                A social deduction game for 4–8 players
-              </h1>
-              <p className="mt-2 max-w-2xl text-sm text-slate-600">
-                Join a room, rank yourself, and use your scratchpad to narrow
-                down the card you are hiding from everyone else.
-              </p>
+              <h1 className="text-lg font-semibold">Room {roomCode || "—"}</h1>
             </div>
-            <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-              <div className="font-semibold">Room {roomCode || "—"}</div>
-              <div>{status}</div>
+            <div className="flex items-center gap-3">
+              <p className="text-sm text-slate-600">{status}</p>
+              {joined && room && room.hostId === playerId && room.phase !== "lobby" && (
+                <div className="flex flex-shrink-0 items-center gap-1">
+                  <button
+                    onClick={startNextGame}
+                    aria-label="Start new game"
+                    title="Start new game"
+                    className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-slate-600 hover:bg-slate-100"
+                  >
+                    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}>
+                      <path
+                        d="M4 4v5h5M20 20v-5h-5M4.5 15a8 8 0 0 0 14.5 3M19.5 9A8 8 0 0 0 5 6"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={handleEndGame}
+                    aria-label="End game and close room"
+                    title="End game and close room"
+                    className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-rose-600 hover:bg-rose-50"
+                  >
+                    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}>
+                      <circle cx="12" cy="12" r="9" />
+                      <path d="M9 9l6 6M15 9l-6 6" strokeLinecap="round" />
+                    </svg>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </header>
 
         {!joined ? (
-          <section className="grid gap-4 rounded-3xl border border-slate-200 bg-white/80 p-5 shadow-sm backdrop-blur lg:grid-cols-[1.2fr_0.8fr]">
-            <div className="space-y-4">
-              <h2 className="text-xl font-semibold">Join or create a room</h2>
-              <label className="block text-sm font-medium text-slate-700">
-                Your name
-                <input
-                  value={playerName}
-                  onChange={(event) => setPlayerName(event.target.value)}
-                  className="mt-2 w-full rounded-2xl border border-slate-300 px-3 py-2"
-                  placeholder="Enter your display name"
-                />
-              </label>
-              <label className="block text-sm font-medium text-slate-700">
-                Room code
-                <input
-                  value={roomCode}
-                  onChange={(event) =>
-                    setRoomCode(event.target.value.toUpperCase())
-                  }
-                  className="mt-2 w-full rounded-2xl border border-slate-300 px-3 py-2"
-                  placeholder="e.g. MYST"
-                  maxLength={6}
-                />
-              </label>
-              <div className="flex flex-wrap gap-3">
-                <button
-                  onClick={() => joinOrCreateRoom(roomCode || "MYST", false)}
-                  disabled={isJoining}
-                  className="flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-2 font-medium text-white disabled:cursor-wait disabled:opacity-70"
-                >
-                  {isJoining ? (
-                    <>
-                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                      Connecting...
-                    </>
-                  ) : (
-                    "Join room"
-                  )}
-                </button>
-                <button
-                  onClick={() => {
-                    const code = (
-                      roomCode ||
-                      Math.random().toString(36).slice(2, 6).toUpperCase()
-                    )
-                      .trim()
-                      .toUpperCase();
-                    setRoomCode(code);
-                    joinOrCreateRoom(code, true);
-                  }}
-                  disabled={isJoining}
-                  className="flex items-center gap-2 rounded-2xl border border-slate-300 px-4 py-2 font-medium disabled:cursor-wait disabled:opacity-70"
-                >
-                  {isJoining ? (
-                    <>
-                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-700 border-t-transparent" />
-                      Connecting...
-                    </>
-                  ) : (
-                    "Create room"
-                  )}
-                </button>
-              </div>
-            </div>
-            <div className="rounded-3xl bg-slate-950 p-6 text-slate-100">
-              <h3 className="text-lg font-semibold">How it works</h3>
-              <ul className="mt-3 space-y-2 text-sm text-slate-300">
-                <li>
-                  • Each player sees everyone else’s cards, but their own
-                  remains hidden.
-                </li>
-                <li>
-                  • Rank yourself each round and then submit a guess during your
-                  turn.
-                </li>
-                <li>• Private scratchpad markings stay on your device only.</li>
-              </ul>
-            </div>
-          </section>
+          <JoinScreen
+            playerName={playerName}
+            onPlayerNameChange={setPlayerName}
+            roomCode={roomCode}
+            onRoomCodeChange={setRoomCode}
+            isJoining={isJoining}
+            onJoin={() => joinOrCreateRoom(roomCode || "MYST", false)}
+            onCreate={() => {
+              const code = (
+                roomCode || Math.random().toString(36).slice(2, 6).toUpperCase()
+              )
+                .trim()
+                .toUpperCase();
+              setRoomCode(code);
+              joinOrCreateRoom(code, true);
+            }}
+          />
         ) : room ? (
-          <div className="grid gap-4 lg:grid-cols-[0.95fr_1.05fr]">
-            <section className="space-y-4">
-              <div className="rounded-3xl border border-slate-200 bg-white/80 p-4 shadow-sm backdrop-blur">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-semibold uppercase tracking-[0.25em] text-slate-500">
-                      Lobby
-                    </p>
-                    <h2 className="text-xl font-semibold">{room.id}</h2>
-                  </div>
-                  {room.hostId === playerId && (
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => startGame(false)}
-                        className="rounded-2xl bg-amber-500 px-4 py-2 font-semibold text-white"
-                      >
-                        Start game
-                      </button>
-                      <button
-                        onClick={() => startGame(true)}
-                        className="rounded-2xl bg-slate-600 px-4 py-2 font-semibold text-white"
-                      >
-                        Start with test players
-                      </button>
-                    </div>
-                  )}
-                </div>
-                <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                  {room.players.map((player) => (
-                    <div
-                      key={player.id}
-                      className="rounded-2xl border border-slate-200 bg-slate-50 p-3"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-semibold">{player.name}</p>
-                          <p className="text-xs text-slate-500">
-                            {player.isHost ? "Host" : "Player"}
-                          </p>
-                        </div>
-                        <span className="rounded-full bg-emerald-100 px-2 py-1 text-xs font-medium text-emerald-700">
-                          {player.isReady ? "Ready" : "Connecting"}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+          <>
+            {room.phase === "lobby" ? (
+              <LobbyScreen
+                room={room}
+                isHost={room.hostId === playerId}
+                onStartGame={() => startGame(false)}
+                onStartWithTestPlayers={() => startGame(true)}
+                onStartAnyway={() => startGame(false, true)}
+              />
+            ) : room.phase === "finished" ? (
+              <FinishedScreen
+                room={room}
+                isHost={room.hostId === playerId}
+                allCorrectlyIdentified={allCorrectlyIdentified}
+                winnerForm={winnerForm}
+                onWinnerFormChange={setWinnerForm}
+                winnerSaveStatus={winnerSaveStatus}
+                onSubmitWinner={submitWinner}
+                onStartNextGame={startNextGame}
+              />
+            ) : (
+              <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white/80 p-4 shadow-sm backdrop-blur">
+                {isTransitioning && <TransitionOverlay label="Loading new game..." />}
+                <GameHeader
+                  round={room.round}
+                  phase={room.phase}
+                  onOpenMenu={() => setActiveModal({ type: "menu" })}
+                />
 
-              <div className="rounded-3xl border border-slate-200 bg-white/80 p-4 shadow-sm backdrop-blur">
-                <h3 className="text-lg font-semibold">Private scratchpad</h3>
-                <div className="mt-3 flex flex-col gap-2">
-                  {[...allPossibleCards].reverse().map((card) => {
-                    const otherPlayerCard = myPlayer && room?.players
-                      .filter((p) => p.id !== myPlayer.id)
-                      .some((p) => p.card === card);
-                    const isDisabled = !!otherPlayerCard;
-                    const state = isDisabled ? "impossible" : (scratchpad[card] ?? "possible");
-                    const displayState =
-                      state === "most-likely"
-                        ? "Most likely"
-                        : state === "impossible"
-                          ? isDisabled
-                            ? "That's not possible"
-                            : "Impossible"
-                          : "Possible";
-
-                    let className = `rounded-2xl border px-3 py-2 text-sm font-medium text-left`;
-                    if (isDisabled) {
-                      className += ` border-slate-300 bg-slate-100 text-slate-500 cursor-not-allowed opacity-60`;
-                    } else if (state === "most-likely") {
-                      className += ` border-amber-400 bg-amber-100 text-amber-800 cursor-pointer`;
-                    } else if (state === "impossible") {
-                      className += ` border-rose-300 bg-rose-50 text-rose-700 cursor-pointer`;
-                    } else {
-                      className += ` border-slate-300 bg-white text-slate-700 cursor-pointer`;
+                <div className="mt-4">
+                  <PlayerList
+                    room={room}
+                    playerId={playerId}
+                    onOpenWindowView={(id) =>
+                      setActiveModal({ type: "window", playerId: id })
                     }
-
-                    return (
-                      <button
-                        key={card}
-                        onClick={() => toggleScratchpad(card)}
-                        disabled={isDisabled}
-                        className={className}
-                      >
-                        {card} · {displayState}
-                      </button>
-                    );
-                  })}
+                  />
                 </div>
-                <p className="mt-3 text-sm text-slate-500">
-                  Mark cards as possible, impossible, or most likely. Cards held by other players are automatically marked impossible.
-                </p>
-              </div>
-            </section>
-
-            <section className="space-y-4">
-              {room.phase === "lobby" ? (
-                <div className="rounded-3xl border border-slate-200 bg-white/80 p-4 shadow-sm backdrop-blur">
-                  <h3 className="text-lg font-semibold">
-                    Waiting for the host
-                  </h3>
-                  <p className="mt-2 text-sm text-slate-600">
-                    The host can begin the game once there are 4–8 players in
-                    the room.
-                  </p>
-                </div>
-              ) : room.phase === "finished" ? (
-                <div className="rounded-3xl border border-slate-200 bg-white/80 p-4 shadow-sm backdrop-blur">
-                  <h3 className="text-lg font-semibold">Game complete</h3>
-                  <div className="mt-3 space-y-2">
-                    {room.players.map((player) => (
-                      <div
-                        key={player.id}
-                        className="rounded-2xl border border-slate-200 bg-slate-50 p-3"
-                      >
-                        <div className="flex items-center justify-between">
-                          <span>{player.name}</span>
-                          <span className="rounded-full bg-emerald-100 px-2 py-1 text-sm font-medium text-emerald-700">
-                            {player.card}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <p className="mt-3 text-sm text-slate-500">
-                    Total rounds played: {room.round}
-                  </p>
-
-                  {allCorrectlyIdentified && (
-                    <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-                      <h4 className="font-semibold text-amber-900">
-                        🏆 Perfect game! Everyone identified their card.
-                      </h4>
-                      {room.hostId !== playerId ? (
-                        <p className="mt-2 text-sm text-amber-800">
-                          Ask your host to save this victory to the{" "}
-                          <Link href="/winners" className="underline">
-                            winners page
-                          </Link>
-                          .
-                        </p>
-                      ) : winnerSaveStatus === "saved" ? (
-                        <p className="mt-2 text-sm text-emerald-700">
-                          Saved! View it on the{" "}
-                          <Link href="/winners" className="underline">
-                            winners page
-                          </Link>
-                          .
-                        </p>
-                      ) : (
-                        <div className="mt-3 space-y-3">
-                          <label className="block text-sm font-medium text-slate-700">
-                            Team name
-                            <input
-                              value={winnerForm.teamName}
-                              onChange={(event) =>
-                                setWinnerForm((current) => ({
-                                  ...current,
-                                  teamName: event.target.value,
-                                }))
-                              }
-                              className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-                              placeholder="e.g. The Card Sharks"
-                            />
-                          </label>
-                          <div className="grid gap-3 sm:grid-cols-2">
-                            <label className="block text-sm font-medium text-slate-700">
-                              Date
-                              <input
-                                type="date"
-                                value={winnerForm.date}
-                                onChange={(event) =>
-                                  setWinnerForm((current) => ({
-                                    ...current,
-                                    date: event.target.value,
-                                  }))
-                                }
-                                className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-                              />
-                            </label>
-                            <label className="block text-sm font-medium text-slate-700">
-                              Time
-                              <input
-                                type="time"
-                                value={winnerForm.time}
-                                onChange={(event) =>
-                                  setWinnerForm((current) => ({
-                                    ...current,
-                                    time: event.target.value,
-                                  }))
-                                }
-                                className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-                              />
-                            </label>
-                          </div>
-                          <label className="block text-sm font-medium text-slate-700">
-                            Location
-                            <input
-                              value={winnerForm.location}
-                              onChange={(event) =>
-                                setWinnerForm((current) => ({
-                                  ...current,
-                                  location: event.target.value,
-                                }))
-                              }
-                              className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-                              placeholder="e.g. Sarah's living room"
-                            />
-                          </label>
-                          <div>
-                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                              Cards
-                            </p>
-                            <div className="mt-1 flex flex-wrap gap-1.5">
-                              {room.players.map((player) => (
-                                <span
-                                  key={player.id}
-                                  className="rounded-full border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-700"
-                                >
-                                  {player.name}: {player.card}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                          <button
-                            onClick={submitWinner}
-                            disabled={winnerSaveStatus === "saving"}
-                            className="rounded-2xl bg-amber-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-wait disabled:opacity-60"
-                          >
-                            {winnerSaveStatus === "saving"
-                              ? "Saving..."
-                              : "Save victory"}
-                          </button>
-                          {winnerSaveStatus === "error" && (
-                            <p className="text-sm text-rose-600">
-                              Something went wrong saving this. Please try
-                              again.
-                            </p>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {room.hostId === playerId && (
-                    <button
-                      onClick={startNextGame}
-                      className="mt-4 rounded-2xl bg-amber-500 px-4 py-2 font-semibold text-white"
-                    >
-                      Next game
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <div className="rounded-3xl border border-slate-200 bg-white/80 p-4 shadow-sm backdrop-blur">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-semibold uppercase tracking-[0.25em] text-slate-500">
-                        Round {room.round}
-                      </p>
-                      <h3 className="text-lg font-semibold">
-                        {room.phase === "ranking"
-                          ? "Ranking phase"
-                          : "Guessing phase"}
-                      </h3>
-                    </div>
-                    <div className="rounded-2xl bg-slate-950 px-3 py-2 text-sm text-white">
-                      {currentPlayer?.name ?? "—"} to act
-                    </div>
-                  </div>
-
-                  <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                    <p className="text-sm text-slate-600">
-                      {room.phase === "ranking"
-                        ? "Select the rank you believe you hold relative to every other player."
-                        : room.phase === "guessing"
-                          ? "Choose the card you believe you hold. Confirm before locking it in."
-                          : room.phase === "confirmation"
-                            ? lastGuessResult
-                              ? lastGuessResult.wasCorrect
-                                ? `✓ ${lastGuessResult.playerName} correctly identified their card!`
-                                : `✗ ${lastGuessResult.playerName} guessed ${lastGuessResult.card}.`
-                              : "Revealing result..."
-                            : ""}
-                    </p>
-                    {room.phase === "confirmation" ? (
-                      <div className="mt-3">
-                        <div
-                          className={`rounded-2xl px-4 py-3 text-center font-semibold ${
-                            lastGuessResult?.wasCorrect
-                              ? "bg-emerald-100 text-emerald-700"
-                              : "bg-rose-100 text-rose-700"
-                          }`}
-                        >
-                          {lastGuessResult?.wasCorrect
-                            ? `✓ Correct! ${lastGuessResult.playerName} has ${lastGuessResult.card}.`
-                            : `✗ Incorrect! ${lastGuessResult?.playerName} guessed ${lastGuessResult?.card}, but their card was ${
-                                room.players.find(
-                                  (p) => p.name === lastGuessResult?.playerName,
-                                )?.card
-                              }.`}
-                        </div>
-                        <p className="mt-2 text-center text-xs text-slate-500">
-                          Next player loading...
-                        </p>
-                      </div>
-                    ) : isMyTurn ? (
-                      <div className="mt-3">
-                        {room.phase === "ranking" ? (
-                          <div className="grid gap-2 sm:grid-cols-2">
-                            {Array.from(
-                              { length: room.players.length },
-                              (_, index) => index + 1,
-                            ).map((rank) => (
-                              <button
-                                key={rank}
-                                onClick={() => submitRanking(rank)}
-                                className="rounded-2xl border border-slate-300 bg-white px-3 py-3 text-left font-medium"
-                              >
-                                <div>{formatRank(rank)}</div>
-                                <div className="text-xs text-slate-500">
-                                  {rank - 1} above ·{" "}
-                                  {room.players.length - rank} below
-                                </div>
-                              </button>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="space-y-3">
-                            <div className="flex flex-wrap gap-2">
-                              {guessingCards.map((card) => (
-                                <button
-                                  key={card}
-                                  onClick={() => setPendingGuess(card)}
-                                  className={`rounded-2xl border px-3 py-2 text-sm font-medium ${
-                                    pendingGuess === card
-                                      ? "border-amber-400 bg-amber-100 text-amber-800"
-                                      : "border-slate-300 bg-white text-slate-700"
-                                  }`}
-                                >
-                                  {card}
-                                </button>
-                              ))}
-                            </div>
-                            {pendingGuess && (
-                              <button
-                                onClick={() => submitGuess(pendingGuess)}
-                                className="rounded-2xl bg-slate-900 px-4 py-2 font-semibold text-white"
-                              >
-                                Confirm guess: {pendingGuess}
-                              </button>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <p className="mt-3 text-sm text-slate-500">
-                        Waiting for{" "}
-                        {currentPlayer?.name ?? "the current player"}.
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="mt-4 grid gap-3">
-                    {visiblePlayers.map((player) => {
-                      const isCurrent = currentPlayer?.id === player.id;
-                      const actualPlayer = room?.players.find((p) => p.id === player.id);
-                      const hasGuessedCorrectly = actualPlayer?.isCorrectlyIdentified || false;
-                      const hasGuessedWrong = (actualPlayer?.eliminatedGuesses.length ?? 0) > 0;
-
-                      let borderClass = "border-slate-200 bg-white";
-                      if (hasGuessedCorrectly) {
-                        borderClass = "border-emerald-400 bg-emerald-50";
-                      } else if (hasGuessedWrong) {
-                        borderClass = "border-rose-400 bg-rose-50";
-                      } else if (isCurrent) {
-                        borderClass = "border-amber-400 bg-amber-50";
-                      }
-
-                      return (
-                        <div
-                          key={player.id}
-                          className={`rounded-2xl border p-3 ${borderClass}`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="font-semibold">{player.name}</p>
-                              <p className="text-sm text-slate-500">
-                                {player.id === playerId
-                                  ? "Your hidden card"
-                                  : `Card: ${player.card ?? "—"}`}
-                              </p>
-                            </div>
-                            <div className="text-right text-sm text-slate-600">
-                              <div>
-                                Rank:{" "}
-                                {player.ranking
-                                  ? formatRank(player.ranking)
-                                  : "—"}
-                              </div>
-                              <div>
-                                Eliminated:{" "}
-                                {player.eliminatedGuesses.join(", ") || "none"}
-                              </div>
-                            </div>
-                          </div>
-                          {player.id === playerId ? (
-                            <div className="mt-2 text-sm text-slate-500">
-                              Your card remains hidden from everyone else.
-                            </div>
-                          ) : null}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </section>
-
-            {/* Start new game button for host */}
-            {room?.hostId === playerId && room.phase !== "lobby" && (
-              <div className="mt-4 flex justify-center">
-                <button
-                  onClick={startNextGame}
-                  className="rounded-2xl bg-amber-500 px-6 py-2 font-semibold text-white"
-                >
-                  Start new game
-                </button>
               </div>
             )}
-          </div>
+          </>
         ) : null}
       </div>
+
+      {joined && room && room.phase !== "lobby" && room.phase !== "finished" && (
+        <ActionBar
+          phase={room.phase}
+          isMyTurn={isMyTurn}
+          onSelectRank={() => setActiveModal({ type: "rank" })}
+          onOpenScratchpad={() => setActiveModal({ type: "scratchpad" })}
+          onGuessCard={() => setActiveModal({ type: "guess" })}
+        />
+      )}
+
+      {activeModal?.type === "rank" && room && (
+        <RankSelectModal
+          playerCount={room.players.length}
+          onSelect={submitRanking}
+          onClose={() => setActiveModal(null)}
+        />
+      )}
+
+      {activeModal?.type === "guess" && (
+        <GuessCardModal
+          guessingCards={guessingCards}
+          pendingGuess={pendingGuess}
+          onSelectCard={selectGuessCard}
+          onConfirm={submitGuess}
+          onClose={() => setActiveModal(null)}
+        />
+      )}
+
+      {activeModal?.type === "scratchpad" && room && playerId && (
+        <ScratchpadModal
+          scratchpad={scratchpad}
+          myPlayerId={playerId}
+          players={room.players}
+          onToggle={toggleScratchpad}
+          onClear={clearScratchpad}
+          onClose={() => setActiveModal(null)}
+        />
+      )}
+
+      {activeModal?.type === "window" && windowViewTarget && playerId && room && (
+        <WindowViewModal
+          targetPlayer={windowViewTarget}
+          viewerPlayerId={playerId}
+          players={room.players}
+          suit={suitForGame(room.gameNumber)}
+          onClose={() => setActiveModal(null)}
+        />
+      )}
+
+      {activeModal?.type === "menu" && (
+        <MenuModal onLeaveGame={handleLeaveGame} onClose={() => setActiveModal(null)} />
+      )}
+
+      {binkPlayerName && <CorrectGuessPopup playerName={binkPlayerName} />}
     </main>
   );
 }

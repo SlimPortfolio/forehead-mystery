@@ -1,6 +1,8 @@
 # Forehead Mystery Requirements Doc
 
-## Software Requirements Specification (Version 1.0)
+## Software Requirements Specification (Version 1.1)
+
+> This document describes intended product behavior. For implementation notes, architecture decisions, known gaps, and gotchas discovered along the way, see [KNOWLEDGE_BASE.md](./KNOWLEDGE_BASE.md).
 
 ---
 
@@ -22,10 +24,11 @@ The objective is for **every player to correctly identify their own card.**
 
 ## Players
 
-* Minimum players: **4**
+* Recommended players: **4–8**
 * Maximum players: **8**
-* A game cannot begin with fewer than four players.
+* By default, a game cannot begin with fewer than four players.
 * A game cannot contain more than eight players.
+* The host may bypass the minimum via a "Start anyway" option, which allows a game to begin with as few as **2** players. This exists for testing/casual play and is not the intended standard experience.
 
 ---
 
@@ -102,7 +105,9 @@ When the host starts the game:
 
 ---
 
-## 3.3 Ranking Phase
+## 3.3 Ranking Phase (Round 1)
+
+The ranking phase is labeled **Round 1**.
 
 Beginning with Player 1 and proceeding in turn order:
 
@@ -127,9 +132,9 @@ Once submitted:
 
 ---
 
-## 3.4 Guessing Phase
+## 3.4 Guessing Phase (Round 2)
 
-After all players have submitted their rankings, the guessing phase begins.
+After all players have submitted their rankings, the guessing phase begins. This phase is labeled **Round 2**.
 
 Players guess one at a time using the same turn order established during the Ranking Phase.
 
@@ -152,26 +157,28 @@ The interface should require confirmation before locking in the guess to prevent
 
 ---
 
-## 3.5 Round Completion
+## 3.5 Game End
 
-After every player has guessed:
+A game consists of exactly one Ranking Phase (Round 1) followed by one Guessing Phase (Round 2) — there is no repeated cycle. Once every player has taken their guessing turn, the game ends immediately, regardless of whether guesses were correct.
 
-* If fewer than 2 rounds have been played, a new Ranking Phase begins.
-* Previous rankings are cleared for the new round.
-* **Eliminated guesses are reset** (players start fresh with all cards available).
-* Turn order remains the same.
-
----
-
-## 3.6 Game End
-
-The game ends after exactly 2 rounds have been completed.
+Eliminated guesses persist for the duration of the (single) guessing phase and are not reset mid-game.
 
 The results screen displays:
 
 * Each player's assigned card
-* Each player's ranking from the final round
-* Total rounds played (always 2)
+* Each player's ranking
+
+If every player correctly identified their own card, a "Perfect game" banner is shown, and the host may save the win — see [Section 7](#7-win-condition).
+
+---
+
+## 3.6 Starting a New Game
+
+The host may start another game within the same room ("Next game" / "Start new game") once the current game ends.
+
+* New cards are dealt and shuffled.
+* The player who goes first rotates: whoever was second-in-turn-order in the previous game goes first in the new one (i.e., the front of the turn order cycles forward by one position each game). This continues indefinitely across successive games in the same room.
+* Each player's private scratchpad is cleared automatically at the start of a new game.
 
 ---
 
@@ -187,9 +194,11 @@ Each possible card can be marked as one of three states:
 * **Impossible**
 * **Most Likely**
 
-Players may update these markings at any time.
+Players may update these markings at any time by clicking a card to cycle through the three states.
 
-Scratchpad information remains available throughout the game.
+Any card visibly held by another player is automatically locked to a non-interactive "impossible" state, labeled **"That's not possible"** to distinguish it from a card the player has manually marked impossible themselves (which is labeled **"Impossible"**).
+
+Scratchpad information remains available throughout the game and is cleared automatically at the start of each new game (see [Section 3.6](#36-starting-a-new-game)).
 
 ---
 
@@ -235,37 +244,33 @@ The application should require confirmation before locking in a guess to prevent
 ## Online Play
 
 * Every player uses their own mobile device.
-* Gameplay is synchronized in real time.
-* All players remain connected throughout the game.
+* Gameplay is synchronized by polling the server (see [Section 9](#9-technology-stack) — not a persistent real-time connection). Under normal conditions, updates propagate to other players within a few seconds.
+* Polling automatically pauses while a player's browser tab is hidden or backgrounded, and resumes with an immediate refresh when the tab becomes visible again.
 
 ---
 
 ## Reconnection
 
-If a player refreshes their browser or application:
-
-* They should automatically reconnect to their current game whenever possible.
+* Each player's identity is stored in their browser's local storage, so refreshing the page or reopening the room link automatically reconnects them to their current game and seat.
 
 ---
 
 ## Disconnects
 
-If a player disconnects and cannot reconnect:
-
-* The current game immediately ends.
-
-Players may then create or join another game.
+There is currently no server-side detection of a player disconnecting (e.g., closing their browser or losing network access). A disconnected player's seat remains part of the game; other players are not notified, and the game does not automatically end. Handling disconnects gracefully is not yet implemented — see [Knowledge Base](./KNOWLEDGE_BASE.md).
 
 ---
 
 # 7. Win Condition
 
-The game immediately ends once every player has correctly identified their own card.
+The game does not end early based on correctness — it always plays out the full turn order for both the Ranking Phase and Guessing Phase (see [Section 3](#3-gameplay-flow)), ending once every player has taken their guessing turn.
 
-The results screen should display:
+If, at that point, every player correctly identified their own card, the results screen shows a "Perfect game" banner. The host (only) may then fill out a short form — team name, date, time, and location — to save the win. Saved wins, along with each player's name and card, are viewable in a running table at the `/winners` route.
+
+The results screen always displays:
 
 * Every player's card
-* Total rounds played
+* Every player's final ranking
 
 Additional statistics may be added in future versions.
 
@@ -284,8 +289,8 @@ Additional statistics may be added in future versions.
 
 ## Performance
 
-* Player actions should synchronize in near real time.
-* Gameplay actions should propagate to all connected players within approximately **500 milliseconds** under normal conditions.
+* The player who performed an action sees it reflected immediately on their own screen.
+* Other players receive that update via polling, currently every **2 seconds** while their tab is visible (paused entirely while backgrounded). This interval was deliberately chosen over faster polling to limit server request volume — see [Knowledge Base](./KNOWLEDGE_BASE.md).
 * The application should comfortably support eight simultaneous players.
 
 ---
@@ -311,7 +316,7 @@ Guest accounts should not require registration.
 
 ## Security
 
-* Scratchpad information must remain private.
+* Scratchpad information must remain private. (Currently enforced client-side only — scratchpad data is never sent to the server. See [Knowledge Base](./KNOWLEDGE_BASE.md) for the current server-validation gap.)
 * Players may only view information intended for them.
 * All player actions must be validated by the server.
 * Hidden game information must never be trusted from the client.
@@ -353,7 +358,8 @@ Version 1 is planned using:
 
 ### Real-Time Communication
 
-* Socket.IO (or an equivalent WebSocket solution)
+* Client-side polling of REST API routes (`GET /api/rooms`), currently every 2 seconds, paused when the browser tab is hidden.
+* A Socket.IO server implementation exists in the codebase (`src/app/socket.ts`, `src/app/server.ts`) but is not wired into the app's actual dev/build/start scripts and is not currently used. Polling was adopted instead because the app deploys to Vercel's serverless model, which does not support long-lived WebSocket connections without additional infrastructure. See [Knowledge Base](./KNOWLEDGE_BASE.md).
 
 ---
 
@@ -426,8 +432,8 @@ Version 1 should strive to:
 The following features are intentionally postponed until after Version 1:
 
 * Player profiles
-* Statistics
-* Match history
+* Statistics beyond the win log described in [Section 7](#7-win-condition)
+* Match history for non-winning games
 * Achievements
 * Friends lists
 * Spectator mode
@@ -453,5 +459,5 @@ Version 1 will be considered complete when:
 * Scratchpads remain private.
 * The game remains synchronized for all connected players.
 * Players can reconnect after refreshing their browser.
-* The game ends correctly once every player has identified their card.
+* The game ends correctly once every player has taken their guessing turn, with a "Perfect game" result recognized and saveable when every guess was correct.
 * The application performs reliably on modern mobile browsers.
