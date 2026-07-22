@@ -4,6 +4,7 @@ import PlayerRow from "./PlayerRow";
 type PlayerListProps = {
   room: Room;
   playerId: string | null;
+  activeChatBubble: { playerId: string; text: string } | null;
   onOpenWindowView: (playerId: string) => void;
 };
 
@@ -29,7 +30,12 @@ function orderByTurn(room: Room): Player[] {
   return [...ordered, ...remaining];
 }
 
-export default function PlayerList({ room, playerId, onOpenWindowView }: PlayerListProps) {
+export default function PlayerList({
+  room,
+  playerId,
+  activeChatBubble,
+  onOpenWindowView,
+}: PlayerListProps) {
   const currentPlayerId = room.turnOrder[room.currentTurnIndex];
   const orderedPlayers = orderByTurn(room);
   const suit = suitForGame(room.gameNumber);
@@ -45,6 +51,7 @@ export default function PlayerList({ room, playerId, onOpenWindowView }: PlayerL
           hasActedThisPhase={hasActedThisPhase(player, room.phase)}
           phase={room.phase}
           suit={suit}
+          chatText={activeChatBubble?.playerId === player.id ? activeChatBubble.text : undefined}
           onOpenWindowView={onOpenWindowView}
         />
       ))}

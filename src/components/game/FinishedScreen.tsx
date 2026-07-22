@@ -1,12 +1,13 @@
 import Link from "next/link";
-import { getGuessOutcome, Room, suitForGame } from "./types";
+import { getGuessOutcome, Room, suitForGame, US_STATES } from "./types";
 import PlayingCard from "./PlayingCard";
 
 type WinnerForm = {
   teamName: string;
   date: string;
   time: string;
-  location: string;
+  city: string;
+  state: string;
 };
 
 type FinishedScreenProps = {
@@ -102,41 +103,41 @@ export default function FinishedScreen({
                   placeholder="e.g. The Card Sharks"
                 />
               </label>
+              <p className="text-xs text-slate-500">
+                {winnerForm.date && winnerForm.time
+                  ? `Recorded at ${winnerForm.date} ${winnerForm.time}`
+                  : "Recording current date and time."}
+              </p>
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="block text-sm font-medium text-slate-700">
-                  Date
+                  City
                   <input
-                    type="date"
-                    value={winnerForm.date}
+                    value={winnerForm.city}
                     onChange={(event) =>
-                      onWinnerFormChange({ ...winnerForm, date: event.target.value })
+                      onWinnerFormChange({ ...winnerForm, city: event.target.value })
                     }
                     className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                    placeholder="e.g. Austin"
                   />
                 </label>
                 <label className="block text-sm font-medium text-slate-700">
-                  Time
-                  <input
-                    type="time"
-                    value={winnerForm.time}
+                  State
+                  <select
+                    value={winnerForm.state}
                     onChange={(event) =>
-                      onWinnerFormChange({ ...winnerForm, time: event.target.value })
+                      onWinnerFormChange({ ...winnerForm, state: event.target.value })
                     }
-                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-                  />
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+                  >
+                    <option value="">Select...</option>
+                    {US_STATES.map((state) => (
+                      <option key={state} value={state}>
+                        {state}
+                      </option>
+                    ))}
+                  </select>
                 </label>
               </div>
-              <label className="block text-sm font-medium text-slate-700">
-                Location
-                <input
-                  value={winnerForm.location}
-                  onChange={(event) =>
-                    onWinnerFormChange({ ...winnerForm, location: event.target.value })
-                  }
-                  className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-                  placeholder="e.g. Sarah's living room"
-                />
-              </label>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                   Cards
@@ -154,8 +155,13 @@ export default function FinishedScreen({
               </div>
               <button
                 onClick={onSubmitWinner}
-                disabled={winnerSaveStatus === "saving"}
-                className="rounded-2xl bg-amber-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-wait disabled:opacity-60"
+                disabled={
+                  winnerSaveStatus === "saving" ||
+                  !winnerForm.teamName.trim() ||
+                  !winnerForm.city.trim() ||
+                  !winnerForm.state
+                }
+                className="rounded-2xl bg-amber-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {winnerSaveStatus === "saving" ? "Saving..." : "Save victory"}
               </button>

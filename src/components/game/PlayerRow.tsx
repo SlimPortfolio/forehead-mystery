@@ -1,5 +1,6 @@
 import { formatRank, GamePhase, getGuessOutcome, Player } from "./types";
 import PlayingCard from "./PlayingCard";
+import ChatBubble from "./ChatBubble";
 
 type PlayerRowProps = {
   player: Player;
@@ -8,6 +9,7 @@ type PlayerRowProps = {
   hasActedThisPhase: boolean;
   phase: GamePhase;
   suit: string;
+  chatText?: string;
   onOpenWindowView: (playerId: string) => void;
 };
 
@@ -30,6 +32,7 @@ export default function PlayerRow({
   hasActedThisPhase,
   phase,
   suit,
+  chatText,
   onOpenWindowView,
 }: PlayerRowProps) {
   const status = getStatus(player, isCurrentTurn, phase);
@@ -49,7 +52,7 @@ export default function PlayerRow({
   const rankLabel = player.ranking ? formatRank(player.ranking) : "???";
 
   return (
-    <div className={`flex items-center justify-between gap-3 rounded-2xl border p-3 ${borderClass}`}>
+    <div className={`relative flex items-center justify-between gap-3 rounded-2xl border p-3 ${borderClass}`}>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
           <p className="truncate font-semibold text-slate-900">{player.name}</p>
@@ -78,7 +81,10 @@ export default function PlayerRow({
         )}
       </div>
 
-      <PlayingCard card={displayCard} suit={suit} size="sm" />
+      <div className="relative flex-shrink-0">
+        {chatText && <ChatBubble text={chatText} />}
+        <PlayingCard card={displayCard} suit={suit} size="sm" />
+      </div>
 
       <div className="flex flex-shrink-0 flex-col items-center gap-1">
         <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
