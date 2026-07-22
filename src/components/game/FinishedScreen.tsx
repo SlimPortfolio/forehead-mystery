@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { Room } from "./types";
+import { getGuessOutcome, Room, suitForGame } from "./types";
+import PlayingCard from "./PlayingCard";
 
 type WinnerForm = {
   teamName: string;
@@ -29,20 +30,42 @@ export default function FinishedScreen({
   onSubmitWinner,
   onStartNextGame,
 }: FinishedScreenProps) {
+  const suit = suitForGame(room.gameNumber);
+
   return (
     <div className="rounded-3xl border border-slate-200 bg-white/80 p-4 shadow-sm backdrop-blur">
       <h3 className="text-lg font-semibold">Game complete</h3>
       <div className="mt-3 space-y-2">
-        {room.players.map((player) => (
-          <div key={player.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-            <div className="flex items-center justify-between">
-              <span>{player.name}</span>
-              <span className="rounded-full bg-emerald-100 px-2 py-1 text-sm font-medium text-emerald-700">
-                {player.card}
-              </span>
+        {room.players.map((player) => {
+          const outcome = getGuessOutcome(player);
+          const borderClass =
+            outcome?.tone === "success"
+              ? "border-emerald-300 bg-emerald-50"
+              : outcome?.tone === "error"
+                ? "border-rose-300 bg-rose-50"
+                : "border-slate-200 bg-slate-50";
+
+          return (
+            <div
+              key={player.id}
+              className={`flex items-center justify-between gap-3 rounded-2xl border p-3 ${borderClass}`}
+            >
+              <div>
+                <p className="font-semibold text-slate-900">{player.name}</p>
+                {outcome && (
+                  <p
+                    className={`text-sm ${
+                      outcome.tone === "success" ? "text-emerald-700" : "text-rose-700"
+                    }`}
+                  >
+                    {outcome.text}
+                  </p>
+                )}
+              </div>
+              <PlayingCard card={player.card ?? null} suit={suit} size="sm" />
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {allCorrectlyIdentified && (

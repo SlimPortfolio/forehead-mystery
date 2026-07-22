@@ -19,8 +19,19 @@ export default function ScratchpadModal({
   onClose,
 }: ScratchpadModalProps) {
   return (
-    <Modal title="Private Scratchpad" onClose={onClose}>
-      <div className="flex flex-col gap-2">
+    <Modal
+      title="Private Scratchpad"
+      onClose={onClose}
+      headerAction={
+        <button
+          onClick={onClear}
+          className="rounded-full border border-slate-300 px-3 py-1 text-xs font-medium text-slate-600"
+        >
+          Clear
+        </button>
+      }
+    >
+      <div className="flex flex-col gap-1">
         {[...CARD_POOL].reverse().map((card) => {
           const isHeldByOther = players
             .filter((p) => p.id !== myPlayerId)
@@ -35,7 +46,7 @@ export default function ScratchpadModal({
                   : "Impossible"
                 : "Possible";
 
-          let className = "rounded-xl border px-3 py-2 text-left text-sm font-medium";
+          let className = "rounded-lg border px-2.5 py-1 text-left text-xs font-medium";
           if (isHeldByOther) {
             className += " border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed";
           } else if (state === "most-likely") {
@@ -58,12 +69,6 @@ export default function ScratchpadModal({
           );
         })}
       </div>
-      <button
-        onClick={onClear}
-        className="mt-4 w-full rounded-2xl border border-slate-300 px-4 py-2.5 font-medium text-slate-600"
-      >
-        Clear
-      </button>
     </Modal>
   );
 }

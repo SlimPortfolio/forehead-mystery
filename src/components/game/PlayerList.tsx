@@ -1,4 +1,4 @@
-import { GamePhase, Player, Room } from "./types";
+import { GamePhase, Player, Room, suitForGame } from "./types";
 import PlayerRow from "./PlayerRow";
 
 type PlayerListProps = {
@@ -15,17 +15,13 @@ function hasActedThisPhase(player: Player, phase: GamePhase) {
   return false;
 }
 
-/** Players reordered so the current turn is first, following turn order from there. */
+/** Players in fixed turn-order sequence (whoever goes last stays listed last). */
 function orderByTurn(room: Room): Player[] {
-  const { turnOrder, currentTurnIndex, players } = room;
+  const { turnOrder, players } = room;
   if (!turnOrder.length) return players;
 
-  const rotatedIds = [
-    ...turnOrder.slice(currentTurnIndex),
-    ...turnOrder.slice(0, currentTurnIndex),
-  ];
   const byId = new Map(players.map((player) => [player.id, player]));
-  const ordered = rotatedIds
+  const ordered = turnOrder
     .map((id) => byId.get(id))
     .filter((player): player is Player => Boolean(player));
 
@@ -36,6 +32,7 @@ function orderByTurn(room: Room): Player[] {
 export default function PlayerList({ room, playerId, onOpenWindowView }: PlayerListProps) {
   const currentPlayerId = room.turnOrder[room.currentTurnIndex];
   const orderedPlayers = orderByTurn(room);
+  const suit = suitForGame(room.gameNumber);
 
   return (
     <div className="flex flex-col gap-3">
@@ -47,6 +44,7 @@ export default function PlayerList({ room, playerId, onOpenWindowView }: PlayerL
           isCurrentTurn={player.id === currentPlayerId}
           hasActedThisPhase={hasActedThisPhase(player, room.phase)}
           phase={room.phase}
+          suit={suit}
           onOpenWindowView={onOpenWindowView}
         />
       ))}

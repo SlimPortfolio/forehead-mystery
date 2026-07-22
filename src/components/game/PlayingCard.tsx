@@ -1,5 +1,6 @@
 type PlayingCardProps = {
   card?: string | null;
+  suit?: string;
   size?: "sm" | "md" | "lg";
 };
 
@@ -10,22 +11,32 @@ const SIZE_CLASSES: Record<NonNullable<PlayingCardProps["size"]>, string> = {
 };
 
 /**
- * Placeholder card face — no card art asset yet, so rank + a diamond pip
+ * Placeholder card face — no card art asset yet, so rank + a suit pip
  * stand in for full suit art until a real deck asset/library is chosen.
+ * Suit is passed in by the caller (one suit per game, not per card).
  */
-export default function PlayingCard({ card, size = "md" }: PlayingCardProps) {
+export default function PlayingCard({ card, suit = "♦", size = "md" }: PlayingCardProps) {
   const isHidden = !card;
   const display = card ?? "?";
+  const isRed = suit === "♦" || suit === "♥";
 
   return (
     <div
       className={`flex flex-shrink-0 flex-col items-center justify-center rounded-lg border-2 border-slate-300 bg-white shadow-sm ${SIZE_CLASSES[size]}`}
     >
-      <span className={`font-bold leading-none ${isHidden ? "text-slate-400" : "text-rose-600"}`}>
+      <span
+        className={`font-bold leading-none ${
+          isHidden ? "text-slate-400" : isRed ? "text-rose-600" : "text-slate-900"
+        }`}
+      >
         {display}
       </span>
-      <span className={`leading-none ${isHidden ? "text-slate-300" : "text-rose-600"}`}>
-        {isHidden ? "" : "♦"}
+      <span
+        className={`leading-none ${
+          isHidden ? "text-slate-300" : isRed ? "text-rose-600" : "text-slate-900"
+        }`}
+      >
+        {isHidden ? "" : suit}
       </span>
     </div>
   );

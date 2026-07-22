@@ -1,4 +1,4 @@
-import { formatRank, GamePhase, Player } from "./types";
+import { formatRank, GamePhase, getGuessOutcome, Player } from "./types";
 import PlayingCard from "./PlayingCard";
 
 type PlayerRowProps = {
@@ -7,21 +7,18 @@ type PlayerRowProps = {
   isCurrentTurn: boolean;
   hasActedThisPhase: boolean;
   phase: GamePhase;
+  suit: string;
   onOpenWindowView: (playerId: string) => void;
 };
 
-function useStatusText(player: Player, isCurrentTurn: boolean, phase: GamePhase) {
+function getStatus(player: Player, isCurrentTurn: boolean, phase: GamePhase) {
+  // Confirmation phase means the current player already acted — show their
+  // result instead of a stale "it's your move" banner for that same row.
+  if (phase === "confirmation") return getGuessOutcome(player);
+
   if (isCurrentTurn) return { text: "It's your move sucker!", tone: "turn" as const };
 
-  if (phase === "guessing" || phase === "confirmation") {
-    if (player.isCorrectlyIdentified) {
-      return { text: `Correct! Guessed ${player.card ?? "?"}!`, tone: "success" as const };
-    }
-    const lastGuess = player.eliminatedGuesses[player.eliminatedGuesses.length - 1];
-    if (lastGuess) {
-      return { text: `Incorrect! Guessed ${lastGuess}.`, tone: "error" as const };
-    }
-  }
+  if (phase === "guessing") return getGuessOutcome(player);
 
   return null;
 }
@@ -32,15 +29,20 @@ export default function PlayerRow({
   isCurrentTurn,
   hasActedThisPhase,
   phase,
+  suit,
   onOpenWindowView,
 }: PlayerRowProps) {
-  const status = useStatusText(player, isCurrentTurn, phase);
+  const status = getStatus(player, isCurrentTurn, phase);
 
   let borderClass = "border-slate-200 bg-white";
   if (isCurrentTurn) {
     borderClass = "border-amber-400 bg-amber-50";
+  } else if (status?.tone === "success") {
+    borderClass = "border-emerald-300 bg-emerald-50";
+  } else if (status?.tone === "error") {
+    borderClass = "border-rose-300 bg-rose-50";
   } else if (hasActedThisPhase) {
-    borderClass = "border-slate-400 bg-white";
+    borderClass = "border-emerald-400 bg-white";
   }
 
   const displayCard = isSelf ? null : (player.card ?? null);
@@ -76,7 +78,7 @@ export default function PlayerRow({
         )}
       </div>
 
-      <PlayingCard card={displayCard} size="sm" />
+      <PlayingCard card={displayCard} suit={suit} size="sm" />
 
       <div className="flex flex-shrink-0 flex-col items-center gap-1">
         <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">

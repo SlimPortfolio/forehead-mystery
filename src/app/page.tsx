@@ -8,6 +8,7 @@ import {
   GamePhase,
   Player,
   Room,
+  suitForGame,
 } from "@/components/game/types";
 import JoinScreen from "@/components/game/JoinScreen";
 import LobbyScreen from "@/components/game/LobbyScreen";
@@ -20,8 +21,11 @@ import GuessCardModal from "@/components/game/GuessCardModal";
 import ScratchpadModal from "@/components/game/ScratchpadModal";
 import WindowViewModal from "@/components/game/WindowViewModal";
 import MenuModal from "@/components/game/MenuModal";
+import CorrectGuessPopup from "@/components/game/CorrectGuessPopup";
+import TransitionOverlay from "@/components/game/TransitionOverlay";
 
 const POLL_INTERVAL_MS = 2000;
+const NEW_GAME_TRANSITION_MS = 900;
 const STORAGE_PREFIX = "forehead-mystery-room";
 const PLAYER_ID_KEY = "forehead-mystery-player-id";
 const isLocal = typeof window !== "undefined" && (
@@ -72,6 +76,7 @@ function createRoom(
     round: 1,
     currentTurnIndex: 0,
     turnOrder: [hostPlayerId],
+    gameNumber: 1,
   };
 }
 
@@ -138,10 +143,13 @@ export default function Home() {
     "idle" | "saving" | "saved" | "error"
   >("idle");
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [binkPlayerName, setBinkPlayerName] = useState<string | null>(null);
   const previousPhaseRef = useRef<GamePhase | null>(null);
   const roomRef = useRef<Room | null>(null);
   const suppressPollUntilRef = useRef<number>(0);
   const winnerFormInitializedRef = useRef(false);
+  const binkTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     roomRef.current = room;
@@ -207,6 +215,26 @@ export default function Home() {
     }));
     winnerFormInitializedRef.current = true;
   }, [room?.phase]);
+
+  // Show the "BINKED IT" popup for its own duration, decoupled from the
+  // confirmation phase's turn-advance timer so it doesn't get cut short.
+  // Deliberately not cleaned up via the effect's own return — that cleanup
+  // would fire (and cancel the pending clear) the moment the confirmation
+  // phase resets lastGuessResult to null ~2s later, leaving the popup stuck
+  // on screen indefinitely instead of clearing itself.
+  useEffect(() => {
+    if (!lastGuessResult?.wasCorrect) return;
+
+    setBinkPlayerName(lastGuessResult.playerName);
+    if (binkTimeoutRef.current) clearTimeout(binkTimeoutRef.current);
+    binkTimeoutRef.current = setTimeout(() => setBinkPlayerName(null), 3200);
+  }, [lastGuessResult]);
+
+  useEffect(() => {
+    return () => {
+      if (binkTimeoutRef.current) clearTimeout(binkTimeoutRef.current);
+    };
+  }, []);
 
   // Poll for room updates. Paused while the tab is hidden/backgrounded to
   // avoid burning API requests when nobody is looking at the page.
@@ -631,6 +659,7 @@ export default function Home() {
       round: 1,
       currentTurnIndex: 0,
       turnOrder: rotatedTurnOrder,
+      gameNumber: (room.gameNumber ?? 1) + 1,
     };
 
     // Clear the scratchpad
@@ -641,8 +670,10 @@ export default function Home() {
       );
     }
 
+    setIsTransitioning(true);
     submitRoomState(nextRoom);
     setStatus("New game started! Begin with the ranking phase.");
+    setTimeout(() => setIsTransitioning(false), NEW_GAME_TRANSITION_MS);
   };
 
   const startGame = (useTestPlayers = false, skipMinPlayers = false) => {
@@ -698,8 +729,10 @@ export default function Home() {
       turnOrder: nextPlayers.map((player) => player.id),
     };
 
+    setIsTransitioning(true);
     submitRoomState(nextRoom);
     setStatus("The game has started. Submit your ranking.");
+    setTimeout(() => setIsTransitioning(false), NEW_GAME_TRANSITION_MS);
   };
 
   const submitRanking = (rank: number) => {
@@ -755,7 +788,6 @@ export default function Home() {
 
   const selectGuessCard = (card: string) => {
     setPendingGuess(card);
-    setStatus(`Confirm ${card} as your guess.`);
   };
 
   const submitGuess = () => {
@@ -791,11 +823,6 @@ export default function Home() {
     submitRoomState(nextRoom);
     setPendingGuess(null);
     setActiveModal(null);
-    setStatus(
-      wasCorrect
-        ? `Correct! You have ${pendingGuess}.`
-        : `Incorrect. ${pendingGuess} is now eliminated.`,
-    );
   };
 
   const toggleScratchpad = (card: string) => {
@@ -819,6 +846,12 @@ export default function Home() {
     setActiveModal(null);
     setJoined(false);
     setStatus("You left the game.");
+  };
+
+  const handleEndGame = () => {
+    if (!room) return;
+    submitRoomState({ ...room, phase: "finished" });
+    setStatus("Game ended by host.");
   };
 
   const guessingCards = useMemo(() => {
@@ -849,7 +882,38 @@ export default function Home() {
               </p>
               <h1 className="text-lg font-semibold">Room {roomCode || "—"}</h1>
             </div>
-            <p className="text-sm text-slate-600">{status}</p>
+            <div className="flex items-center gap-3">
+              <p className="text-sm text-slate-600">{status}</p>
+              {joined && room && room.hostId === playerId && room.phase !== "lobby" && (
+                <div className="flex flex-shrink-0 items-center gap-1">
+                  <button
+                    onClick={startNextGame}
+                    aria-label="Start new game"
+                    title="Start new game"
+                    className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-slate-600 hover:bg-slate-100"
+                  >
+                    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}>
+                      <path
+                        d="M4 4v5h5M20 20v-5h-5M4.5 15a8 8 0 0 0 14.5 3M19.5 9A8 8 0 0 0 5 6"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={handleEndGame}
+                    aria-label="End game and close room"
+                    title="End game and close room"
+                    className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-rose-600 hover:bg-rose-50"
+                  >
+                    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}>
+                      <circle cx="12" cy="12" r="9" />
+                      <path d="M9 9l6 6M15 9l-6 6" strokeLinecap="round" />
+                    </svg>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 
@@ -893,35 +957,13 @@ export default function Home() {
                 onStartNextGame={startNextGame}
               />
             ) : (
-              <div className="rounded-3xl border border-slate-200 bg-white/80 p-4 shadow-sm backdrop-blur">
+              <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white/80 p-4 shadow-sm backdrop-blur">
+                {isTransitioning && <TransitionOverlay label="Loading new game..." />}
                 <GameHeader
                   round={room.round}
                   phase={room.phase}
                   onOpenMenu={() => setActiveModal({ type: "menu" })}
                 />
-
-                {room.phase === "confirmation" && (
-                  <div className="mt-4 rounded-2xl px-4 py-3 text-center font-semibold">
-                    <div
-                      className={
-                        lastGuessResult?.wasCorrect
-                          ? "rounded-2xl bg-emerald-100 px-4 py-3 text-emerald-700"
-                          : "rounded-2xl bg-rose-100 px-4 py-3 text-rose-700"
-                      }
-                    >
-                      {lastGuessResult?.wasCorrect
-                        ? `Correct! ${lastGuessResult.playerName} correctly identified their card.`
-                        : `Incorrect! ${lastGuessResult?.playerName} guessed ${lastGuessResult?.card}, but their card was ${
-                            room.players.find(
-                              (p) => p.name === lastGuessResult?.playerName,
-                            )?.card
-                          }.`}
-                    </div>
-                    <p className="mt-2 text-center text-xs font-normal text-slate-500">
-                      Next player loading...
-                    </p>
-                  </div>
-                )}
 
                 <div className="mt-4">
                   <PlayerList
@@ -982,6 +1024,7 @@ export default function Home() {
           targetPlayer={windowViewTarget}
           viewerPlayerId={playerId}
           players={room.players}
+          suit={suitForGame(room.gameNumber)}
           onClose={() => setActiveModal(null)}
         />
       )}
@@ -989,6 +1032,8 @@ export default function Home() {
       {activeModal?.type === "menu" && (
         <MenuModal onLeaveGame={handleLeaveGame} onClose={() => setActiveModal(null)} />
       )}
+
+      {binkPlayerName && <CorrectGuessPopup playerName={binkPlayerName} />}
     </main>
   );
 }
