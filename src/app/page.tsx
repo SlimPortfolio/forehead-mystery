@@ -137,7 +137,8 @@ export default function Home() {
     teamName: "",
     date: "",
     time: "",
-    location: "",
+    city: "",
+    state: "",
   });
   const [winnerSaveStatus, setWinnerSaveStatus] = useState<
     "idle" | "saving" | "saved" | "error"
@@ -145,11 +146,19 @@ export default function Home() {
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [binkPlayerName, setBinkPlayerName] = useState<string | null>(null);
+  const [binkClosing, setBinkClosing] = useState(false);
+  const [activeChatBubble, setActiveChatBubble] = useState<{
+    playerId: string;
+    text: string;
+  } | null>(null);
   const previousPhaseRef = useRef<GamePhase | null>(null);
   const roomRef = useRef<Room | null>(null);
   const suppressPollUntilRef = useRef<number>(0);
   const winnerFormInitializedRef = useRef(false);
   const binkTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const binkCloseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const chatTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastChatTsRef = useRef<number>(0);
 
   useEffect(() => {
     roomRef.current = room;
@@ -196,7 +205,7 @@ export default function Home() {
       }
       winnerFormInitializedRef.current = false;
       setWinnerSaveStatus("idle");
-      setWinnerForm({ teamName: "", date: "", time: "", location: "" });
+      setWinnerForm({ teamName: "", date: "", time: "", city: "", state: "" });
     }
 
     previousPhaseRef.current = room.phase;
@@ -226,13 +235,40 @@ export default function Home() {
     if (!lastGuessResult?.wasCorrect) return;
 
     setBinkPlayerName(lastGuessResult.playerName);
+    setBinkClosing(false);
     if (binkTimeoutRef.current) clearTimeout(binkTimeoutRef.current);
-    binkTimeoutRef.current = setTimeout(() => setBinkPlayerName(null), 3200);
+    if (binkCloseTimeoutRef.current) clearTimeout(binkCloseTimeoutRef.current);
+
+    binkTimeoutRef.current = setTimeout(() => setBinkClosing(true), 1200);
+    binkCloseTimeoutRef.current = setTimeout(() => {
+      setBinkPlayerName(null);
+      setBinkClosing(false);
+    }, 1500);
   }, [lastGuessResult]);
 
   useEffect(() => {
     return () => {
+      if (binkCloseTimeoutRef.current) clearTimeout(binkCloseTimeoutRef.current);
       if (binkTimeoutRef.current) clearTimeout(binkTimeoutRef.current);
+    };
+  }, []);
+
+  // Show a chat speech bubble for its own duration. Same ref-timer pattern
+  // as the bink popup (not effect-cleanup-driven) so an unrelated room
+  // update can't cancel the pending clear and leave the bubble stuck.
+  useEffect(() => {
+    const message = room?.chatMessage;
+    if (!message || message.ts === lastChatTsRef.current) return;
+
+    lastChatTsRef.current = message.ts;
+    setActiveChatBubble({ playerId: message.playerId, text: message.text });
+    if (chatTimeoutRef.current) clearTimeout(chatTimeoutRef.current);
+    chatTimeoutRef.current = setTimeout(() => setActiveChatBubble(null), 4000);
+  }, [room?.chatMessage]);
+
+  useEffect(() => {
+    return () => {
+      if (chatTimeoutRef.current) clearTimeout(chatTimeoutRef.current);
     };
   }, []);
 
@@ -264,6 +300,7 @@ export default function Home() {
               fetchedRoom.currentTurnIndex !== currentRoom.currentTurnIndex ||
               fetchedRoom.players.length !== currentRoom.players.length ||
               fetchedRoom.turnOrder.join(",") !== currentRoom.turnOrder.join(",") ||
+              fetchedRoom.chatMessage?.ts !== currentRoom.chatMessage?.ts ||
               JSON.stringify(fetchedRoom.players) !== JSON.stringify(currentRoom.players)
             ) {
               setRoom(fetchedRoom);
@@ -494,9 +531,10 @@ export default function Home() {
       !winnerForm.teamName.trim() ||
       !winnerForm.date ||
       !winnerForm.time ||
-      !winnerForm.location.trim()
+      !winnerForm.city.trim() ||
+      !winnerForm.state
     ) {
-      setStatus("Please fill in team name, date, time, and location.");
+      setStatus("Please fill in team name, city, and state.");
       return;
     }
 
@@ -509,7 +547,7 @@ export default function Home() {
           teamName: winnerForm.teamName.trim(),
           date: winnerForm.date,
           time: winnerForm.time,
-          location: winnerForm.location.trim(),
+          location: `${winnerForm.city.trim()}, ${winnerForm.state}`,
           players: room.players.map((player) => ({
             name: player.name,
             card: player.card ?? "",
@@ -854,6 +892,15 @@ export default function Home() {
     setStatus("Game ended by host.");
   };
 
+  const handleSendChat = (text: string) => {
+    if (!room || !playerId) return;
+    submitRoomState({
+      ...room,
+      chatMessage: { playerId, text, ts: Date.now() },
+    });
+    setActiveModal(null);
+  };
+
   const guessingCards = useMemo(() => {
     if (!room || !myPlayer) return [] as string[];
     const otherPlayersCards = room.players
@@ -957,7 +1004,7 @@ export default function Home() {
                 onStartNextGame={startNextGame}
               />
             ) : (
-              <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white/80 p-4 shadow-sm backdrop-blur">
+              <div className="relative rounded-3xl border border-slate-200 bg-white/80 p-4 shadow-sm backdrop-blur">
                 {isTransitioning && <TransitionOverlay label="Loading new game..." />}
                 <GameHeader
                   round={room.round}
@@ -969,6 +1016,7 @@ export default function Home() {
                   <PlayerList
                     room={room}
                     playerId={playerId}
+                    activeChatBubble={activeChatBubble}
                     onOpenWindowView={(id) =>
                       setActiveModal({ type: "window", playerId: id })
                     }
@@ -987,6 +1035,7 @@ export default function Home() {
           onSelectRank={() => setActiveModal({ type: "rank" })}
           onOpenScratchpad={() => setActiveModal({ type: "scratchpad" })}
           onGuessCard={() => setActiveModal({ type: "guess" })}
+          onSendEmote={handleSendChat}
         />
       )}
 
@@ -1033,7 +1082,7 @@ export default function Home() {
         <MenuModal onLeaveGame={handleLeaveGame} onClose={() => setActiveModal(null)} />
       )}
 
-      {binkPlayerName && <CorrectGuessPopup playerName={binkPlayerName} />}
+      {binkPlayerName && <CorrectGuessPopup playerName={binkPlayerName} closing={binkClosing} />}
     </main>
   );
 }

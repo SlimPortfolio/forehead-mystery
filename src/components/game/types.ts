@@ -13,6 +13,12 @@ export type Player = {
   isCorrectlyIdentified: boolean;
 };
 
+export type ChatMessage = {
+  playerId: string;
+  text: string;
+  ts: number;
+};
+
 export type Room = {
   id: string;
   hostId: string;
@@ -23,7 +29,25 @@ export type Room = {
   turnOrder: string[];
   /** Increments each time a new game is dealt; drives which suit cards display this game. */
   gameNumber?: number;
+  /** Latest preset chat message, shown as a speech bubble by the sender's row. */
+  chatMessage?: ChatMessage | null;
 };
+
+/** Preset trash-talk lines players can fire off during a game. */
+export const EMOTE_OPTIONS = [
+  "You think you're better than me",
+  "If the highest place!!",
+  "Can we get much higher!?",
+  "What, HOW!?",
+];
+
+export const US_STATES = [
+  "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "DC", "FL",
+  "GA", "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME",
+  "MD", "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH",
+  "NJ", "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI",
+  "SC", "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY",
+];
 
 export const CARD_POOL = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
 

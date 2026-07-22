@@ -1,4 +1,5 @@
-import { GamePhase } from "./types";
+import { useEffect, useRef, useState } from "react";
+import { EMOTE_OPTIONS, GamePhase } from "./types";
 
 type ActionBarProps = {
   phase: GamePhase;
@@ -6,6 +7,7 @@ type ActionBarProps = {
   onSelectRank: () => void;
   onOpenScratchpad: () => void;
   onGuessCard: () => void;
+  onSendEmote: (text: string) => void;
 };
 
 function RankIcon() {
@@ -35,24 +37,38 @@ function GuessIcon() {
   );
 }
 
+function ChatIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={2}>
+      <path
+        d="M4 5h16v11H8l-4 4V5z"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 function ActionButton({
   icon,
   label,
   disabled,
+  active,
   onClick,
 }: {
   icon: React.ReactNode;
   label: string;
   disabled: boolean;
+  active?: boolean;
   onClick: () => void;
 }) {
   return (
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`flex flex-1 flex-col items-center gap-1 py-3 text-xs font-semibold ${
+      className={`flex flex-1 cursor-pointer flex-col items-center gap-1 py-3 text-xs font-semibold disabled:cursor-not-allowed ${
         disabled ? "text-slate-300" : "text-slate-800"
-      }`}
+      } ${active ? "bg-slate-200" : ""}`}
     >
       {icon}
       {label}
@@ -67,9 +83,28 @@ export default function ActionBar({
   onSelectRank,
   onOpenScratchpad,
   onGuessCard,
+  onSendEmote,
 }: ActionBarProps) {
+  const [isEmoteOpen, setIsEmoteOpen] = useState(false);
+  const emoteWrapperRef = useRef<HTMLDivElement>(null);
   const canRank = phase === "ranking" && isMyTurn;
   const canGuess = phase === "guessing" && isMyTurn;
+
+  // Close on any click/tap outside the button+popover — the toggle button's
+  // own click is inside this wrapper, so it still closes via its own onClick
+  // instead of double-toggling.
+  useEffect(() => {
+    if (!isEmoteOpen) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (emoteWrapperRef.current && !emoteWrapperRef.current.contains(event.target as Node)) {
+        setIsEmoteOpen(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, [isEmoteOpen]);
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 backdrop-blur">
@@ -82,6 +117,31 @@ export default function ActionBar({
           onClick={onOpenScratchpad}
         />
         <ActionButton icon={<GuessIcon />} label="Guess Card" disabled={!canGuess} onClick={onGuessCard} />
+        <div ref={emoteWrapperRef} className="relative flex flex-1">
+          {isEmoteOpen && (
+            <div className="absolute bottom-full right-0 z-50 mb-2 flex w-56 flex-col gap-1 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
+              {EMOTE_OPTIONS.map((text) => (
+                <button
+                  key={text}
+                  onClick={() => {
+                    onSendEmote(text);
+                    setIsEmoteOpen(false);
+                  }}
+                  className="cursor-pointer rounded-xl px-3 py-2 text-left text-sm font-medium text-slate-700 hover:bg-slate-100"
+                >
+                  {text}
+                </button>
+              ))}
+            </div>
+          )}
+          <ActionButton
+            icon={<ChatIcon />}
+            label="Emote"
+            disabled={false}
+            active={isEmoteOpen}
+            onClick={() => setIsEmoteOpen((open) => !open)}
+          />
+        </div>
       </div>
     </div>
   );
