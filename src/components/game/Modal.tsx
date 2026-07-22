@@ -18,7 +18,7 @@ export default function Modal({ title, onClose, children, headerAction, subheade
       onClick={onClose}
     >
       <div
-        className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl border border-slate-200 bg-white shadow-xl sm:rounded-3xl"
+        className="flex max-h-[94vh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl border border-slate-200 bg-white shadow-xl sm:rounded-3xl"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex-shrink-0 border-b border-slate-100 p-4">
