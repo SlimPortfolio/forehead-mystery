@@ -1,0 +1,19 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "agent",
+            "if": "Bash(git commit *)",
+            "prompt": "A git commit was just made in this repository. Read .claude/agents/knowledge-keeper.md for your role and process, then follow it: review the latest commit (e.g. `git show HEAD`) and update REQUIREMENTS.md and/or KNOWLEDGE_BASE.md if the app's actual behavior changed. Do not commit, push, or edit any files other than those two docs. If nothing behavior-relevant changed, make no edits and say so briefly.",
+            "model": "claude-sonnet-5",
+            "timeout": 180,
+            "statusMessage": "Checking if the knowledge base needs updating..."
+          }
+        ]
+      }
+    ]
+  }
+}
