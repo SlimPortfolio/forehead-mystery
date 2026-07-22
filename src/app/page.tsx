@@ -353,10 +353,15 @@ export default function Home() {
         p.id === currentPlayerId ? { ...p, ranking: testRank } : p,
       );
 
+      const nextTurnIndex = room.currentTurnIndex + 1;
+      const allRanked = nextTurnIndex >= room.turnOrder.length;
+
       const nextRoom: Room = {
         ...room,
         players: nextPlayers,
-        phase: "guessing",
+        phase: allRanked ? "guessing" : "ranking",
+        currentTurnIndex: allRanked ? 0 : nextTurnIndex,
+        round: allRanked ? 2 : room.round,
       };
 
       submitRoomState(nextRoom);
@@ -423,29 +428,15 @@ export default function Home() {
     if (!currentPlayerInTurn) return;
 
     const timer = setTimeout(() => {
-      let nextTurnIndex = room.currentTurnIndex + 1;
+      const nextTurnIndex = room.currentTurnIndex + 1;
 
-      let nextRoom: Room = {
+      const nextRoom: Room = {
         ...room,
       };
 
       if (nextTurnIndex >= room.turnOrder.length) {
-        // All players have guessed
-        if (room.round >= 2) {
-          // 2 rounds complete - game ends
-          nextRoom.phase = "finished";
-        } else {
-          // Start next round
-          nextRoom.phase = "ranking";
-          nextRoom.round += 1;
-          nextRoom.currentTurnIndex = 0;
-          nextRoom.players = room.players.map((player) => ({
-            ...player,
-            ranking: null,
-            guess: null,
-            eliminatedGuesses: [], // Reset eliminated guesses each round
-          }));
-        }
+        // Everyone has guessed - Round 2 (guessing) is complete, game ends
+        nextRoom.phase = "finished";
       } else {
         // Next player's turn
         nextRoom.phase = "guessing";
@@ -669,7 +660,7 @@ export default function Home() {
     setStatus("New game started! Begin with the ranking phase.");
   };
 
-  const startGame = (useTestPlayers = false) => {
+  const startGame = (useTestPlayers = false, skipMinPlayers = false) => {
     if (!room || !myPlayer || !room.players.length) return;
     if (room.hostId !== playerId) {
       setStatus("Only the host can begin the game.");
@@ -693,8 +684,13 @@ export default function Home() {
       playersToUse = [...room.players, ...testPlayers];
     }
 
-    if (playersToUse.length < 4 || playersToUse.length > 8) {
-      setStatus("A game needs between 4 and 8 players to begin.");
+    const minPlayers = skipMinPlayers ? 2 : 4;
+    if (playersToUse.length < minPlayers || playersToUse.length > 8) {
+      setStatus(
+        skipMinPlayers
+          ? "A game needs at least 2 players to begin."
+          : "A game needs between 4 and 8 players to begin.",
+      );
       return;
     }
 
@@ -759,6 +755,7 @@ export default function Home() {
       currentTurnIndex:
         nextPhase === "guessing" ? 0 : nextTurnIndex,
       phase: nextPhase,
+      round: nextPhase === "guessing" ? 2 : room.round,
     };
 
     submitRoomState(nextRoom);
@@ -985,6 +982,12 @@ export default function Home() {
                       >
                         Start with test players
                       </button>
+                      <button
+                        onClick={() => startGame(false, true)}
+                        className="rounded-2xl border border-slate-300 px-4 py-2 font-semibold text-slate-600"
+                      >
+                        Start anyway (2+ players)
+                      </button>
                     </div>
                   )}
                 </div>
@@ -1086,9 +1089,6 @@ export default function Home() {
                       </div>
                     ))}
                   </div>
-                  <p className="mt-3 text-sm text-slate-500">
-                    Total rounds played: {room.round}
-                  </p>
 
                   {allCorrectlyIdentified && (
                     <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
