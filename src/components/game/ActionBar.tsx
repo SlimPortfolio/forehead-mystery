@@ -107,7 +107,7 @@ export default function ActionBar({
   }, [isEmoteOpen]);
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 backdrop-blur">
+    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
       <div className="mx-auto flex max-w-lg divide-x divide-slate-200">
         <ActionButton icon={<RankIcon />} label="Select Rank" disabled={!canRank} onClick={onSelectRank} />
         <ActionButton

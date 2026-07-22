@@ -918,8 +918,16 @@ export default function Home() {
       ? (room?.players.find((p) => p.id === activeModal.playerId) ?? null)
       : null;
 
+  const showActionBar = Boolean(
+    joined && room && room.phase !== "lobby" && room.phase !== "finished",
+  );
+
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top,#fef3c7,#fdf2f8_45%,#fef3c7)] px-4 py-6 pb-28 text-slate-900 sm:px-6 lg:px-8">
+    <main
+      className={`min-h-screen bg-[radial-gradient(circle_at_top,#fef3c7,#fdf2f8_45%,#fef3c7)] px-4 py-6 text-slate-900 sm:px-6 lg:px-8 ${
+        showActionBar ? "pb-24" : "pb-6"
+      }`}
+    >
       <div className="mx-auto flex max-w-3xl flex-col gap-4">
         <header className="rounded-3xl border border-slate-200 bg-white/80 p-4 shadow-sm backdrop-blur">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -1028,7 +1036,7 @@ export default function Home() {
         ) : null}
       </div>
 
-      {joined && room && room.phase !== "lobby" && room.phase !== "finished" && (
+      {showActionBar && room && (
         <ActionBar
           phase={room.phase}
           isMyTurn={isMyTurn}
