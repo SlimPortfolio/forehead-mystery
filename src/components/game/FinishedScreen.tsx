@@ -1,6 +1,22 @@
 import Link from "next/link";
-import { getGuessOutcome, orderPlayersByTurn, Room, suitForGame, US_STATES } from "./types";
+import {
+  getGuessOutcome,
+  orderPlayersByTurn,
+  Room,
+  suitForGame,
+  US_STATES,
+} from "./types";
 import PlayingCard from "./PlayingCard";
+
+/** Chip shown next to the sole player who guessed wrong. */
+function JesterChip() {
+  return (
+    <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-amber-300 bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+      Jester!
+      <span aria-hidden>🃏</span>
+    </span>
+  );
+}
 
 type WinnerForm = {
   teamName: string;
@@ -36,6 +52,13 @@ export default function FinishedScreen({
   const suit = suitForGame(room.gameNumber);
   const orderedPlayers = orderPlayersByTurn(room);
 
+  // The jester label only appears when exactly one player guessed wrong.
+  const incorrectPlayers = orderedPlayers.filter(
+    (player) => getGuessOutcome(player)?.tone === "error",
+  );
+  const jesterId =
+    incorrectPlayers.length === 1 ? incorrectPlayers[0].id : null;
+
   return (
     <div className="flex-1 min-h-0 overflow-y-auto border border-slate-200 bg-white/80 p-4 shadow-sm backdrop-blur">
       <h3 className="text-lg font-semibold">Game complete</h3>
@@ -55,11 +78,16 @@ export default function FinishedScreen({
               className={`flex items-center justify-between gap-3 rounded-2xl border p-3 ${borderClass}`}
             >
               <div>
-                <p className="font-semibold text-ink">{player.name}</p>
+                <div className="flex items-center gap-1.5">
+                  <p className="font-semibold text-ink">{player.name}</p>
+                  {player.id === jesterId && <JesterChip />}
+                </div>
                 {outcome && (
                   <p
                     className={`text-sm ${
-                      outcome.tone === "success" ? "text-emerald-700" : "text-rose-700"
+                      outcome.tone === "success"
+                        ? "text-emerald-700"
+                        : "text-rose-700"
                     }`}
                   >
                     {outcome.text}
@@ -100,7 +128,10 @@ export default function FinishedScreen({
                 <input
                   value={winnerForm.teamName}
                   onChange={(event) =>
-                    onWinnerFormChange({ ...winnerForm, teamName: event.target.value })
+                    onWinnerFormChange({
+                      ...winnerForm,
+                      teamName: event.target.value,
+                    })
                   }
                   className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
                   placeholder="e.g. The Card Sharks"
@@ -117,7 +148,10 @@ export default function FinishedScreen({
                   <input
                     value={winnerForm.city}
                     onChange={(event) =>
-                      onWinnerFormChange({ ...winnerForm, city: event.target.value })
+                      onWinnerFormChange({
+                        ...winnerForm,
+                        city: event.target.value,
+                      })
                     }
                     className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
                     placeholder="e.g. Austin"
@@ -128,7 +162,10 @@ export default function FinishedScreen({
                   <select
                     value={winnerForm.state}
                     onChange={(event) =>
-                      onWinnerFormChange({ ...winnerForm, state: event.target.value })
+                      onWinnerFormChange({
+                        ...winnerForm,
+                        state: event.target.value,
+                      })
                     }
                     className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
                   >
