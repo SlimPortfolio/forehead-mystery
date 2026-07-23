@@ -6,6 +6,7 @@ import {
   ActiveModal,
   CARD_POOL,
   CardState,
+  ChatMessage,
   GamePhase,
   Player,
   Room,
@@ -934,13 +935,37 @@ export default function Home() {
 
   const handleSendChat = (text: string) => {
     if (!room || !playerId) return;
-    submitRoomState({
-      ...room,
-      chatMessages: {
-        ...(room.chatMessages ?? {}),
-        [playerId]: { text, ts: Date.now() },
-      },
-    });
+    const message: ChatMessage = { text, ts: Date.now() };
+
+    // Optimistically show our own bubble immediately. We only touch our own
+    // slot in chatMessages and leave every other field untouched.
+    setRoom((current) =>
+      current
+        ? {
+            ...current,
+            chatMessages: {
+              ...(current.chatMessages ?? {}),
+              [playerId]: message,
+            },
+          }
+        : current,
+    );
+
+    // Scoped write: a dotted path so the server updates ONLY this player's
+    // chat slot. Unlike submitRoomState, this never sends players/phase/turn,
+    // so an emote can't clobber a move another player is submitting at the
+    // same time. We also deliberately don't trip suppressPollUntilRef here, so
+    // an emoting player keeps receiving others' moves in real time.
+    const sendEmote = () =>
+      fetch(`${appUrl}/api/rooms/${room.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [`chatMessages.${playerId}`]: message }),
+      }).then((response) => {
+        if (!response.ok) throw new Error(`PATCH failed: ${response.status}`);
+      });
+
+    sendEmote().catch(() => sendEmote().catch(() => {}));
     setActiveModal(null);
   };
 
