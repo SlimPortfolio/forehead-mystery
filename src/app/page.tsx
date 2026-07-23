@@ -652,6 +652,14 @@ export default function Home() {
       }
 
       const existingRoom = data.room as Room | null;
+
+      if (!createNew && !existingRoom) {
+        setStatus(
+          `Room ${normalizedCode} doesn't exist yet. Double-check the code, or create a new room instead.`,
+        );
+        return;
+      }
+
       const alreadyJoined = existingRoom?.players.some(
         (player) => player.id === playerId,
       );
@@ -802,7 +810,7 @@ export default function Home() {
       phase: "ranking",
       round: 1,
       currentTurnIndex: 0,
-      turnOrder: nextPlayers.map((player) => player.id),
+      turnOrder: shuffle(nextPlayers.map((player) => player.id)),
     };
 
     setIsTransitioning(true);
