@@ -1,15 +1,19 @@
 @import "tailwindcss";
 
 :root {
-  --background: #fff7ed;
-  --foreground: #111827;
+  --background: #eef1fb;
+  --foreground: #211c4e;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  /* Dark navy-indigo "ink" pulled from the doodle logo — used everywhere the
+     UI previously reached for near-black (slate-900/950) as its dark accent. */
+  --color-ink: #211c4e;
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-display);
 }
 
 * {

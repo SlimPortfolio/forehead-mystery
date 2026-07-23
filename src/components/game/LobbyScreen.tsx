@@ -2,6 +2,7 @@ import { Room } from "./types";
 
 type LobbyScreenProps = {
   room: Room;
+  status: string;
   isHost: boolean;
   onStartGame: () => void;
   onStartWithTestPlayers: () => void;
@@ -10,13 +11,15 @@ type LobbyScreenProps = {
 
 export default function LobbyScreen({
   room,
+  status,
   isHost,
   onStartGame,
   onStartWithTestPlayers,
   onStartAnyway,
 }: LobbyScreenProps) {
   return (
-    <div className="rounded-3xl border border-slate-200 bg-white/80 p-4 shadow-sm backdrop-blur">
+    <div className="flex-1 min-h-0 overflow-y-auto border border-slate-200 bg-white/80 p-4 shadow-sm backdrop-blur">
+      {status && <p className="mb-3 text-xs font-medium text-ink/70">{status}</p>}
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.25em] text-slate-500">Lobby</p>

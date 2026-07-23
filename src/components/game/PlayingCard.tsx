@@ -27,14 +27,14 @@ export default function PlayingCard({ card, suit = "♦", size = "md" }: Playing
     >
       <span
         className={`font-bold leading-none ${
-          isHidden ? "text-slate-400" : isRed ? "text-rose-600" : "text-slate-900"
+          isHidden ? "text-slate-400" : isRed ? "text-rose-600" : "text-ink"
         }`}
       >
         {display}
       </span>
       <span
         className={`leading-none ${
-          isHidden ? "text-slate-300" : isRed ? "text-rose-600" : "text-slate-900"
+          isHidden ? "text-slate-300" : isRed ? "text-rose-600" : "text-ink"
         }`}
       >
         {isHidden ? "" : suit}

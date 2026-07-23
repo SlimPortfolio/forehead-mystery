@@ -29,9 +29,9 @@ export default async function WinnersPage() {
   const winners = await getWinners();
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top,#fef3c7,#fdf2f8_45%,#fef3c7)] px-4 py-6 text-slate-900 sm:px-6 lg:px-8">
+    <main className="min-h-screen bg-[radial-gradient(ellipse_at_top,#f6f4fe_0%,#e8ecfb_55%,#dde5f6_100%)] px-4 py-6 text-ink sm:px-6 lg:px-8">
       <div className="mx-auto flex max-w-6xl flex-col gap-4">
-        <header className="rounded-3xl border border-slate-200 bg-white/80 p-5 shadow-sm backdrop-blur">
+        <header className="border border-slate-200 bg-white/80 p-5 shadow-sm backdrop-blur">
           <p className="text-sm font-semibold uppercase tracking-[0.3em] text-amber-600">
             Forehead Mystery
           </p>
@@ -41,7 +41,7 @@ export default async function WinnersPage() {
           </p>
         </header>
 
-        <section className="rounded-3xl border border-slate-200 bg-white/80 p-5 shadow-sm backdrop-blur">
+        <section className="border border-slate-200 bg-white/80 p-5 shadow-sm backdrop-blur">
           {winners.length === 0 ? (
             <p className="text-sm text-slate-500">
               No winners have been recorded yet.

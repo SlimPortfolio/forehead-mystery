@@ -58,7 +58,7 @@ export default function PlayerRow({
     <div className={`relative flex items-center justify-between gap-2.5 rounded-2xl border px-3 py-2 ${borderClass}`}>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
-          <p className="truncate font-semibold leading-tight text-slate-900">{player.name}</p>
+          <p className="truncate font-semibold leading-tight text-ink">{player.name}</p>
           {!isSelf && (
             <button
               onClick={() => onOpenWindowView(player.id)}
@@ -93,7 +93,7 @@ export default function PlayerRow({
         <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-amber-800">
           Rank
         </span>
-        <span className="text-base font-bold leading-none text-slate-900">{rankLabel}</span>
+        <span className="text-base font-bold leading-none text-ink">{rankLabel}</span>
       </div>
     </div>
   );

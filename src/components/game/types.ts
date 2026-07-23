@@ -174,4 +174,5 @@ export type ActiveModal =
   | { type: "scratchpad" }
   | { type: "menu" }
   | { type: "window"; playerId: string }
+  | { type: "help" }
   | null;
