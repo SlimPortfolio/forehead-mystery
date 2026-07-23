@@ -101,12 +101,12 @@ export default function FinishedScreen({
       </div>
 
       {allCorrectlyIdentified && (
-        <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-          <h4 className="font-semibold text-amber-900">
+        <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+          <h4 className="font-semibold text-ink">
             Perfect game! Everyone identified their card.
           </h4>
           {!isHost ? (
-            <p className="mt-2 text-sm text-amber-800">
+            <p className="mt-2 text-sm text-slate-600">
               Ask your host to save this victory to the{" "}
               <Link href="/winners" className="underline">
                 winners page
@@ -201,7 +201,7 @@ export default function FinishedScreen({
                   !winnerForm.city.trim() ||
                   !winnerForm.state
                 }
-                className="rounded-2xl bg-amber-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-2xl bg-ink px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500"
               >
                 {winnerSaveStatus === "saving" ? "Saving..." : "Save victory"}
               </button>
@@ -225,7 +225,7 @@ export default function FinishedScreen({
         {isHost && (
           <button
             onClick={onStartNextGame}
-            className="rounded-2xl bg-amber-500 px-4 py-2 font-semibold text-white"
+            className="rounded-2xl bg-ink px-4 py-2 font-semibold text-white"
           >
             Next game
           </button>

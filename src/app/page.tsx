@@ -807,7 +807,11 @@ export default function Home() {
     setTimeout(() => setIsTransitioning(false), NEW_GAME_TRANSITION_MS);
   };
 
-  const startGame = (useTestPlayers = false, skipMinPlayers = false) => {
+  const startGame = (
+    useTestPlayers = false,
+    skipMinPlayers = false,
+    targetPlayerCount?: number,
+  ) => {
     if (!room || !myPlayer || !room.players.length) return;
     if (room.hostId !== playerId) {
       setStatus("Only the host can begin the game.");
@@ -816,7 +820,8 @@ export default function Home() {
 
     let playersToUse = room.players;
     if (useTestPlayers) {
-      const numTestPlayers = 4 - room.players.length;
+      const desiredTotal = targetPlayerCount ?? 4;
+      const numTestPlayers = desiredTotal - room.players.length;
       const testPlayers: Player[] = Array.from(
         { length: Math.max(0, numTestPlayers) },
         (_, i) => ({
@@ -1147,8 +1152,7 @@ export default function Home() {
                 status={status}
                 isHost={room.hostId === playerId}
                 onStartGame={() => startGame(false)}
-                onStartWithTestPlayers={() => startGame(true)}
-                onStartAnyway={() => startGame(false, true)}
+                onStartWithBots={(totalPlayers) => startGame(true, false, totalPlayers)}
               />
             ) : room.phase === "finished" ? (
               <FinishedScreen
