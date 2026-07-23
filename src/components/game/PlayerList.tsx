@@ -4,7 +4,7 @@ import PlayerRow from "./PlayerRow";
 type PlayerListProps = {
   room: Room;
   playerId: string | null;
-  activeChatBubble: { playerId: string; text: string } | null;
+  activeChatBubbles: Record<string, string>;
   onOpenWindowView: (playerId: string) => void;
 };
 
@@ -33,7 +33,7 @@ function orderByTurn(room: Room): Player[] {
 export default function PlayerList({
   room,
   playerId,
-  activeChatBubble,
+  activeChatBubbles,
   onOpenWindowView,
 }: PlayerListProps) {
   const currentPlayerId = room.turnOrder[room.currentTurnIndex];
@@ -51,7 +51,7 @@ export default function PlayerList({
           hasActedThisPhase={hasActedThisPhase(player, room.phase)}
           phase={room.phase}
           suit={suit}
-          chatText={activeChatBubble?.playerId === player.id ? activeChatBubble.text : undefined}
+          chatText={activeChatBubbles[player.id]}
           onOpenWindowView={onOpenWindowView}
         />
       ))}

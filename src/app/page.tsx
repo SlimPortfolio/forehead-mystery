@@ -128,11 +128,6 @@ export default function Home() {
   const [pendingGuess, setPendingGuess] = useState<string | null>(null);
   const [isJoining, setIsJoining] = useState(false);
   const [scratchpad, setScratchpad] = useState<Record<string, CardState>>({});
-  const [lastGuessResult, setLastGuessResult] = useState<{
-    wasCorrect: boolean;
-    card: string;
-    playerName: string;
-  } | null>(null);
   const [winnerForm, setWinnerForm] = useState({
     teamName: "",
     date: "",
@@ -147,18 +142,16 @@ export default function Home() {
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [binkPlayerName, setBinkPlayerName] = useState<string | null>(null);
   const [binkClosing, setBinkClosing] = useState(false);
-  const [activeChatBubble, setActiveChatBubble] = useState<{
-    playerId: string;
-    text: string;
-  } | null>(null);
+  const [activeChatBubbles, setActiveChatBubbles] = useState<Record<string, string>>({});
   const previousPhaseRef = useRef<GamePhase | null>(null);
   const roomRef = useRef<Room | null>(null);
   const suppressPollUntilRef = useRef<number>(0);
   const winnerFormInitializedRef = useRef(false);
   const binkTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const binkCloseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const chatTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastChatTsRef = useRef<number>(0);
+  const wasConfirmationPhaseRef = useRef(false);
+  const chatTimeoutRefs = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const lastChatTsRefs = useRef<Record<string, number>>({});
 
   useEffect(() => {
     roomRef.current = room;
@@ -228,13 +221,29 @@ export default function Home() {
   // Show the "BINKED IT" popup for its own duration, decoupled from the
   // confirmation phase's turn-advance timer so it doesn't get cut short.
   // Deliberately not cleaned up via the effect's own return — that cleanup
-  // would fire (and cancel the pending clear) the moment the confirmation
-  // phase resets lastGuessResult to null ~2s later, leaving the popup stuck
-  // on screen indefinitely instead of clearing itself.
+  // would fire (and cancel the pending clear) if this effect re-ran ~2s
+  // later when the phase moves on, leaving the popup stuck on screen
+  // indefinitely instead of clearing itself.
+  //
+  // Derived from synced room state (who's at turnOrder[currentTurnIndex]
+  // and their isCorrectlyIdentified flag) rather than local action-time
+  // state, so every connected client sees the popup — not just whoever
+  // happened to submit the guess.
   useEffect(() => {
-    if (!lastGuessResult?.wasCorrect) return;
+    if (!room) return;
 
-    setBinkPlayerName(lastGuessResult.playerName);
+    const enteredConfirmation =
+      room.phase === "confirmation" && !wasConfirmationPhaseRef.current;
+    wasConfirmationPhaseRef.current = room.phase === "confirmation";
+
+    if (!enteredConfirmation) return;
+
+    const actingPlayer = room.players.find(
+      (player) => player.id === room.turnOrder[room.currentTurnIndex],
+    );
+    if (!actingPlayer?.isCorrectlyIdentified) return;
+
+    setBinkPlayerName(actingPlayer.name);
     setBinkClosing(false);
     if (binkTimeoutRef.current) clearTimeout(binkTimeoutRef.current);
     if (binkCloseTimeoutRef.current) clearTimeout(binkCloseTimeoutRef.current);
@@ -244,7 +253,7 @@ export default function Home() {
       setBinkPlayerName(null);
       setBinkClosing(false);
     }, 1500);
-  }, [lastGuessResult]);
+  }, [room?.phase, room?.currentTurnIndex]);
 
   useEffect(() => {
     return () => {
@@ -253,22 +262,36 @@ export default function Home() {
     };
   }, []);
 
-  // Show a chat speech bubble for its own duration. Same ref-timer pattern
-  // as the bink popup (not effect-cleanup-driven) so an unrelated room
-  // update can't cancel the pending clear and leave the bubble stuck.
+  // Show a chat speech bubble per player, each with its own duration and
+  // ref-based timer (same non-cleanup-driven pattern as the bink popup) so
+  // one player's message expiring can't cancel another's pending clear, and
+  // multiple players emoting at once each get their own bubble instead of
+  // clobbering a single shared "latest message" slot.
   useEffect(() => {
-    const message = room?.chatMessage;
-    if (!message || message.ts === lastChatTsRef.current) return;
+    const messages = room?.chatMessages;
+    if (!messages) return;
 
-    lastChatTsRef.current = message.ts;
-    setActiveChatBubble({ playerId: message.playerId, text: message.text });
-    if (chatTimeoutRef.current) clearTimeout(chatTimeoutRef.current);
-    chatTimeoutRef.current = setTimeout(() => setActiveChatBubble(null), 4000);
-  }, [room?.chatMessage]);
+    for (const [senderId, message] of Object.entries(messages)) {
+      if (message.ts === lastChatTsRefs.current[senderId]) continue;
+      lastChatTsRefs.current[senderId] = message.ts;
+
+      setActiveChatBubbles((current) => ({ ...current, [senderId]: message.text }));
+
+      const existingTimeout = chatTimeoutRefs.current[senderId];
+      if (existingTimeout) clearTimeout(existingTimeout);
+      chatTimeoutRefs.current[senderId] = setTimeout(() => {
+        setActiveChatBubbles((current) => {
+          const next = { ...current };
+          delete next[senderId];
+          return next;
+        });
+      }, 4000);
+    }
+  }, [room?.chatMessages]);
 
   useEffect(() => {
     return () => {
-      if (chatTimeoutRef.current) clearTimeout(chatTimeoutRef.current);
+      Object.values(chatTimeoutRefs.current).forEach(clearTimeout);
     };
   }, []);
 
@@ -300,7 +323,8 @@ export default function Home() {
               fetchedRoom.currentTurnIndex !== currentRoom.currentTurnIndex ||
               fetchedRoom.players.length !== currentRoom.players.length ||
               fetchedRoom.turnOrder.join(",") !== currentRoom.turnOrder.join(",") ||
-              fetchedRoom.chatMessage?.ts !== currentRoom.chatMessage?.ts ||
+              JSON.stringify(fetchedRoom.chatMessages ?? {}) !==
+                JSON.stringify(currentRoom.chatMessages ?? {}) ||
               JSON.stringify(fetchedRoom.players) !== JSON.stringify(currentRoom.players)
             ) {
               setRoom(fetchedRoom);
@@ -379,8 +403,13 @@ export default function Home() {
     );
   }, [room, playerId, scratchpad]);
 
+  // Host-only: these auto-advance effects run identically on every connected
+  // client. Without gating to a single writer, multiple clients race to
+  // independently PATCH the same transition — a slower client's stale
+  // computation can silently clobber a faster one's, which looks like an
+  // action "not sending" to other players.
   useEffect(() => {
-    if (!room || !playerId || room.phase !== "ranking") return;
+    if (!room || !playerId || room.phase !== "ranking" || room.hostId !== playerId) return;
 
     const currentPlayerId = room.turnOrder[room.currentTurnIndex];
     const currentPlayerInTurn = room.players.find(
@@ -421,7 +450,7 @@ export default function Home() {
   }, [room, playerId]);
 
   useEffect(() => {
-    if (!room || !playerId || room.phase !== "guessing") return;
+    if (!room || !playerId || room.phase !== "guessing" || room.hostId !== playerId) return;
 
     const currentPlayerId = room.turnOrder[room.currentTurnIndex];
     const currentPlayerInTurn = room.players.find(
@@ -455,12 +484,6 @@ export default function Home() {
         phase: "confirmation",
       };
 
-      setLastGuessResult({
-        wasCorrect,
-        card: testGuess,
-        playerName: currentPlayerInTurn.name,
-      });
-
       submitRoomState(nextRoom);
     }, 500);
 
@@ -468,7 +491,7 @@ export default function Home() {
   }, [room, playerId]);
 
   useEffect(() => {
-    if (!room || !playerId || room.phase !== "confirmation") return;
+    if (!room || !playerId || room.phase !== "confirmation" || room.hostId !== playerId) return;
 
     const currentPlayerId = room.turnOrder[room.currentTurnIndex];
     const currentPlayerInTurn = room.players.find(
@@ -497,7 +520,6 @@ export default function Home() {
         }));
       }
 
-      setLastGuessResult(null);
       submitRoomState(nextRoom);
     }, 2000);
 
@@ -570,11 +592,27 @@ export default function Home() {
     // server) can't clobber the state we just set locally.
     suppressPollUntilRef.current = Date.now() + 1500;
 
-    fetch(`${appUrl}/api/rooms/${nextRoom.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(nextRoom),
-    }).catch(() => undefined);
+    const sendPatch = () =>
+      fetch(`${appUrl}/api/rooms/${nextRoom.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(nextRoom),
+      }).then((response) => {
+        if (!response.ok) throw new Error(`PATCH failed: ${response.status}`);
+      });
+
+    // A silently-dropped PATCH (flaky network, transient server error) used
+    // to just vanish — the sender's own screen looked right, but nobody
+    // else ever received the move, and the suppression window above then
+    // masked the local/server mismatch until it "corrected" itself back to
+    // the stale state on the next poll. Retry once, and if that also fails,
+    // drop the suppression window immediately so the next poll can resync
+    // instead of leaving everyone silently diverged.
+    sendPatch().catch(() => {
+      sendPatch().catch(() => {
+        suppressPollUntilRef.current = 0;
+      });
+    });
   };
 
   const joinOrCreateRoom = async (code: string, createNew = false) => {
@@ -852,12 +890,6 @@ export default function Home() {
       phase: "confirmation",
     };
 
-    setLastGuessResult({
-      wasCorrect,
-      card: pendingGuess,
-      playerName: myPlayer.name,
-    });
-
     submitRoomState(nextRoom);
     setPendingGuess(null);
     setActiveModal(null);
@@ -896,7 +928,10 @@ export default function Home() {
     if (!room || !playerId) return;
     submitRoomState({
       ...room,
-      chatMessage: { playerId, text, ts: Date.now() },
+      chatMessages: {
+        ...(room.chatMessages ?? {}),
+        [playerId]: { text, ts: Date.now() },
+      },
     });
     setActiveModal(null);
   };
@@ -1024,7 +1059,7 @@ export default function Home() {
                   <PlayerList
                     room={room}
                     playerId={playerId}
-                    activeChatBubble={activeChatBubble}
+                    activeChatBubbles={activeChatBubbles}
                     onOpenWindowView={(id) =>
                       setActiveModal({ type: "window", playerId: id })
                     }

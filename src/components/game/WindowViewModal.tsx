@@ -41,6 +41,11 @@ export default function WindowViewModal({
               <span className="text-sm font-bold text-slate-900">
                 {targetPlayer.ranking ? formatRank(targetPlayer.ranking) : "???"}
               </span>
+              {targetPlayer.ranking && (
+                <span className="text-xs text-slate-500">
+                  {targetPlayer.ranking - 1} above - {players.length - targetPlayer.ranking} below
+                </span>
+              )}
             </div>
           </div>
           <p className="text-sm text-slate-500">

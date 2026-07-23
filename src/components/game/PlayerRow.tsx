@@ -48,7 +48,10 @@ export default function PlayerRow({
     borderClass = "border-emerald-400 bg-white";
   }
 
-  const displayCard = isSelf ? null : (player.card ?? null);
+  // Your own card stays hidden until you've made your one guess this game —
+  // right or wrong, there's no more suspense left to protect after that.
+  const hasGuessed = getGuessOutcome(player) !== null;
+  const displayCard = isSelf && !hasGuessed ? null : (player.card ?? null);
   const rankLabel = player.ranking ? formatRank(player.ranking) : "???";
 
   return (
