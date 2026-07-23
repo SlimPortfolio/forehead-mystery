@@ -14,7 +14,6 @@ export type Player = {
 };
 
 export type ChatMessage = {
-  playerId: string;
   text: string;
   ts: number;
 };
@@ -29,8 +28,9 @@ export type Room = {
   turnOrder: string[];
   /** Increments each time a new game is dealt; drives which suit cards display this game. */
   gameNumber?: number;
-  /** Latest preset chat message, shown as a speech bubble by the sender's row. */
-  chatMessage?: ChatMessage | null;
+  /** Latest preset chat message per player, shown as a speech bubble by the sender's row.
+   * Keyed by playerId so simultaneous emotes from different players don't clobber each other. */
+  chatMessages?: Record<string, ChatMessage>;
 };
 
 /** Preset trash-talk lines players can fire off during a game. */
