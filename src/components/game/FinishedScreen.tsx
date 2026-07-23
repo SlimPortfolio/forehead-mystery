@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getGuessOutcome, Room, suitForGame, US_STATES } from "./types";
+import { getGuessOutcome, orderPlayersByTurn, Room, suitForGame, US_STATES } from "./types";
 import PlayingCard from "./PlayingCard";
 
 type WinnerForm = {
@@ -34,12 +34,13 @@ export default function FinishedScreen({
   onReviewScratchpad,
 }: FinishedScreenProps) {
   const suit = suitForGame(room.gameNumber);
+  const orderedPlayers = orderPlayersByTurn(room);
 
   return (
     <div className="rounded-3xl border border-slate-200 bg-white/80 p-4 shadow-sm backdrop-blur">
       <h3 className="text-lg font-semibold">Game complete</h3>
       <div className="mt-3 space-y-2">
-        {room.players.map((player) => {
+        {orderedPlayers.map((player) => {
           const outcome = getGuessOutcome(player);
           const borderClass =
             outcome?.tone === "success"
@@ -101,7 +102,7 @@ export default function FinishedScreen({
                   onChange={(event) =>
                     onWinnerFormChange({ ...winnerForm, teamName: event.target.value })
                   }
-                  className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
                   placeholder="e.g. The Card Sharks"
                 />
               </label>
@@ -118,7 +119,7 @@ export default function FinishedScreen({
                     onChange={(event) =>
                       onWinnerFormChange({ ...winnerForm, city: event.target.value })
                     }
-                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
                     placeholder="e.g. Austin"
                   />
                 </label>
@@ -148,7 +149,7 @@ export default function FinishedScreen({
                   {room.players.map((player) => (
                     <span
                       key={player.id}
-                      className="rounded-full border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-700"
+                      className="rounded-full border border-slate-200 bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700"
                     >
                       {player.name}: {player.card}
                     </span>

@@ -15,12 +15,12 @@ export default function RankSelectModal({ playerCount, onSelect, onClose }: Rank
       <p className="text-sm text-slate-600">
         Select the rank you believe you hold relative to every other player.
       </p>
-      <div className="mt-4 grid grid-cols-2 gap-3">
+      <div className="mt-4 flex flex-col gap-2">
         {ranks.map((rank) => (
           <button
             key={rank}
             onClick={() => onSelect(rank)}
-            className="rounded-2xl border border-slate-300 bg-white px-3 py-3 text-left"
+            className="rounded-2xl border border-slate-300 bg-white px-3 py-2.5 text-left"
           >
             <div className="font-semibold text-slate-900">{formatRank(rank)}</div>
             <div className="text-xs text-slate-500">

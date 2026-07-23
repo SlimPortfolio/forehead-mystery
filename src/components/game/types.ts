@@ -120,6 +120,22 @@ export const CARD_POOL = [
   "K",
 ];
 
+/** Players in fixed turn-order sequence — the order they gave clues and
+ * guessed — with anyone not in turnOrder appended. Shared by the in-game
+ * player list and the results screen so both read the same top-to-bottom. */
+export function orderPlayersByTurn(room: Room): Player[] {
+  const { turnOrder, players } = room;
+  if (!turnOrder.length) return players;
+
+  const byId = new Map(players.map((player) => [player.id, player]));
+  const ordered = turnOrder
+    .map((id) => byId.get(id))
+    .filter((player): player is Player => Boolean(player));
+
+  const remaining = players.filter((player) => !turnOrder.includes(player.id));
+  return [...ordered, ...remaining];
+}
+
 /** One suit per game, cycling — cosmetic only, does not affect game logic. */
 export const SUITS = ["♣", "♥", "♦", "♠"] as const;
 

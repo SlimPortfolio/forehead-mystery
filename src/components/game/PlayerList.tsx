@@ -1,4 +1,4 @@
-import { GamePhase, Player, Room, suitForGame } from "./types";
+import { GamePhase, orderPlayersByTurn, Player, Room, suitForGame } from "./types";
 import PlayerRow from "./PlayerRow";
 
 type PlayerListProps = {
@@ -16,20 +16,6 @@ function hasActedThisPhase(player: Player, phase: GamePhase) {
   return false;
 }
 
-/** Players in fixed turn-order sequence (whoever goes last stays listed last). */
-function orderByTurn(room: Room): Player[] {
-  const { turnOrder, players } = room;
-  if (!turnOrder.length) return players;
-
-  const byId = new Map(players.map((player) => [player.id, player]));
-  const ordered = turnOrder
-    .map((id) => byId.get(id))
-    .filter((player): player is Player => Boolean(player));
-
-  const remaining = players.filter((player) => !turnOrder.includes(player.id));
-  return [...ordered, ...remaining];
-}
-
 export default function PlayerList({
   room,
   playerId,
@@ -37,7 +23,7 @@ export default function PlayerList({
   onOpenWindowView,
 }: PlayerListProps) {
   const currentPlayerId = room.turnOrder[room.currentTurnIndex];
-  const orderedPlayers = orderByTurn(room);
+  const orderedPlayers = orderPlayersByTurn(room);
   const suit = suitForGame(room.gameNumber);
 
   return (
