@@ -119,7 +119,7 @@ export default function ActionBar({
         <ActionButton icon={<GuessIcon />} label="Guess Card" disabled={!canGuess} onClick={onGuessCard} />
         <div ref={emoteWrapperRef} className="relative flex flex-1">
           {isEmoteOpen && (
-            <div className="absolute bottom-full right-0 z-50 mb-2 flex w-56 flex-col gap-1 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
+            <div className="absolute bottom-full right-0 z-50 mb-2 flex max-h-[60vh] w-56 flex-col gap-1 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
               {EMOTE_OPTIONS.map((text) => (
                 <button
                   key={text}
