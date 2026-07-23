@@ -102,7 +102,7 @@ export default function FinishedScreen({
                   onChange={(event) =>
                     onWinnerFormChange({ ...winnerForm, teamName: event.target.value })
                   }
-                  className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
                   placeholder="e.g. The Card Sharks"
                 />
               </label>
@@ -119,7 +119,7 @@ export default function FinishedScreen({
                     onChange={(event) =>
                       onWinnerFormChange({ ...winnerForm, city: event.target.value })
                     }
-                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
                     placeholder="e.g. Austin"
                   />
                 </label>
@@ -149,7 +149,7 @@ export default function FinishedScreen({
                   {room.players.map((player) => (
                     <span
                       key={player.id}
-                      className="rounded-full border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-700"
+                      className="rounded-full border border-slate-200 bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700"
                     >
                       {player.name}: {player.card}
                     </span>
