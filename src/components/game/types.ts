@@ -1,5 +1,10 @@
 export type CardState = "possible" | "impossible" | "most-likely";
-export type GamePhase = "lobby" | "ranking" | "guessing" | "confirmation" | "finished";
+export type GamePhase =
+  | "lobby"
+  | "ranking"
+  | "guessing"
+  | "confirmation"
+  | "finished";
 
 export type Player = {
   id: string;
@@ -36,23 +41,84 @@ export type Room = {
 /** Preset trash-talk lines players can fire off during a game. */
 export const EMOTE_OPTIONS = [
   "Can we get much higher!?",
-  "If the highest place!!",
+  "I'm in the dirt",
   "Tell me everything",
   "That tells me everything I need to know",
+  "That's not possible...",
   "What, HOW!?",
   "You think you're better than me",
   "You think, YOU'RE the highest?",
 ];
 
 export const US_STATES = [
-  "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "DC", "FL",
-  "GA", "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME",
-  "MD", "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH",
-  "NJ", "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI",
-  "SC", "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY",
+  "AL",
+  "AK",
+  "AZ",
+  "AR",
+  "CA",
+  "CO",
+  "CT",
+  "DE",
+  "DC",
+  "FL",
+  "GA",
+  "HI",
+  "ID",
+  "IL",
+  "IN",
+  "IA",
+  "KS",
+  "KY",
+  "LA",
+  "ME",
+  "MD",
+  "MA",
+  "MI",
+  "MN",
+  "MS",
+  "MO",
+  "MT",
+  "NE",
+  "NV",
+  "NH",
+  "NJ",
+  "NM",
+  "NY",
+  "NC",
+  "ND",
+  "OH",
+  "OK",
+  "OR",
+  "PA",
+  "RI",
+  "SC",
+  "SD",
+  "TN",
+  "TX",
+  "UT",
+  "VT",
+  "VA",
+  "WA",
+  "WV",
+  "WI",
+  "WY",
 ];
 
-export const CARD_POOL = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
+export const CARD_POOL = [
+  "A",
+  "2",
+  "3",
+  "4",
+  "5",
+  "6",
+  "7",
+  "8",
+  "9",
+  "10",
+  "J",
+  "Q",
+  "K",
+];
 
 /** One suit per game, cycling — cosmetic only, does not affect game logic. */
 export const SUITS = ["♣", "♥", "♦", "♠"] as const;
@@ -71,11 +137,14 @@ export function formatRank(rank: number) {
 /** Derives the "Correct!/Incorrect! Guessed X" line from persisted fields (not the
  * transient `guess` field, which gets cleared as turns advance) so it survives
  * turn changes and still reads correctly on the final results screen. */
-export function getGuessOutcome(player: Player): { text: string; tone: "success" | "error" } | null {
+export function getGuessOutcome(
+  player: Player,
+): { text: string; tone: "success" | "error" } | null {
   if (player.isCorrectlyIdentified) {
     return { text: `Correct! Guessed ${player.card ?? "?"}!`, tone: "success" };
   }
-  const lastGuess = player.eliminatedGuesses[player.eliminatedGuesses.length - 1];
+  const lastGuess =
+    player.eliminatedGuesses[player.eliminatedGuesses.length - 1];
   if (lastGuess) {
     return { text: `Incorrect! Guessed ${lastGuess}.`, tone: "error" };
   }
