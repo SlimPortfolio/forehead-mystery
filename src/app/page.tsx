@@ -12,6 +12,7 @@ import {
   Room,
   suitForGame,
 } from "@/components/game/types";
+import AppHeader from "@/components/game/AppHeader";
 import JoinScreen from "@/components/game/JoinScreen";
 import LobbyScreen from "@/components/game/LobbyScreen";
 import FinishedScreen from "@/components/game/FinishedScreen";
@@ -548,6 +549,51 @@ export default function Home() {
       room.players.every((player) => player.isCorrectlyIdentified),
   );
 
+  // "In a game" = joined and mid-play (not the lobby or the finished screen).
+  // Used to guard against accidentally abandoning an active game via refresh,
+  // the browser back button, or clicking the logo/winners link.
+  const isInActiveGame = Boolean(
+    joined &&
+      room &&
+      (room.phase === "ranking" ||
+        room.phase === "guessing" ||
+        room.phase === "confirmation"),
+  );
+
+  // Warn before a full page unload (refresh, tab close, or a back-button that
+  // leaves the document) while a game is in progress. The browser shows its
+  // own generic confirmation prompt; the message string is ignored by modern
+  // browsers but returnValue must be set for the prompt to appear.
+  useEffect(() => {
+    if (!isInActiveGame) return;
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [isInActiveGame]);
+
+  // Clicking the logo returns to the home/join screen. Because the game view
+  // lives at "/" as a client-side SPA, we reset local state rather than route,
+  // confirming first if a game is in progress so it isn't abandoned by mistake.
+  const handleLogoClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
+    event.preventDefault();
+    if (
+      isInActiveGame &&
+      !window.confirm(
+        "Leave the current game and return to the home screen?",
+      )
+    ) {
+      return;
+    }
+    setJoined(false);
+    setActiveModal(null);
+    setStatus("");
+  };
+
   const submitWinner = async () => {
     if (!room) return;
     if (
@@ -1000,82 +1046,75 @@ export default function Home() {
 
   return (
     <main className="flex h-dvh w-full flex-col overflow-hidden bg-[radial-gradient(ellipse_at_top,#f6f4fe_0%,#e8ecfb_55%,#dde5f6_100%)] text-ink">
-      <header className="relative z-30 w-full flex-shrink-0 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur">
-        <div className="mx-auto flex w-full max-w-2xl items-center justify-between gap-3 px-3 py-2.5 sm:px-6">
-          <div className="flex min-w-0 items-center gap-3">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/logo.png"
-              alt="Forehead Mystery logo"
-              className="h-11 w-11 flex-shrink-0 object-cover"
-            />
-            <h1 className="font-display text-2xl leading-[0.9] font-bold text-ink">
-              Forehead
-              <br />
-              Mystery
-            </h1>
-          </div>
-          <div className="flex flex-shrink-0 items-center gap-1">
-            {joined && room && room.hostId === playerId && room.phase !== "lobby" && (
-              <>
-                <button
-                  onClick={startNextGame}
-                  aria-label="Start new game"
-                  title="Start new game"
-                  className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-slate-600 hover:bg-slate-100"
-                >
-                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}>
-                    <path
-                      d="M4 4v5h5M20 20v-5h-5M4.5 15a8 8 0 0 0 14.5 3M19.5 9A8 8 0 0 0 5 6"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </button>
-                <button
-                  onClick={handleEndGame}
-                  aria-label="End game and close room"
-                  title="End game and close room"
-                  className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-rose-600 hover:bg-rose-50"
-                >
-                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}>
-                    <circle cx="12" cy="12" r="9" />
-                    <path d="M9 9l6 6M15 9l-6 6" strokeLinecap="round" />
-                  </svg>
-                </button>
-              </>
-            )}
+      <AppHeader onLogoClick={handleLogoClick}>
+        {joined && room && room.hostId === playerId && room.phase !== "lobby" && (
+          <>
             <button
-              onClick={() => setActiveModal({ type: "help" })}
-              aria-label="How it works"
-              title="How it works"
+              onClick={startNextGame}
+              aria-label="Start new game"
+              title="Start new game"
               className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-slate-600 hover:bg-slate-100"
             >
               <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}>
-                <circle cx="12" cy="12" r="9" />
-                <path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.7v.5" strokeLinecap="round" />
-                <path d="M12 17h.01" strokeLinecap="round" />
-              </svg>
-            </button>
-            <Link
-              href="/winners"
-              aria-label="Winners page"
-              title="Hall of Fame"
-              className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-amber-500 hover:bg-amber-50"
-            >
-              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}>
                 <path
-                  d="M6 4h12v3a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V4z"
+                  d="M4 4v5h5M20 20v-5h-5M4.5 15a8 8 0 0 0 14.5 3M19.5 9A8 8 0 0 0 5 6"
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 />
-                <path d="M6 5H4a2 2 0 0 0 2 3M18 5h2a2 2 0 0 1-2 3" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M10 11v3M14 11v3M8 20h8M9 20l.5-3h5l.5 3" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
-            </Link>
-          </div>
-        </div>
-      </header>
+            </button>
+            <button
+              onClick={handleEndGame}
+              aria-label="End game and close room"
+              title="End game and close room"
+              className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-rose-600 hover:bg-rose-50"
+            >
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}>
+                <circle cx="12" cy="12" r="9" />
+                <path d="M9 9l6 6M15 9l-6 6" strokeLinecap="round" />
+              </svg>
+            </button>
+          </>
+        )}
+        <button
+          onClick={() => setActiveModal({ type: "help" })}
+          aria-label="How it works"
+          title="How it works"
+          className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-slate-600 hover:bg-slate-100"
+        >
+          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}>
+            <circle cx="12" cy="12" r="9" />
+            <path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.7v.5" strokeLinecap="round" />
+            <path d="M12 17h.01" strokeLinecap="round" />
+          </svg>
+        </button>
+        <Link
+          href="/winners"
+          aria-label="Winners page"
+          title="Hall of Fame"
+          onNavigate={(event) => {
+            if (
+              isInActiveGame &&
+              !window.confirm(
+                "Leave the current game to view the Hall of Fame?",
+              )
+            ) {
+              event.preventDefault();
+            }
+          }}
+          className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-amber-500 hover:bg-amber-50"
+        >
+          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}>
+            <path
+              d="M6 4h12v3a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V4z"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path d="M6 5H4a2 2 0 0 0 2 3M18 5h2a2 2 0 0 1-2 3" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M10 11v3M14 11v3M8 20h8M9 20l.5-3h5l.5 3" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </Link>
+      </AppHeader>
 
       <div className="mx-auto flex w-full min-h-0 max-w-2xl flex-1 flex-col gap-3">
         {!joined && status && (

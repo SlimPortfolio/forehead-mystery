@@ -1,3 +1,4 @@
+import AppHeader from "@/components/game/AppHeader";
 import { getMongoDb } from "@/lib/mongodb";
 import type { WinnerRecord } from "@/lib/winners";
 
@@ -29,8 +30,9 @@ export default async function WinnersPage() {
   const winners = await getWinners();
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(ellipse_at_top,#f6f4fe_0%,#e8ecfb_55%,#dde5f6_100%)] px-4 py-6 text-ink sm:px-6 lg:px-8">
-      <div className="mx-auto flex max-w-6xl flex-col gap-4">
+    <main className="flex min-h-screen flex-col bg-[radial-gradient(ellipse_at_top,#f6f4fe_0%,#e8ecfb_55%,#dde5f6_100%)] text-ink">
+      <AppHeader />
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-6 sm:px-6 lg:px-8">
         <header className="border border-slate-200 bg-white/80 p-5 shadow-sm backdrop-blur">
           <p className="text-sm font-semibold uppercase tracking-[0.3em] text-amber-600">
             Forehead Mystery
