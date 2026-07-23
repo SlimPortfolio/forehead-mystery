@@ -14,7 +14,7 @@ type ModalProps = {
 export default function Modal({ title, onClose, children, headerAction, subheader }: ModalProps) {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/40 backdrop-blur-sm sm:items-center"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-ink/40 backdrop-blur-sm sm:items-center"
       onClick={onClose}
     >
       <div
@@ -23,7 +23,7 @@ export default function Modal({ title, onClose, children, headerAction, subheade
       >
         <div className="flex-shrink-0 border-b border-slate-100 p-4">
           <div className="flex items-center justify-between gap-3">
-            <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
+            <h3 className="text-lg font-semibold text-ink">{title}</h3>
             <div className="flex flex-shrink-0 items-center gap-2">
               {headerAction}
               <button

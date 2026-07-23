@@ -18,7 +18,7 @@ export default function JoinScreen({
   onCreate,
 }: JoinScreenProps) {
   return (
-    <section className="grid gap-4 rounded-3xl border border-slate-200 bg-white/80 p-5 shadow-sm backdrop-blur lg:grid-cols-[1.2fr_0.8fr]">
+    <section className="grid flex-1 min-h-0 gap-4 overflow-y-auto border border-slate-200 bg-white/80 p-5 shadow-sm backdrop-blur lg:grid-cols-[1.2fr_0.8fr]">
       <div className="space-y-4">
         <h2 className="text-xl font-semibold">Join or create a room</h2>
         <label className="block text-sm font-medium text-slate-700">
@@ -26,7 +26,7 @@ export default function JoinScreen({
           <input
             value={playerName}
             onChange={(event) => onPlayerNameChange(event.target.value)}
-            className="mt-2 w-full rounded-2xl border border-slate-300 px-3 py-2"
+            className="mt-2 w-full rounded-2xl border border-slate-300 bg-white px-3 py-2"
             placeholder="Enter your display name"
           />
         </label>
@@ -35,7 +35,7 @@ export default function JoinScreen({
           <input
             value={roomCode}
             onChange={(event) => onRoomCodeChange(event.target.value.toUpperCase())}
-            className="mt-2 w-full rounded-2xl border border-slate-300 px-3 py-2"
+            className="mt-2 w-full rounded-2xl border border-slate-300 bg-white px-3 py-2"
             placeholder="e.g. MYST"
             maxLength={6}
           />
@@ -44,7 +44,7 @@ export default function JoinScreen({
           <button
             onClick={onJoin}
             disabled={isJoining}
-            className="flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-2 font-medium text-white disabled:cursor-wait disabled:opacity-70"
+            className="flex items-center gap-2 rounded-2xl bg-ink px-4 py-2 font-medium text-white disabled:cursor-wait disabled:opacity-70"
           >
             {isJoining ? (
               <>
@@ -58,7 +58,7 @@ export default function JoinScreen({
           <button
             onClick={onCreate}
             disabled={isJoining}
-            className="flex items-center gap-2 rounded-2xl border border-slate-300 px-4 py-2 font-medium disabled:cursor-wait disabled:opacity-70"
+            className="flex items-center gap-2 rounded-2xl border border-slate-300 bg-white px-4 py-2 font-medium disabled:cursor-wait disabled:opacity-70"
           >
             {isJoining ? (
               <>
@@ -71,7 +71,7 @@ export default function JoinScreen({
           </button>
         </div>
       </div>
-      <div className="rounded-3xl bg-slate-950 p-6 text-slate-100">
+      <div className="rounded-3xl bg-ink p-6 text-slate-100">
         <h3 className="text-lg font-semibold">How it works</h3>
         <ul className="mt-3 space-y-2 text-sm text-slate-300">
           <li>• Each player sees everyone else's cards, but their own remains hidden.</li>

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActiveModal,
@@ -21,6 +22,7 @@ import GuessCardModal from "@/components/game/GuessCardModal";
 import ScratchpadModal from "@/components/game/ScratchpadModal";
 import WindowViewModal from "@/components/game/WindowViewModal";
 import MenuModal from "@/components/game/MenuModal";
+import HelpModal from "@/components/game/HelpModal";
 import CorrectGuessPopup from "@/components/game/CorrectGuessPopup";
 import TransitionOverlay from "@/components/game/TransitionOverlay";
 
@@ -122,9 +124,7 @@ export default function Home() {
   const [room, setRoom] = useState<Room | null>(null);
   const [playerId, setPlayerId] = useState<string | null>(null);
   const [joined, setJoined] = useState(false);
-  const [status, setStatus] = useState(
-    "Create or join a room to start playing.",
-  );
+  const [status, setStatus] = useState("");
   const [pendingGuess, setPendingGuess] = useState<string | null>(null);
   const [isJoining, setIsJoining] = useState(false);
   const [scratchpad, setScratchpad] = useState<Record<string, CardState>>({});
@@ -974,54 +974,88 @@ export default function Home() {
   );
 
   return (
-    <main
-      className={`min-h-screen w-full overflow-x-hidden bg-[radial-gradient(circle_at_top,#fef3c7,#fdf2f8_45%,#fef3c7)] px-3 py-4 text-slate-900 sm:px-6 lg:px-8 ${
-        showActionBar ? "pb-24" : "pb-6"
-      }`}
-    >
-      <div className="mx-auto flex w-full max-w-2xl flex-col gap-3">
-        <header className="rounded-3xl border border-slate-200 bg-white/80 p-3 shadow-sm backdrop-blur">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-amber-600">
-                Forehead Mystery
-              </p>
-              <h1 className="text-lg font-semibold">Room {roomCode || "—"}</h1>
-            </div>
-            <div className="flex items-center gap-3">
-              <p className="text-sm text-slate-600">{status}</p>
-              {joined && room && room.hostId === playerId && room.phase !== "lobby" && (
-                <div className="flex flex-shrink-0 items-center gap-1">
-                  <button
-                    onClick={startNextGame}
-                    aria-label="Start new game"
-                    title="Start new game"
-                    className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-slate-600 hover:bg-slate-100"
-                  >
-                    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}>
-                      <path
-                        d="M4 4v5h5M20 20v-5h-5M4.5 15a8 8 0 0 0 14.5 3M19.5 9A8 8 0 0 0 5 6"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </button>
-                  <button
-                    onClick={handleEndGame}
-                    aria-label="End game and close room"
-                    title="End game and close room"
-                    className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-rose-600 hover:bg-rose-50"
-                  >
-                    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}>
-                      <circle cx="12" cy="12" r="9" />
-                      <path d="M9 9l6 6M15 9l-6 6" strokeLinecap="round" />
-                    </svg>
-                  </button>
-                </div>
-              )}
-            </div>
+    <main className="flex h-dvh w-full flex-col overflow-hidden bg-[radial-gradient(ellipse_at_top,#f6f4fe_0%,#e8ecfb_55%,#dde5f6_100%)] text-ink">
+      <header className="relative z-30 w-full flex-shrink-0 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur">
+        <div className="mx-auto flex w-full max-w-2xl items-center justify-between gap-3 px-3 py-2.5 sm:px-6">
+          <div className="flex min-w-0 items-center gap-3">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/logo.png"
+              alt="Forehead Mystery logo"
+              className="h-11 w-11 flex-shrink-0 object-cover"
+            />
+            <h1 className="font-display text-2xl leading-[0.9] font-bold text-ink">
+              Forehead
+              <br />
+              Mystery
+            </h1>
           </div>
-        </header>
+          <div className="flex flex-shrink-0 items-center gap-1">
+            {joined && room && room.hostId === playerId && room.phase !== "lobby" && (
+              <>
+                <button
+                  onClick={startNextGame}
+                  aria-label="Start new game"
+                  title="Start new game"
+                  className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-slate-600 hover:bg-slate-100"
+                >
+                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}>
+                    <path
+                      d="M4 4v5h5M20 20v-5h-5M4.5 15a8 8 0 0 0 14.5 3M19.5 9A8 8 0 0 0 5 6"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </button>
+                <button
+                  onClick={handleEndGame}
+                  aria-label="End game and close room"
+                  title="End game and close room"
+                  className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-rose-600 hover:bg-rose-50"
+                >
+                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}>
+                    <circle cx="12" cy="12" r="9" />
+                    <path d="M9 9l6 6M15 9l-6 6" strokeLinecap="round" />
+                  </svg>
+                </button>
+              </>
+            )}
+            <button
+              onClick={() => setActiveModal({ type: "help" })}
+              aria-label="How it works"
+              title="How it works"
+              className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-slate-600 hover:bg-slate-100"
+            >
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}>
+                <circle cx="12" cy="12" r="9" />
+                <path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.7v.5" strokeLinecap="round" />
+                <path d="M12 17h.01" strokeLinecap="round" />
+              </svg>
+            </button>
+            <Link
+              href="/winners"
+              aria-label="Winners page"
+              title="Hall of Fame"
+              className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-amber-500 hover:bg-amber-50"
+            >
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}>
+                <path
+                  d="M6 4h12v3a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V4z"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path d="M6 5H4a2 2 0 0 0 2 3M18 5h2a2 2 0 0 1-2 3" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M10 11v3M14 11v3M8 20h8M9 20l.5-3h5l.5 3" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </Link>
+          </div>
+        </div>
+      </header>
+
+      <div className="mx-auto flex w-full min-h-0 max-w-2xl flex-1 flex-col gap-3">
+        {!joined && status && (
+          <p className="px-3 text-xs font-medium text-ink/70 sm:px-6">{status}</p>
+        )}
 
         {!joined ? (
           <JoinScreen
@@ -1046,6 +1080,7 @@ export default function Home() {
             {room.phase === "lobby" ? (
               <LobbyScreen
                 room={room}
+                status={status}
                 isHost={room.hostId === playerId}
                 onStartGame={() => startGame(false)}
                 onStartWithTestPlayers={() => startGame(true)}
@@ -1064,7 +1099,7 @@ export default function Home() {
                 onReviewScratchpad={() => setActiveModal({ type: "scratchpad" })}
               />
             ) : (
-              <div className="relative rounded-3xl border border-slate-200 bg-white/80 p-3 shadow-sm backdrop-blur">
+              <div className="relative flex-1 min-h-0 overflow-y-auto border border-slate-200 bg-white/80 p-3 shadow-sm backdrop-blur sm:p-4">
                 {isTransitioning && <TransitionOverlay label="Loading new game..." />}
                 <GameHeader
                   round={room.round}
@@ -1140,6 +1175,10 @@ export default function Home() {
 
       {activeModal?.type === "menu" && (
         <MenuModal onLeaveGame={handleLeaveGame} onClose={() => setActiveModal(null)} />
+      )}
+
+      {activeModal?.type === "help" && (
+        <HelpModal onClose={() => setActiveModal(null)} />
       )}
 
       {binkPlayerName && <CorrectGuessPopup playerName={binkPlayerName} closing={binkClosing} />}

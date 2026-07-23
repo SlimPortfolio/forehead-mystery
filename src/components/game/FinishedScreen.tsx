@@ -37,7 +37,7 @@ export default function FinishedScreen({
   const orderedPlayers = orderPlayersByTurn(room);
 
   return (
-    <div className="rounded-3xl border border-slate-200 bg-white/80 p-4 shadow-sm backdrop-blur">
+    <div className="flex-1 min-h-0 overflow-y-auto border border-slate-200 bg-white/80 p-4 shadow-sm backdrop-blur">
       <h3 className="text-lg font-semibold">Game complete</h3>
       <div className="mt-3 space-y-2">
         {orderedPlayers.map((player) => {
@@ -55,7 +55,7 @@ export default function FinishedScreen({
               className={`flex items-center justify-between gap-3 rounded-2xl border p-3 ${borderClass}`}
             >
               <div>
-                <p className="font-semibold text-slate-900">{player.name}</p>
+                <p className="font-semibold text-ink">{player.name}</p>
                 {outcome && (
                   <p
                     className={`text-sm ${

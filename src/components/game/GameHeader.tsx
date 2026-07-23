@@ -21,7 +21,7 @@ export default function GameHeader({ round, phase, onOpenMenu }: GameHeaderProps
         <p className="text-sm font-semibold uppercase tracking-[0.3em] text-slate-400">
           Round {round}
         </p>
-        <h2 className="text-2xl font-bold text-slate-900">{PHASE_LABEL[phase]}</h2>
+        <h2 className="text-2xl font-bold text-ink">{PHASE_LABEL[phase]}</h2>
       </div>
       <button
         onClick={onOpenMenu}

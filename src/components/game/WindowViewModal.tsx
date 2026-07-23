@@ -38,7 +38,7 @@ export default function WindowViewModal({
               <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
                 Rank
               </span>
-              <span className="text-sm font-bold text-slate-900">
+              <span className="text-sm font-bold text-ink">
                 {targetPlayer.ranking ? formatRank(targetPlayer.ranking) : "???"}
               </span>
               {targetPlayer.ranking && (
