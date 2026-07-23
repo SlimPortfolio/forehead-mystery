@@ -941,10 +941,15 @@ export default function Home() {
     const otherPlayersCards = room.players
       .filter((p) => p.id !== myPlayer.id)
       .flatMap((p) => (p.card ? [p.card] : []));
+    // A wrong guess is always an undealt rank (a guesser can never select
+    // another visible player's card in the first place), so it can never be
+    // anyone else's actual card either — safe to rule it out for every
+    // remaining guesser, not just the player who tried it.
+    const allEliminatedGuesses = room.players.flatMap((p) => p.eliminatedGuesses);
     return CARD_POOL.filter(
       (card) =>
         !otherPlayersCards.includes(card) &&
-        !myPlayer.eliminatedGuesses.includes(card),
+        !allEliminatedGuesses.includes(card),
     );
   }, [room, myPlayer]);
 
@@ -953,9 +958,10 @@ export default function Home() {
       ? (room?.players.find((p) => p.id === activeModal.playerId) ?? null)
       : null;
 
-  const showActionBar = Boolean(
-    joined && room && room.phase !== "lobby" && room.phase !== "finished",
-  );
+  // Scratchpad stays available after the game ends too, so players can
+  // still review their notes on the finished screen — Rank/Guess naturally
+  // stay disabled there since neither phase check matches "finished".
+  const showActionBar = Boolean(joined && room && room.phase !== "lobby");
 
   return (
     <main
