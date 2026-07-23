@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getGuessOutcome, Room, suitForGame, US_STATES } from "./types";
+import { getGuessOutcome, orderPlayersByTurn, Room, suitForGame, US_STATES } from "./types";
 import PlayingCard from "./PlayingCard";
 
 type WinnerForm = {
@@ -34,12 +34,13 @@ export default function FinishedScreen({
   onReviewScratchpad,
 }: FinishedScreenProps) {
   const suit = suitForGame(room.gameNumber);
+  const orderedPlayers = orderPlayersByTurn(room);
 
   return (
     <div className="rounded-3xl border border-slate-200 bg-white/80 p-4 shadow-sm backdrop-blur">
       <h3 className="text-lg font-semibold">Game complete</h3>
       <div className="mt-3 space-y-2">
-        {room.players.map((player) => {
+        {orderedPlayers.map((player) => {
           const outcome = getGuessOutcome(player);
           const borderClass =
             outcome?.tone === "success"
