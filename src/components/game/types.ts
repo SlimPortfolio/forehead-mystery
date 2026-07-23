@@ -35,10 +35,13 @@ export type Room = {
 
 /** Preset trash-talk lines players can fire off during a game. */
 export const EMOTE_OPTIONS = [
-  "You think you're better than me",
-  "If the highest place!!",
   "Can we get much higher!?",
+  "If the highest place!!",
+  "Tell me everything",
+  "That tells me everything I need to know",
   "What, HOW!?",
+  "You think you're better than me",
+  "You think, YOU'RE the highest?",
 ];
 
 export const US_STATES = [
