@@ -1,10 +1,11 @@
 type PlayingCardProps = {
   card?: string | null;
   suit?: string;
-  size?: "sm" | "md" | "lg";
+  size?: "xs" | "sm" | "md" | "lg";
 };
 
 const SIZE_CLASSES: Record<NonNullable<PlayingCardProps["size"]>, string> = {
+  xs: "h-10 w-7 text-base",
   sm: "h-12 w-9 text-xl",
   md: "h-16 w-12 text-2xl",
   lg: "h-20 w-14 text-3xl",

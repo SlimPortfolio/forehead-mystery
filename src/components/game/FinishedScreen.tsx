@@ -19,6 +19,7 @@ type FinishedScreenProps = {
   winnerSaveStatus: "idle" | "saving" | "saved" | "error";
   onSubmitWinner: () => void;
   onStartNextGame: () => void;
+  onReviewScratchpad: () => void;
 };
 
 export default function FinishedScreen({
@@ -30,6 +31,7 @@ export default function FinishedScreen({
   winnerSaveStatus,
   onSubmitWinner,
   onStartNextGame,
+  onReviewScratchpad,
 }: FinishedScreenProps) {
   const suit = suitForGame(room.gameNumber);
 
@@ -175,14 +177,22 @@ export default function FinishedScreen({
         </div>
       )}
 
-      {isHost && (
+      <div className="mt-4 flex flex-wrap gap-2">
         <button
-          onClick={onStartNextGame}
-          className="mt-4 rounded-2xl bg-amber-500 px-4 py-2 font-semibold text-white"
+          onClick={onReviewScratchpad}
+          className="rounded-2xl border border-slate-300 bg-white px-4 py-2 font-semibold text-slate-700"
         >
-          Next game
+          Review Scratchpad
         </button>
-      )}
+        {isHost && (
+          <button
+            onClick={onStartNextGame}
+            className="rounded-2xl bg-amber-500 px-4 py-2 font-semibold text-white"
+          >
+            Next game
+          </button>
+        )}
+      </div>
     </div>
   );
 }
