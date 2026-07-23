@@ -66,7 +66,7 @@ function ActionButton({
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`flex flex-1 cursor-pointer flex-col items-center gap-1 py-3 text-xs font-semibold disabled:cursor-not-allowed ${
+      className={`flex h-16 min-w-0 flex-1 cursor-pointer flex-col items-center justify-center gap-1 text-[11px] font-semibold whitespace-nowrap disabled:cursor-not-allowed ${
         disabled ? "text-slate-300" : "text-slate-800"
       } ${active ? "bg-slate-200" : ""}`}
     >
@@ -109,14 +109,14 @@ export default function ActionBar({
   return (
     <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
       <div className="mx-auto flex max-w-lg divide-x divide-slate-200">
-        <ActionButton icon={<RankIcon />} label="Select Rank" disabled={!canRank} onClick={onSelectRank} />
+        <ActionButton icon={<RankIcon />} label="Rank" disabled={!canRank} onClick={onSelectRank} />
         <ActionButton
           icon={<ScratchpadIcon />}
-          label="Open Scratchpad"
+          label="Scratchpad"
           disabled={false}
           onClick={onOpenScratchpad}
         />
-        <ActionButton icon={<GuessIcon />} label="Guess Card" disabled={!canGuess} onClick={onGuessCard} />
+        <ActionButton icon={<GuessIcon />} label="Guess" disabled={!canGuess} onClick={onGuessCard} />
         <div ref={emoteWrapperRef} className="relative flex flex-1">
           {isEmoteOpen && (
             <div className="absolute bottom-full right-0 z-50 mb-2 flex max-h-[60vh] w-56 flex-col gap-1 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">

@@ -41,7 +41,7 @@ export default function PlayerList({
   const suit = suitForGame(room.gameNumber);
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-2">
       {orderedPlayers.map((player) => (
         <PlayerRow
           key={player.id}

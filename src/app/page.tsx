@@ -966,19 +966,21 @@ export default function Home() {
       ? (room?.players.find((p) => p.id === activeModal.playerId) ?? null)
       : null;
 
-  // Scratchpad stays available after the game ends too, so players can
-  // still review their notes on the finished screen — Rank/Guess naturally
-  // stay disabled there since neither phase check matches "finished".
-  const showActionBar = Boolean(joined && room && room.phase !== "lobby");
+  // The bottom action bar is only for active play. On the finished screen the
+  // scratchpad is reached via a dedicated "Review Scratchpad" button instead,
+  // so we don't show a bar full of grayed-out Rank/Guess actions there.
+  const showActionBar = Boolean(
+    joined && room && room.phase !== "lobby" && room.phase !== "finished",
+  );
 
   return (
     <main
-      className={`min-h-screen bg-[radial-gradient(circle_at_top,#fef3c7,#fdf2f8_45%,#fef3c7)] px-4 py-6 text-slate-900 sm:px-6 lg:px-8 ${
+      className={`min-h-screen w-full overflow-x-hidden bg-[radial-gradient(circle_at_top,#fef3c7,#fdf2f8_45%,#fef3c7)] px-3 py-4 text-slate-900 sm:px-6 lg:px-8 ${
         showActionBar ? "pb-24" : "pb-6"
       }`}
     >
-      <div className="mx-auto flex max-w-3xl flex-col gap-4">
-        <header className="rounded-3xl border border-slate-200 bg-white/80 p-4 shadow-sm backdrop-blur">
+      <div className="mx-auto flex w-full max-w-2xl flex-col gap-3">
+        <header className="rounded-3xl border border-slate-200 bg-white/80 p-3 shadow-sm backdrop-blur">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.3em] text-amber-600">
@@ -1059,9 +1061,10 @@ export default function Home() {
                 winnerSaveStatus={winnerSaveStatus}
                 onSubmitWinner={submitWinner}
                 onStartNextGame={startNextGame}
+                onReviewScratchpad={() => setActiveModal({ type: "scratchpad" })}
               />
             ) : (
-              <div className="relative rounded-3xl border border-slate-200 bg-white/80 p-4 shadow-sm backdrop-blur">
+              <div className="relative rounded-3xl border border-slate-200 bg-white/80 p-3 shadow-sm backdrop-blur">
                 {isTransitioning && <TransitionOverlay label="Loading new game..." />}
                 <GameHeader
                   round={room.round}
@@ -1069,7 +1072,7 @@ export default function Home() {
                   onOpenMenu={() => setActiveModal({ type: "menu" })}
                 />
 
-                <div className="mt-4">
+                <div className="mt-3">
                   <PlayerList
                     room={room}
                     playerId={playerId}

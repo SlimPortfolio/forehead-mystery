@@ -55,10 +55,10 @@ export default function PlayerRow({
   const rankLabel = player.ranking ? formatRank(player.ranking) : "???";
 
   return (
-    <div className={`relative flex items-center justify-between gap-3 rounded-2xl border p-3 ${borderClass}`}>
+    <div className={`relative flex items-center justify-between gap-2.5 rounded-2xl border px-3 py-2 ${borderClass}`}>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
-          <p className="truncate font-semibold text-slate-900">{player.name}</p>
+          <p className="truncate font-semibold leading-tight text-slate-900">{player.name}</p>
           {!isSelf && (
             <button
               onClick={() => onOpenWindowView(player.id)}
@@ -71,7 +71,7 @@ export default function PlayerRow({
         </div>
         {status && (
           <p
-            className={`mt-0.5 text-sm ${
+            className={`mt-0.5 text-xs leading-tight ${
               status.tone === "turn"
                 ? "text-amber-700"
                 : status.tone === "success"
@@ -86,14 +86,14 @@ export default function PlayerRow({
 
       <div className="relative flex-shrink-0">
         {chatText && <ChatBubble text={chatText} />}
-        <PlayingCard card={displayCard} suit={suit} size="sm" />
+        <PlayingCard card={displayCard} suit={suit} size="xs" />
       </div>
 
-      <div className="flex flex-shrink-0 flex-col items-center gap-1">
-        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+      <div className="flex flex-shrink-0 flex-col items-center gap-0.5">
+        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-amber-800">
           Rank
         </span>
-        <span className="text-lg font-bold text-slate-900">{rankLabel}</span>
+        <span className="text-base font-bold leading-none text-slate-900">{rankLabel}</span>
       </div>
     </div>
   );
