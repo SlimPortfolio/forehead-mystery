@@ -110,13 +110,13 @@ export default function ActionBar({
     <div className="relative z-40 w-full flex-shrink-0 border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
       <div className="mx-auto flex max-w-lg divide-x divide-slate-200">
         <ActionButton icon={<RankIcon />} label="Rank" disabled={!canRank} onClick={onSelectRank} />
+        <ActionButton icon={<GuessIcon />} label="Guess" disabled={!canGuess} onClick={onGuessCard} />
         <ActionButton
           icon={<ScratchpadIcon />}
           label="Scratchpad"
           disabled={false}
           onClick={onOpenScratchpad}
         />
-        <ActionButton icon={<GuessIcon />} label="Guess" disabled={!canGuess} onClick={onGuessCard} />
         <div ref={emoteWrapperRef} className="relative flex flex-1">
           {isEmoteOpen && (
             <div className="absolute bottom-full right-0 z-50 mb-2 flex max-h-[60vh] w-56 flex-col gap-1 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">

@@ -476,7 +476,7 @@ export default function Home() {
       };
 
       submitRoomState(nextRoom);
-    }, 500);
+    }, 2000);
 
     return () => clearTimeout(timer);
   }, [room, playerId]);
@@ -910,34 +910,15 @@ export default function Home() {
   const submitRanking = (rank: number) => {
     if (!room || !myPlayer || !isMyTurn) return;
 
-    let nextPlayers = room.players.map((player) =>
+    const nextPlayers = room.players.map((player) =>
       player.id === myPlayer.id ? { ...player, ranking: rank } : player,
     );
 
-    let nextTurnIndex = room.currentTurnIndex + 1;
-    let nextPhase: GamePhase = nextTurnIndex >= room.turnOrder.length ? "guessing" : "ranking";
-
-    // Auto-submit rankings for test players
-    while (
-      nextPhase === "ranking" &&
-      nextTurnIndex < room.turnOrder.length
-    ) {
-      const nextPlayerId = room.turnOrder[nextTurnIndex];
-      const nextPlayer = nextPlayers.find((p) => p.id === nextPlayerId);
-
-      if (nextPlayer?.name.startsWith("Test Player")) {
-        const testRank = getTestPlayerRanking(nextPlayer, nextPlayers);
-        nextPlayers = nextPlayers.map((p) =>
-          p.id === nextPlayerId ? { ...p, ranking: testRank } : p,
-        );
-        nextTurnIndex += 1;
-        if (nextTurnIndex >= room.turnOrder.length) {
-          nextPhase = "guessing";
-        }
-      } else {
-        break;
-      }
-    }
+    const nextTurnIndex = room.currentTurnIndex + 1;
+    // Any following test-player turns are picked up and resolved (with a
+    // pondering delay) by the ranking-phase bot effect above, rather than
+    // being resolved instantly here.
+    const nextPhase: GamePhase = nextTurnIndex >= room.turnOrder.length ? "guessing" : "ranking";
 
     const nextRoom: Room = {
       ...room,
@@ -1016,7 +997,12 @@ export default function Home() {
 
   const handleEndGame = () => {
     if (!room) return;
+    if (!window.confirm("End the game and close the room for everyone?")) {
+      return;
+    }
     submitRoomState({ ...room, phase: "finished" });
+    setJoined(false);
+    setActiveModal(null);
     setStatus("Game ended by host.");
   };
 
