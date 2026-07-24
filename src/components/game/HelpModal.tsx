@@ -77,12 +77,28 @@ function Note({ children }: { children: ReactNode }) {
   return <p className="mt-3 text-xs text-slate-400">{children}</p>;
 }
 
-/** A single tool entry: name + short description. */
-function Tool({ name, children }: { name: string; children: ReactNode }) {
+/** A single tool entry: name + short description, with an optional demo gif. */
+function Tool({
+  name,
+  gifSrc,
+  children,
+}: {
+  name: string;
+  gifSrc?: string;
+  children: ReactNode;
+}) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
       <h4 className="text-sm font-bold text-ink">{name}</h4>
       <p className="mt-1 text-sm leading-relaxed text-slate-600">{children}</p>
+      {gifSrc && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={gifSrc}
+          alt={`${name} demo`}
+          className="mt-3 w-full rounded-xl border border-slate-200"
+        />
+      )}
     </div>
   );
 }
@@ -151,20 +167,20 @@ function ToolsTab() {
       </Lead>
 
       <div className="mt-6 grid gap-3 sm:grid-cols-2">
-        <Tool name="Scratchpad">
+        <Tool name="Scratchpad" gifSrc="/gifs/scratchpad-demo.gif">
           The Scratchpad tool allows you to mark each card as possible,
           impossible, or most likely. The cards of other players are
           automatically marked, showing you what the largest possible window can
           be for you. As you mark possibilities, your marks will only be visible
           to you.
         </Tool>
-        <Tool name="Looking Glass">
+        <Tool name="Looking Glass" gifSrc="/gifs/looking-glass-demo.gif">
           Tap the icon next to any player to open their Looking Glass, which
           allows you to see the game exactly as it looks from their seat,
           without your card. This may help you understand what their ranking may
           tell you about yourself.
         </Tool>
-        <Tool name="Emote">
+        <Tool name="Emote" gifSrc="/gifs/emote-demo.gif">
           You can use the emote tool to send a message to your teammates. This
           is actually NOT a deduction tool, it simply exists just for fun.
         </Tool>
