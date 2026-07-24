@@ -32,8 +32,8 @@ export default function JoinScreen({
           Forehead Mystery
         </h1>
         <p className="max-w-md text-sm text-slate-500">
-          A game of teamwork and logic that makes time pass faster and makes
-          long lines disappear.
+          A game of teamwork and logic that makes time pass faster and long
+          lines disappear.
         </p>
         <button
           type="button"

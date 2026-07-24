@@ -30,7 +30,9 @@ function TabTitle({ children }: { children: ReactNode }) {
 
 /** Muted lead paragraph that sits under the title. */
 function Lead({ children }: { children: ReactNode }) {
-  return <p className="mt-3 text-sm leading-relaxed text-slate-500">{children}</p>;
+  return (
+    <p className="mt-3 text-sm leading-relaxed text-slate-500">{children}</p>
+  );
 }
 
 /** A numbered section heading, e.g. "1. The Setup". */
@@ -94,44 +96,45 @@ function RulesTab() {
     <div>
       <TabTitle>How to Play</TabTitle>
       <Lead>
-        The goal of Forehead Mystery is to correctly identify your own hidden
-        card before the round is out. You can see everyone else&apos;s card but
-        your own — read the table, rank yourself, and deduce what you&apos;re
-        holding.
+        In Forehead Mystery, every player must identify their own card. The
+        catch: you can see everyone else&apos;s cards but not your own. Help
+        your teammates discover theirs, and work together to figure out yours.
       </Lead>
 
       <Section number={1} title="The Setup">
         <p>
-          Every player is dealt a single card that stays hidden from them but
-          is visible to everyone else at the table.
+          Every player is dealt a single card that stays hidden from them but is
+          visible to everyone else at the table.
         </p>
         <BulletList
           items={[
             "You see all other players' cards, never your own.",
             "Cards range from Ace (low) through King (high).",
+            "There are no duplicate cards, all are from the same suit",
             "Each game deals a fresh hand to every player.",
-            "Play continues until every card is identified.",
           ]}
         />
       </Section>
 
-      <Section number={2} title="The Ranking Phase">
+      <Section number={2} title="Round 1: The Ranking Phase">
         <p>
-          On your turn, estimate where your hidden card ranks against the cards
-          you can see and lock in a guess for its position.
+          Look at your teammates&apos; cards and guess your rank in the group.
+          If you're an early player, base your guess on the cards and
+          probability. However, if you're a later player, you may consider your
+          teammates' guesses to help narrow down your position. Your goal here
+          is not merely to be correct, but rather to communicate information to
+          your teammates.
         </p>
       </Section>
 
-      <Section number={3} title="The Guessing Phase">
+      <Section number={3} title="Round 2: The Guessing Phase">
         <p>
-          When it&apos;s your turn to guess, name the exact card you think is
-          on your forehead. Guess correctly and you&apos;re identified for the
-          round.
+          Now that everyone has guessed their rank, it&apos;s time to guess your
+          card. When it&apos;s your turn, select the card you think you have.
+          Use the deduction tools to help! You can reference the deduction tools
+          in the tab above.
         </p>
-        <Note>
-          Note: This is a styled starter template — replace this copy with your
-          own rules whenever you&apos;re ready.
-        </Note>
+        <p>If everyone guesses correctly, you've won!</p>
       </Section>
     </div>
   );
