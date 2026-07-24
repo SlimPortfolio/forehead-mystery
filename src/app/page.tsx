@@ -103,21 +103,43 @@ function getCardValue(card: string): number {
   return values[card] || 0;
 }
 
+// Blind-guess strategy for the ranking phase: without knowing its own card,
+// the bot looks at everyone else's visible cards and guesses the rank that
+// sits in the largest gap between known values, since that's the rank most
+// likely to be correct.
+function findBestRank(otherCards: string[]): number {
+  if (otherCards.length === 0) return 1;
+
+  const sortedValues = otherCards
+    .map((card) => getCardValue(card))
+    .sort((a, b) => a - b);
+
+  const gaps: number[] = [sortedValues[0] - 1];
+  for (let i = 0; i < sortedValues.length - 1; i++) {
+    gaps.push(sortedValues[i + 1] - sortedValues[i] - 1);
+  }
+  gaps.push(13 - sortedValues[sortedValues.length - 1]);
+  gaps.reverse();
+
+  let largestGap = 0;
+  let bestRank = 1;
+  for (let i = 0; i < gaps.length; i++) {
+    if (gaps[i] > largestGap) {
+      largestGap = gaps[i];
+      bestRank = i + 1;
+    }
+  }
+
+  return bestRank;
+}
+
 function getTestPlayerRanking(testPlayer: Player, allPlayers: Player[]): number {
-  if (!testPlayer.card) return 1;
-
-  const testPlayerCardVal = getCardValue(testPlayer.card);
-  const otherPlayers = allPlayers.filter((p) => p.id !== testPlayer.id);
-  const otherCards = otherPlayers
+  const otherCards = allPlayers
+    .filter((p) => p.id !== testPlayer.id)
     .map((p) => p.card)
-    .filter((c): c is string => !!c)
-    .sort((a, b) => getCardValue(a) - getCardValue(b));
+    .filter((c): c is string => !!c);
 
-  const cardsAbove = otherCards.filter(
-    (card) => getCardValue(card) > testPlayerCardVal,
-  ).length;
-
-  return cardsAbove + 1;
+  return findBestRank(otherCards);
 }
 
 export default function Home() {
