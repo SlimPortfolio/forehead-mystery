@@ -6,6 +6,42 @@ type WinnerPlayerCardInput = {
   card: unknown;
 };
 
+/**
+ * Looks up coordinates for a "City, Region" string via OpenStreetMap's
+ * Nominatim geocoder. Only called once per saved winner (not on page load),
+ * which keeps us well within Nominatim's usage policy. Returns nulls on any
+ * failure so a bad/ambiguous location never blocks saving the win.
+ */
+async function geocodeLocation(
+  location: string,
+): Promise<{ lat: number | null; lng: number | null }> {
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(
+      location,
+    )}`;
+    const response = await fetch(url, {
+      headers: {
+        "User-Agent": "forehead-mystery/1.0 (winners map geocoding)",
+      },
+    });
+    if (!response.ok) return { lat: null, lng: null };
+
+    const results = await response.json();
+    const first = Array.isArray(results) ? results[0] : null;
+    if (!first) return { lat: null, lng: null };
+
+    const lat = Number(first.lat);
+    const lng = Number(first.lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      return { lat: null, lng: null };
+    }
+    return { lat, lng };
+  } catch (error) {
+    console.error("[winners POST] geocoding failed", { error, location });
+    return { lat: null, lng: null };
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -37,6 +73,8 @@ export async function POST(request: Request) {
       );
     }
 
+    const { lat, lng } = await geocodeLocation(location);
+
     const db = await getMongoDb();
     const winners = db.collection("winners");
 
@@ -45,6 +83,8 @@ export async function POST(request: Request) {
       date,
       time,
       location,
+      lat,
+      lng,
       players,
       createdAt: new Date(),
     };

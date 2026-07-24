@@ -1,6 +1,7 @@
 import AppHeader from "@/components/game/AppHeader";
 import { getMongoDb } from "@/lib/mongodb";
 import type { WinnerRecord } from "@/lib/winners";
+import WinnersMap from "@/components/game/WinnersMap";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,8 @@ async function getWinners(): Promise<WinnerRecord[]> {
     date: doc.date,
     time: doc.time,
     location: doc.location,
+    lat: typeof doc.lat === "number" ? doc.lat : null,
+    lng: typeof doc.lng === "number" ? doc.lng : null,
     players: doc.players ?? [],
     createdAt:
       doc.createdAt instanceof Date
@@ -42,6 +45,11 @@ export default async function WinnersPage() {
             Every team that has successfully identified all of their cards.
           </p>
         </header>
+
+        <section className="border border-slate-200 bg-white/80 p-5 shadow-sm backdrop-blur">
+          <h2 className="mb-3 text-lg font-semibold">Winners map</h2>
+          <WinnersMap winners={winners} />
+        </section>
 
         <section className="border border-slate-200 bg-white/80 p-5 shadow-sm backdrop-blur">
           {winners.length === 0 ? (
