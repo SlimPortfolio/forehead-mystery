@@ -8,17 +8,26 @@ type ModalProps = {
   headerAction?: ReactNode;
   /** Secondary row under the title bar, e.g. the target player's card + rank. */
   subheader?: ReactNode;
+  /** Max-width utility for the dialog panel. Defaults to a compact `max-w-lg`. */
+  maxWidthClassName?: string;
 };
 
 /** Shared overlay shell: click the backdrop or the X to close, body scrolls internally. */
-export default function Modal({ title, onClose, children, headerAction, subheader }: ModalProps) {
+export default function Modal({
+  title,
+  onClose,
+  children,
+  headerAction,
+  subheader,
+  maxWidthClassName = "max-w-lg",
+}: ModalProps) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-ink/40 backdrop-blur-sm sm:items-center"
       onClick={onClose}
     >
       <div
-        className="flex max-h-[94vh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl border border-slate-200 bg-white shadow-xl sm:rounded-3xl"
+        className={`flex max-h-[94vh] w-full flex-col overflow-hidden rounded-t-3xl border border-slate-200 bg-white shadow-xl sm:rounded-3xl ${maxWidthClassName}`}
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex-shrink-0 border-b border-slate-100 p-4">

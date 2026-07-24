@@ -32,11 +32,11 @@ const POLL_INTERVAL_MS = 2000;
 const NEW_GAME_TRANSITION_MS = 900;
 const STORAGE_PREFIX = "forehead-mystery-room";
 const PLAYER_ID_KEY = "forehead-mystery-player-id";
-const isLocal = typeof window !== "undefined" && (
-  window.location.hostname === "localhost" ||
-  window.location.hostname === "127.0.0.1" ||
-  window.location.hostname.startsWith("192.168.")
-);
+const isLocal =
+  typeof window !== "undefined" &&
+  (window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1" ||
+    window.location.hostname.startsWith("192.168."));
 
 const appUrl = (
   (process.env.NEXT_PUBLIC_APP_URL ||
@@ -133,7 +133,10 @@ function findBestRank(otherCards: string[]): number {
   return bestRank;
 }
 
-function getTestPlayerRanking(testPlayer: Player, allPlayers: Player[]): number {
+function getTestPlayerRanking(
+  testPlayer: Player,
+  allPlayers: Player[],
+): number {
   const otherCards = allPlayers
     .filter((p) => p.id !== testPlayer.id)
     .map((p) => p.card)
@@ -167,15 +170,21 @@ export default function Home() {
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [binkPlayerName, setBinkPlayerName] = useState<string | null>(null);
   const [binkClosing, setBinkClosing] = useState(false);
-  const [activeChatBubbles, setActiveChatBubbles] = useState<Record<string, string>>({});
+  const [activeChatBubbles, setActiveChatBubbles] = useState<
+    Record<string, string>
+  >({});
   const previousPhaseRef = useRef<GamePhase | null>(null);
   const roomRef = useRef<Room | null>(null);
   const suppressPollUntilRef = useRef<number>(0);
   const winnerFormInitializedRef = useRef(false);
   const binkTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const binkCloseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const binkCloseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
   const wasConfirmationPhaseRef = useRef(false);
-  const chatTimeoutRefs = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const chatTimeoutRefs = useRef<Record<string, ReturnType<typeof setTimeout>>>(
+    {},
+  );
   const lastChatTsRefs = useRef<Record<string, number>>({});
 
   useEffect(() => {
@@ -289,7 +298,8 @@ export default function Home() {
 
   useEffect(() => {
     return () => {
-      if (binkCloseTimeoutRef.current) clearTimeout(binkCloseTimeoutRef.current);
+      if (binkCloseTimeoutRef.current)
+        clearTimeout(binkCloseTimeoutRef.current);
       if (binkTimeoutRef.current) clearTimeout(binkTimeoutRef.current);
     };
   }, []);
@@ -307,7 +317,10 @@ export default function Home() {
       if (message.ts === lastChatTsRefs.current[senderId]) continue;
       lastChatTsRefs.current[senderId] = message.ts;
 
-      setActiveChatBubbles((current) => ({ ...current, [senderId]: message.text }));
+      setActiveChatBubbles((current) => ({
+        ...current,
+        [senderId]: message.text,
+      }));
 
       const existingTimeout = chatTimeoutRefs.current[senderId];
       if (existingTimeout) clearTimeout(existingTimeout);
@@ -354,10 +367,12 @@ export default function Home() {
               fetchedRoom.round !== currentRoom.round ||
               fetchedRoom.currentTurnIndex !== currentRoom.currentTurnIndex ||
               fetchedRoom.players.length !== currentRoom.players.length ||
-              fetchedRoom.turnOrder.join(",") !== currentRoom.turnOrder.join(",") ||
+              fetchedRoom.turnOrder.join(",") !==
+                currentRoom.turnOrder.join(",") ||
               JSON.stringify(fetchedRoom.chatMessages ?? {}) !==
                 JSON.stringify(currentRoom.chatMessages ?? {}) ||
-              JSON.stringify(fetchedRoom.players) !== JSON.stringify(currentRoom.players)
+              JSON.stringify(fetchedRoom.players) !==
+                JSON.stringify(currentRoom.players)
             ) {
               setRoom(fetchedRoom);
             }
@@ -441,7 +456,13 @@ export default function Home() {
   // computation can silently clobber a faster one's, which looks like an
   // action "not sending" to other players.
   useEffect(() => {
-    if (!room || !playerId || room.phase !== "ranking" || room.hostId !== playerId) return;
+    if (
+      !room ||
+      !playerId ||
+      room.phase !== "ranking" ||
+      room.hostId !== playerId
+    )
+      return;
 
     const currentPlayerId = room.turnOrder[room.currentTurnIndex];
     const currentPlayerInTurn = room.players.find(
@@ -456,10 +477,7 @@ export default function Home() {
       return;
 
     const timer = setTimeout(() => {
-      const testRank = getTestPlayerRanking(
-        currentPlayerInTurn,
-        room.players,
-      );
+      const testRank = getTestPlayerRanking(currentPlayerInTurn, room.players);
       const nextPlayers = room.players.map((p) =>
         p.id === currentPlayerId ? { ...p, ranking: testRank } : p,
       );
@@ -482,7 +500,13 @@ export default function Home() {
   }, [room, playerId]);
 
   useEffect(() => {
-    if (!room || !playerId || room.phase !== "guessing" || room.hostId !== playerId) return;
+    if (
+      !room ||
+      !playerId ||
+      room.phase !== "guessing" ||
+      room.hostId !== playerId
+    )
+      return;
 
     const currentPlayerId = room.turnOrder[room.currentTurnIndex];
     const currentPlayerInTurn = room.players.find(
@@ -504,8 +528,7 @@ export default function Home() {
           ? {
               ...p,
               guess: testGuess,
-              isCorrectlyIdentified:
-                wasCorrect || p.isCorrectlyIdentified,
+              isCorrectlyIdentified: wasCorrect || p.isCorrectlyIdentified,
             }
           : p,
       );
@@ -523,7 +546,13 @@ export default function Home() {
   }, [room, playerId]);
 
   useEffect(() => {
-    if (!room || !playerId || room.phase !== "confirmation" || room.hostId !== playerId) return;
+    if (
+      !room ||
+      !playerId ||
+      room.phase !== "confirmation" ||
+      room.hostId !== playerId
+    )
+      return;
 
     const currentPlayerId = room.turnOrder[room.currentTurnIndex];
     const currentPlayerInTurn = room.players.find(
@@ -574,9 +603,9 @@ export default function Home() {
 
   const allCorrectlyIdentified = Boolean(
     room &&
-      room.phase === "finished" &&
-      room.players.length > 0 &&
-      room.players.every((player) => player.isCorrectlyIdentified),
+    room.phase === "finished" &&
+    room.players.length > 0 &&
+    room.players.every((player) => player.isCorrectlyIdentified),
   );
 
   const isHost = Boolean(room && playerId && room.hostId === playerId);
@@ -598,10 +627,10 @@ export default function Home() {
   // the browser back button, or clicking the logo/winners link.
   const isInActiveGame = Boolean(
     joined &&
-      room &&
-      (room.phase === "ranking" ||
-        room.phase === "guessing" ||
-        room.phase === "confirmation"),
+    room &&
+    (room.phase === "ranking" ||
+      room.phase === "guessing" ||
+      room.phase === "confirmation"),
   );
 
   // Warn before a full page unload (refresh, tab close, or a back-button that
@@ -628,9 +657,7 @@ export default function Home() {
     event.preventDefault();
     if (
       isInActiveGame &&
-      !window.confirm(
-        "Leave the current game and return to the home screen?",
-      )
+      !window.confirm("Leave the current game and return to the home screen?")
     ) {
       return;
     }
@@ -810,7 +837,8 @@ export default function Home() {
       }
 
       if (isLocal) {
-        errorMessage += " (Local: Make sure your dev server is running on port 3000)";
+        errorMessage +=
+          " (Local: Make sure your dev server is running on port 3000)";
       }
 
       setStatus(errorMessage);
@@ -937,13 +965,13 @@ export default function Home() {
     // Any following test-player turns are picked up and resolved (with a
     // pondering delay) by the ranking-phase bot effect above, rather than
     // being resolved instantly here.
-    const nextPhase: GamePhase = nextTurnIndex >= room.turnOrder.length ? "guessing" : "ranking";
+    const nextPhase: GamePhase =
+      nextTurnIndex >= room.turnOrder.length ? "guessing" : "ranking";
 
     const nextRoom: Room = {
       ...room,
       players: nextPlayers,
-      currentTurnIndex:
-        nextPhase === "guessing" ? 0 : nextTurnIndex,
+      currentTurnIndex: nextPhase === "guessing" ? 0 : nextTurnIndex,
       phase: nextPhase,
       round: nextPhase === "guessing" ? 2 : room.round,
     };
@@ -963,7 +991,14 @@ export default function Home() {
   };
 
   const submitGuess = () => {
-    if (!room || !myPlayer || !isMyTurn || room.phase !== "guessing" || !pendingGuess) return;
+    if (
+      !room ||
+      !myPlayer ||
+      !isMyTurn ||
+      room.phase !== "guessing" ||
+      !pendingGuess
+    )
+      return;
 
     const wasCorrect = myPlayer.card === pendingGuess;
     const nextEliminated = wasCorrect
@@ -1073,7 +1108,9 @@ export default function Home() {
     // another visible player's card in the first place), so it can never be
     // anyone else's actual card either — safe to rule it out for every
     // remaining guesser, not just the player who tried it.
-    const allEliminatedGuesses = room.players.flatMap((p) => p.eliminatedGuesses);
+    const allEliminatedGuesses = room.players.flatMap(
+      (p) => p.eliminatedGuesses,
+    );
     return CARD_POOL.filter(
       (card) =>
         !otherPlayersCards.includes(card) &&
@@ -1096,44 +1133,68 @@ export default function Home() {
   return (
     <main className="flex h-dvh w-full flex-col overflow-hidden bg-[radial-gradient(ellipse_at_top,#f6f4fe_0%,#e8ecfb_55%,#dde5f6_100%)] text-ink">
       <AppHeader onLogoClick={handleLogoClick}>
-        {joined && room && room.hostId === playerId && room.phase !== "lobby" && (
-          <>
-            <button
-              onClick={startNextGame}
-              aria-label="Start new game"
-              title="Start new game"
-              className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-slate-600 hover:bg-slate-100"
-            >
-              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}>
-                <path
-                  d="M4 4v5h5M20 20v-5h-5M4.5 15a8 8 0 0 0 14.5 3M19.5 9A8 8 0 0 0 5 6"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </button>
-            <button
-              onClick={handleEndGame}
-              aria-label="End game and close room"
-              title="End game and close room"
-              className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-rose-600 hover:bg-rose-50"
-            >
-              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}>
-                <circle cx="12" cy="12" r="9" />
-                <path d="M9 9l6 6M15 9l-6 6" strokeLinecap="round" />
-              </svg>
-            </button>
-          </>
-        )}
+        {joined &&
+          room &&
+          room.hostId === playerId &&
+          room.phase !== "lobby" && (
+            <>
+              <button
+                onClick={startNextGame}
+                aria-label="Start new game"
+                title="Start new game"
+                className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-slate-600 hover:bg-slate-100"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-5 w-5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    d="M4 4v5h5M20 20v-5h-5M4.5 15a8 8 0 0 0 14.5 3M19.5 9A8 8 0 0 0 5 6"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
+              <button
+                onClick={handleEndGame}
+                aria-label="End game and close room"
+                title="End game and close room"
+                className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-rose-600 hover:bg-rose-50"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-5 w-5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="M9 9l6 6M15 9l-6 6" strokeLinecap="round" />
+                </svg>
+              </button>
+            </>
+          )}
         <button
           onClick={() => setActiveModal({ type: "help" })}
-          aria-label="How it works"
-          title="How it works"
+          aria-label="How to play"
+          title="How to play"
           className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-slate-600 hover:bg-slate-100"
         >
-          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}>
+          <svg
+            viewBox="0 0 24 24"
+            className="h-5 w-5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
             <circle cx="12" cy="12" r="9" />
-            <path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.7v.5" strokeLinecap="round" />
+            <path
+              d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.7v.5"
+              strokeLinecap="round"
+            />
             <path d="M12 17h.01" strokeLinecap="round" />
           </svg>
         </button>
@@ -1153,21 +1214,37 @@ export default function Home() {
           }}
           className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-amber-500 hover:bg-amber-50"
         >
-          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}>
+          <svg
+            viewBox="0 0 24 24"
+            className="h-5 w-5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
             <path
               d="M6 4h12v3a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V4z"
               strokeLinecap="round"
               strokeLinejoin="round"
             />
-            <path d="M6 5H4a2 2 0 0 0 2 3M18 5h2a2 2 0 0 1-2 3" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M10 11v3M14 11v3M8 20h8M9 20l.5-3h5l.5 3" strokeLinecap="round" strokeLinejoin="round" />
+            <path
+              d="M6 5H4a2 2 0 0 0 2 3M18 5h2a2 2 0 0 1-2 3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M10 11v3M14 11v3M8 20h8M9 20l.5-3h5l.5 3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
           </svg>
         </Link>
       </AppHeader>
 
       <div className="mx-auto flex w-full min-h-0 max-w-2xl flex-1 flex-col gap-3">
         {!joined && status && (
-          <p className="px-3 text-xs font-medium text-ink/70 sm:px-6">{status}</p>
+          <p className="px-3 text-xs font-medium text-ink/70 sm:px-6">
+            {status}
+          </p>
         )}
 
         {!joined ? (
@@ -1187,6 +1264,7 @@ export default function Home() {
               setRoomCode(code);
               joinOrCreateRoom(code, true);
             }}
+            onShowHelp={() => setActiveModal({ type: "help" })}
           />
         ) : room ? (
           <>
@@ -1196,7 +1274,9 @@ export default function Home() {
                 status={status}
                 isHost={room.hostId === playerId}
                 onStartGame={() => startGame(false)}
-                onStartWithBots={(totalPlayers) => startGame(true, false, totalPlayers)}
+                onStartWithBots={(totalPlayers) =>
+                  startGame(true, false, totalPlayers)
+                }
               />
             ) : room.phase === "finished" ? (
               <FinishedScreen
@@ -1208,11 +1288,15 @@ export default function Home() {
                 winnerSaveStatus={winnerSaveStatus}
                 onSubmitWinner={submitWinner}
                 onStartNextGame={startNextGame}
-                onReviewScratchpad={() => setActiveModal({ type: "scratchpad" })}
+                onReviewScratchpad={() =>
+                  setActiveModal({ type: "scratchpad" })
+                }
               />
             ) : (
               <div className="relative flex-1 min-h-0 overflow-y-auto border border-slate-200 bg-white/80 p-3 shadow-sm backdrop-blur sm:p-4">
-                {isTransitioning && <TransitionOverlay label="Loading new game..." />}
+                {isTransitioning && (
+                  <TransitionOverlay label="Loading new game..." />
+                )}
                 <GameHeader
                   round={room.round}
                   phase={room.phase}
@@ -1275,25 +1359,33 @@ export default function Home() {
         />
       )}
 
-      {activeModal?.type === "window" && windowViewTarget && playerId && room && (
-        <WindowViewModal
-          targetPlayer={windowViewTarget}
-          viewerPlayerId={playerId}
-          players={room.players}
-          suit={suitForGame(room.gameNumber)}
-          onClose={() => setActiveModal(null)}
-        />
-      )}
+      {activeModal?.type === "window" &&
+        windowViewTarget &&
+        playerId &&
+        room && (
+          <WindowViewModal
+            targetPlayer={windowViewTarget}
+            viewerPlayerId={playerId}
+            players={room.players}
+            suit={suitForGame(room.gameNumber)}
+            onClose={() => setActiveModal(null)}
+          />
+        )}
 
       {activeModal?.type === "menu" && (
-        <MenuModal onLeaveGame={handleLeaveGame} onClose={() => setActiveModal(null)} />
+        <MenuModal
+          onLeaveGame={handleLeaveGame}
+          onClose={() => setActiveModal(null)}
+        />
       )}
 
       {activeModal?.type === "help" && (
         <HelpModal onClose={() => setActiveModal(null)} />
       )}
 
-      {binkPlayerName && <CorrectGuessPopup playerName={binkPlayerName} closing={binkClosing} />}
+      {binkPlayerName && (
+        <CorrectGuessPopup playerName={binkPlayerName} closing={binkClosing} />
+      )}
     </main>
   );
 }
