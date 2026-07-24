@@ -9,6 +9,8 @@ export type WinnerRecord = {
   date: string;
   time: string;
   location: string;
+  lat: number | null;
+  lng: number | null;
   players: WinnerPlayerCard[];
   createdAt: string;
 };

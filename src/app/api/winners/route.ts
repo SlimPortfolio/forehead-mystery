@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getMongoDb } from "@/lib/mongodb";
+import { geocodeLocation } from "@/lib/geocode";
 
 type WinnerPlayerCardInput = {
   name: unknown;
@@ -37,6 +38,8 @@ export async function POST(request: Request) {
       );
     }
 
+    const { lat, lng } = await geocodeLocation(location);
+
     const db = await getMongoDb();
     const winners = db.collection("winners");
 
@@ -45,6 +48,8 @@ export async function POST(request: Request) {
       date,
       time,
       location,
+      lat,
+      lng,
       players,
       createdAt: new Date(),
     };

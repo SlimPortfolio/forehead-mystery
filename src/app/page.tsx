@@ -579,6 +579,20 @@ export default function Home() {
       room.players.every((player) => player.isCorrectlyIdentified),
   );
 
+  const isHost = Boolean(room && playerId && room.hostId === playerId);
+
+  // A perfect game the host hasn't saved to the winners page yet. Used to
+  // guard against losing it by starting the next game, ending the room, or
+  // leaving/refreshing before it's recorded.
+  const hasUnsavedPerfectGame = Boolean(
+    isHost && allCorrectlyIdentified && winnerSaveStatus !== "saved",
+  );
+
+  const confirmDiscardUnsavedWin = () =>
+    window.confirm(
+      "This perfect game hasn't been saved to the winners page yet. Continue anyway?",
+    );
+
   // "In a game" = joined and mid-play (not the lobby or the finished screen).
   // Used to guard against accidentally abandoning an active game via refresh,
   // the browser back button, or clicking the logo/winners link.
@@ -591,11 +605,12 @@ export default function Home() {
   );
 
   // Warn before a full page unload (refresh, tab close, or a back-button that
-  // leaves the document) while a game is in progress. The browser shows its
-  // own generic confirmation prompt; the message string is ignored by modern
-  // browsers but returnValue must be set for the prompt to appear.
+  // leaves the document) while a game is in progress, or while a perfect
+  // game is still unsaved. The browser shows its own generic confirmation
+  // prompt; the message string is ignored by modern browsers but
+  // returnValue must be set for the prompt to appear.
   useEffect(() => {
-    if (!isInActiveGame) return;
+    if (!isInActiveGame && !hasUnsavedPerfectGame) return;
 
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
       event.preventDefault();
@@ -604,7 +619,7 @@ export default function Home() {
 
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [isInActiveGame]);
+  }, [isInActiveGame, hasUnsavedPerfectGame]);
 
   // Clicking the logo returns to the home/join screen. Because the game view
   // lives at "/" as a client-side SPA, we reset local state rather than route,
@@ -617,6 +632,9 @@ export default function Home() {
         "Leave the current game and return to the home screen?",
       )
     ) {
+      return;
+    }
+    if (hasUnsavedPerfectGame && !confirmDiscardUnsavedWin()) {
       return;
     }
     setJoined(false);
@@ -803,6 +821,7 @@ export default function Home() {
 
   const startNextGame = () => {
     if (!room || !myPlayer) return;
+    if (hasUnsavedPerfectGame && !confirmDiscardUnsavedWin()) return;
 
     // Rotate the turn order so whoever went second last game goes first now
     const [previousFirstPlayer, ...restOfOrder] = room.turnOrder;
@@ -997,6 +1016,9 @@ export default function Home() {
 
   const handleEndGame = () => {
     if (!room) return;
+    if (hasUnsavedPerfectGame && !confirmDiscardUnsavedWin()) {
+      return;
+    }
     if (!window.confirm("End the game and close the room for everyone?")) {
       return;
     }
