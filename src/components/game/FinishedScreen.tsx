@@ -10,6 +10,7 @@ import {
   US_STATES,
 } from "./types";
 import PlayingCard from "./PlayingCard";
+import PostGameChat from "./PostGameChat";
 import CityAutocomplete from "./CityAutocomplete";
 import { getCitiesForState } from "@/data/usCities";
 import { getCitiesForCountry, getCountries } from "@/data/worldCities";
@@ -38,6 +39,7 @@ type WinnerForm = {
 type FinishedScreenProps = {
   room: Room;
   isHost: boolean;
+  playerId: string | null;
   allCorrectlyIdentified: boolean;
   winnerForm: WinnerForm;
   onWinnerFormChange: (form: WinnerForm) => void;
@@ -45,11 +47,13 @@ type FinishedScreenProps = {
   onSubmitWinner: () => void;
   onStartNextGame: () => void;
   onReviewScratchpad: () => void;
+  onSendPostGameChat: (text: string) => boolean;
 };
 
 export default function FinishedScreen({
   room,
   isHost,
+  playerId,
   allCorrectlyIdentified,
   winnerForm,
   onWinnerFormChange,
@@ -57,6 +61,7 @@ export default function FinishedScreen({
   onSubmitWinner,
   onStartNextGame,
   onReviewScratchpad,
+  onSendPostGameChat,
 }: FinishedScreenProps) {
   const [cityValid, setCityValid] = useState(false);
   const [countries, setCountries] = useState<string[]>([]);
@@ -286,6 +291,12 @@ export default function FinishedScreen({
           )}
         </div>
       )}
+
+      <PostGameChat
+        messages={room.postGameChat ?? []}
+        playerId={playerId}
+        onSend={onSendPostGameChat}
+      />
 
       <div className="mt-4 flex flex-wrap gap-2">
         <button
