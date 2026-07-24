@@ -1,3 +1,4 @@
+import { Telescope } from "lucide-react";
 import { formatRank, GamePhase, getGuessOutcome, Player } from "./types";
 import PlayingCard from "./PlayingCard";
 import ChatBubble from "./ChatBubble";
@@ -65,28 +66,7 @@ export default function PlayerRow({
               aria-label={`Open ${player.name}'s Looking Glass`}
               className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border border-slate-300 text-slate-500"
             >
-              <svg
-                viewBox="0 0 24 24"
-                className="h-3 w-3"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={2}
-              >
-                <path
-                  d="M4 15.5 15.5 4"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-                <rect
-                  x="14.2"
-                  y="2.8"
-                  width="7"
-                  height="4"
-                  rx="1"
-                  transform="rotate(45 17.7 4.8)"
-                />
-                <circle cx="4" cy="15.5" r="3.2" />
-              </svg>
+              <Telescope className="h-3.5 w-3.5" strokeWidth={2} />
             </button>
           )}
         </div>
