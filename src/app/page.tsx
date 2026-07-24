@@ -9,6 +9,7 @@ import {
   ChatMessage,
   GamePhase,
   Player,
+  PostGameChatMessage,
   Room,
   suitForGame,
 } from "@/components/game/types";
@@ -186,6 +187,7 @@ export default function Home() {
     {},
   );
   const lastChatTsRefs = useRef<Record<string, number>>({});
+  const lastPostGameChatSentRef = useRef<number>(0);
 
   useEffect(() => {
     roomRef.current = room;
@@ -371,6 +373,8 @@ export default function Home() {
                 currentRoom.turnOrder.join(",") ||
               JSON.stringify(fetchedRoom.chatMessages ?? {}) !==
                 JSON.stringify(currentRoom.chatMessages ?? {}) ||
+              JSON.stringify(fetchedRoom.postGameChat ?? []) !==
+                JSON.stringify(currentRoom.postGameChat ?? []) ||
               JSON.stringify(fetchedRoom.players) !==
                 JSON.stringify(currentRoom.players)
             ) {
@@ -1099,6 +1103,58 @@ export default function Home() {
     setActiveModal(null);
   };
 
+  // 2s client-side refractory period so a player mashing send can't fire a
+  // burst of PATCH requests. Returns false (and sends nothing) while on
+  // cooldown so the caller can decide how to reflect that in its own UI.
+  const POST_GAME_CHAT_REFRACTORY_MS = 2000;
+  const handleSendPostGameChat = (text: string): boolean => {
+    if (!room || !playerId) return false;
+    const trimmed = text.trim();
+    if (!trimmed) return false;
+
+    const now = Date.now();
+    if (now - lastPostGameChatSentRef.current < POST_GAME_CHAT_REFRACTORY_MS) {
+      return false;
+    }
+    lastPostGameChatSentRef.current = now;
+
+    const sender = room.players.find((player) => player.id === playerId);
+    const message: PostGameChatMessage = {
+      id: `${playerId}-${now}`,
+      playerId,
+      playerName: sender?.name ?? "Player",
+      text: trimmed,
+      ts: now,
+    };
+
+    // Optimistically append locally. The server write is scoped to a $push
+    // (see /api/rooms/[roomCode]) rather than replacing the whole array, and
+    // we deliberately don't trip suppressPollUntilRef — same reasoning as
+    // handleSendChat above, so other players' concurrent messages still show
+    // up in real time instead of being masked until the suppression window
+    // clears.
+    setRoom((current) =>
+      current
+        ? {
+            ...current,
+            postGameChat: [...(current.postGameChat ?? []), message],
+          }
+        : current,
+    );
+
+    const sendMessage = () =>
+      fetch(`${appUrl}/api/rooms/${room.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ postGameChatAppend: message }),
+      }).then((response) => {
+        if (!response.ok) throw new Error(`PATCH failed: ${response.status}`);
+      });
+
+    sendMessage().catch(() => sendMessage().catch(() => {}));
+    return true;
+  };
+
   const guessingCards = useMemo(() => {
     if (!room || !myPlayer) return [] as string[];
     const otherPlayersCards = room.players
@@ -1282,6 +1338,7 @@ export default function Home() {
               <FinishedScreen
                 room={room}
                 isHost={room.hostId === playerId}
+                playerId={playerId}
                 allCorrectlyIdentified={allCorrectlyIdentified}
                 winnerForm={winnerForm}
                 onWinnerFormChange={setWinnerForm}
@@ -1291,6 +1348,7 @@ export default function Home() {
                 onReviewScratchpad={() =>
                   setActiveModal({ type: "scratchpad" })
                 }
+                onSendPostGameChat={handleSendPostGameChat}
               />
             ) : (
               <div className="relative flex-1 min-h-0 overflow-y-auto border border-slate-200 bg-white/80 p-3 shadow-sm backdrop-blur sm:p-4">

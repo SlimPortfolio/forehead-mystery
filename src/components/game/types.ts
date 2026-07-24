@@ -23,6 +23,14 @@ export type ChatMessage = {
   ts: number;
 };
 
+export type PostGameChatMessage = {
+  id: string;
+  playerId: string;
+  playerName: string;
+  text: string;
+  ts: number;
+};
+
 export type Room = {
   id: string;
   hostId: string;
@@ -36,12 +44,17 @@ export type Room = {
   /** Latest preset chat message per player, shown as a speech bubble by the sender's row.
    * Keyed by playerId so simultaneous emotes from different players don't clobber each other. */
   chatMessages?: Record<string, ChatMessage>;
+  /** Free-text chat log shown on the results screen once a game finishes.
+   * Appended to server-side via $push (see /api/rooms/[roomCode]) so
+   * concurrent senders can't clobber each other's messages. */
+  postGameChat?: PostGameChatMessage[];
 };
 
 /** Preset trash-talk lines players can fire off during a game. */
 export const EMOTE_OPTIONS = [
   "Can we get much higher!?",
   "I'm in the dirt",
+  "Just pick a card man!",
   "Tell me everything",
   "That tells me everything I need to know",
   "That's not possible...",
