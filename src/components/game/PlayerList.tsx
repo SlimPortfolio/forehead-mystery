@@ -5,7 +5,7 @@ type PlayerListProps = {
   room: Room;
   playerId: string | null;
   activeChatBubbles: Record<string, string>;
-  onOpenWindowView: (playerId: string) => void;
+  onOpenLookingGlass: (playerId: string) => void;
 };
 
 function hasActedThisPhase(player: Player, phase: GamePhase) {
@@ -20,7 +20,7 @@ export default function PlayerList({
   room,
   playerId,
   activeChatBubbles,
-  onOpenWindowView,
+  onOpenLookingGlass,
 }: PlayerListProps) {
   const currentPlayerId = room.turnOrder[room.currentTurnIndex];
   const orderedPlayers = orderPlayersByTurn(room);
@@ -38,7 +38,7 @@ export default function PlayerList({
           phase={room.phase}
           suit={suit}
           chatText={activeChatBubbles[player.id]}
-          onOpenWindowView={onOpenWindowView}
+          onOpenLookingGlass={onOpenLookingGlass}
         />
       ))}
     </div>

@@ -1,28 +1,210 @@
+"use client";
+
+import { ReactNode, useState } from "react";
 import Modal from "./Modal";
 
 type HelpModalProps = {
   onClose: () => void;
 };
 
-const ITEMS = [
-  "Each player sees everyone else's cards, but their own remains hidden.",
-  "Rank yourself each round, then submit a guess for your own card on your turn.",
-  "Open the Scratchpad to privately mark cards as possible, impossible, or most likely — it stays on your device only.",
-  "Tap the ⓘ next to a player to open their Window View and see the game from their seat.",
-  "Use Emote to send some friendly trash talk to the table.",
+type TabKey = "rules" | "tools";
+
+const TABS: { key: TabKey; label: string }[] = [
+  { key: "rules", label: "Rules" },
+  { key: "tools", label: "Tools" },
 ];
 
-export default function HelpModal({ onClose }: HelpModalProps) {
+/* ---------- Reusable layout pieces ----------
+   These mirror the typographic hierarchy of a good "How to Play" page:
+   a big title, a muted intro, numbered sections with sub-headings, tidy
+   bulleted lists, and small footnotes. Swap the copy below to taste. */
+
+/** The large screen title shown at the top of a tab's content. */
+function TabTitle({ children }: { children: ReactNode }) {
   return (
-    <Modal title="How it works" onClose={onClose}>
-      <ul className="space-y-3 text-sm text-slate-600">
-        {ITEMS.map((item) => (
-          <li key={item} className="flex gap-2">
-            <span className="text-slate-400">•</span>
-            <span>{item}</span>
-          </li>
-        ))}
-      </ul>
+    <h2 className="font-display text-2xl font-bold text-ink sm:text-3xl">
+      {children}
+    </h2>
+  );
+}
+
+/** Muted lead paragraph that sits under the title. */
+function Lead({ children }: { children: ReactNode }) {
+  return (
+    <p className="mt-3 text-sm leading-relaxed text-slate-500">{children}</p>
+  );
+}
+
+/** A numbered section heading, e.g. "1. The Setup". */
+function Section({
+  number,
+  title,
+  children,
+}: {
+  number: number;
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="mt-7">
+      <h3 className="flex items-baseline gap-2 text-lg font-bold text-ink">
+        <span className="text-slate-400">{number}.</span>
+        {title}
+      </h3>
+      <div className="mt-2 space-y-3 text-sm leading-relaxed text-slate-600">
+        {children}
+      </div>
+    </section>
+  );
+}
+
+/** Bulleted list with muted markers; two columns from the `sm` breakpoint up. */
+function BulletList({ items }: { items: ReactNode[] }) {
+  return (
+    <ul className="grid gap-2 sm:grid-cols-2">
+      {items.map((item, index) => (
+        <li key={index} className="flex gap-2">
+          <span className="mt-0.5 text-slate-400">•</span>
+          <span>{item}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** Small muted footnote, e.g. an exception or "coming soon" caveat. */
+function Note({ children }: { children: ReactNode }) {
+  return <p className="mt-3 text-xs text-slate-400">{children}</p>;
+}
+
+/** A single tool entry: name + short description. */
+function Tool({ name, children }: { name: string; children: ReactNode }) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
+      <h4 className="text-sm font-bold text-ink">{name}</h4>
+      <p className="mt-1 text-sm leading-relaxed text-slate-600">{children}</p>
+    </div>
+  );
+}
+
+/* ---------- Tab content ----------
+   Rules is a styled starter template — edit the copy freely.
+   Tools describes the real tools already in the game. */
+
+function RulesTab() {
+  return (
+    <div>
+      <TabTitle>How to Play</TabTitle>
+      <Lead>
+        In Forehead Mystery, every player must identify their own card. The
+        catch: you can see everyone else&apos;s cards but not your own. Help
+        your teammates discover theirs, and work together to figure out yours.
+      </Lead>
+
+      <Section number={1} title="The Setup">
+        <p>
+          Every player is dealt a single card that stays hidden from them but is
+          visible to everyone else at the table.
+        </p>
+        <BulletList
+          items={[
+            "You see all other players' cards, never your own.",
+            "Cards range from Ace (low) through King (high).",
+            "There are no duplicate cards, all are from the same suit",
+            "Each game deals a fresh hand to every player.",
+          ]}
+        />
+      </Section>
+
+      <Section number={2} title="Round 1: The Ranking Phase">
+        <p>
+          Look at your teammates&apos; cards and guess your rank in the group.
+          If you&apos;re an early player, base your guess on the cards and
+          probability. However, if you&apos;re a later player, you may consider
+          your teammates&apos; guesses to help narrow down your position. Your
+          goal here is not merely to be correct, but rather to communicate
+          information to your teammates.
+        </p>
+      </Section>
+
+      <Section number={3} title="Round 2: The Guessing Phase">
+        <p>
+          Now that everyone has guessed their rank, it&apos;s time to guess your
+          card. When it&apos;s your turn, select the card you think you have.
+          Use the deduction tools to help! You can reference the deduction tools
+          in the tab above.
+        </p>
+        <p>If everyone guesses correctly, you&apos;ve won!</p>
+      </Section>
+    </div>
+  );
+}
+
+function ToolsTab() {
+  return (
+    <div>
+      <TabTitle>Deduction Tools</TabTitle>
+      <Lead>
+        There might be a lot of information to keep track of, but don&apos;t
+        worry, you have plenty of tools to help! Each of these tools are at your
+        disposal.
+      </Lead>
+
+      <div className="mt-6 grid gap-3 sm:grid-cols-2">
+        <Tool name="Scratchpad">
+          The Scratchpad tool allows you to mark each card as possible,
+          impossible, or most likely. The cards of other players are
+          automatically marked, showing you what the largest possible window can
+          be for you. As you mark possibilities, your marks will only be visible
+          to you.
+        </Tool>
+        <Tool name="Looking Glass">
+          Tap the icon next to any player to open their Looking Glass, which
+          allows you to see the game exactly as it looks from their seat,
+          without your card. This may help you understand what their ranking may
+          tell you about yourself.
+        </Tool>
+        <Tool name="Emote">
+          You can use the emote tool to send a message to your teammates. This
+          is actually NOT a deduction tool, it simply exists just for fun.
+        </Tool>
+      </div>
+    </div>
+  );
+}
+
+export default function HelpModal({ onClose }: HelpModalProps) {
+  const [activeTab, setActiveTab] = useState<TabKey>("rules");
+
+  const tabBar = (
+    <div className="flex gap-1 rounded-full bg-slate-100 p-1">
+      {TABS.map((tab) => {
+        const isActive = tab.key === activeTab;
+        return (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={`flex-1 rounded-full px-4 py-1.5 text-sm font-semibold transition-colors ${
+              isActive
+                ? "bg-ink text-white shadow-sm"
+                : "text-slate-500 hover:text-ink"
+            }`}
+          >
+            {tab.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  return (
+    <Modal
+      title="How to Play"
+      onClose={onClose}
+      subheader={tabBar}
+      maxWidthClassName="max-w-2xl"
+    >
+      {activeTab === "rules" ? <RulesTab /> : <ToolsTab />}
     </Modal>
   );
 }

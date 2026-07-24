@@ -173,6 +173,6 @@ export type ActiveModal =
   | { type: "guess" }
   | { type: "scratchpad" }
   | { type: "menu" }
-  | { type: "window"; playerId: string }
+  | { type: "lookingGlass"; playerId: string }
   | { type: "help" }
   | null;

@@ -6,6 +6,7 @@ type JoinScreenProps = {
   isJoining: boolean;
   onJoin: () => void;
   onCreate: () => void;
+  onShowHelp: () => void;
 };
 
 export default function JoinScreen({
@@ -16,10 +17,34 @@ export default function JoinScreen({
   isJoining,
   onJoin,
   onCreate,
+  onShowHelp,
 }: JoinScreenProps) {
   return (
-    <section className="grid flex-1 min-h-0 gap-4 overflow-y-auto border border-slate-200 bg-white/80 p-5 shadow-sm backdrop-blur lg:grid-cols-[1.2fr_0.8fr]">
-      <div className="space-y-4">
+    <section className="flex flex-1 min-h-0 flex-col gap-5 overflow-y-auto border border-slate-200 bg-white/80 p-5 shadow-sm backdrop-blur">
+      <div className="flex flex-col items-center gap-2 text-center">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/logo.png"
+          alt="Forehead Mystery logo"
+          className="h-20 w-20 object-cover"
+        />
+        <h1 className="font-display text-3xl font-bold text-ink sm:text-4xl">
+          Forehead Mystery
+        </h1>
+        <p className="max-w-md text-sm text-slate-500">
+          A game of teamwork and logic that makes time pass faster and long
+          lines disappear.
+        </p>
+        <button
+          type="button"
+          onClick={onShowHelp}
+          className="mt-2 text-xs font-semibold tracking-wide text-ink uppercase underline underline-offset-4 hover:text-ink/70"
+        >
+          How to Play
+        </button>
+      </div>
+
+      <div className="space-y-4 pt-6">
         <h2 className="text-xl font-semibold">Join or create a room</h2>
         <label className="block text-sm font-medium text-slate-700">
           Your name
@@ -72,19 +97,6 @@ export default function JoinScreen({
             )}
           </button>
         </div>
-      </div>
-      <div className="rounded-3xl bg-ink p-6 text-slate-100">
-        <h3 className="text-lg font-semibold">How it works</h3>
-        <ul className="mt-3 space-y-2 text-sm text-slate-300">
-          <li>
-            • Each player sees everyone else's cards, but their own remains
-            hidden.
-          </li>
-          <li>
-            • Rank yourself each round and then submit a guess during your turn.
-          </li>
-          <li>• Private scratchpad markings stay on your device only.</li>
-        </ul>
       </div>
     </section>
   );
