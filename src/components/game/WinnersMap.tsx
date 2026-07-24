@@ -61,10 +61,11 @@ export default function WinnersMap({ winners }: WinnersMapProps) {
     import("leaflet").then((L) => {
       if (cancelled || !containerRef.current || mapRef.current) return;
 
-      const map = L.map(containerRef.current).setView(
-        DEFAULT_CENTER,
-        DEFAULT_ZOOM,
-      );
+      const map = L.map(containerRef.current, {
+        zoomControl: false,
+      }).setView(DEFAULT_CENTER, DEFAULT_ZOOM);
+
+      L.control.zoom({ position: "bottomleft" }).addTo(map);
       mapRef.current = map;
 
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
