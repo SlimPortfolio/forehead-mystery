@@ -10,7 +10,7 @@ type PlayerRowProps = {
   phase: GamePhase;
   suit: string;
   chatText?: string;
-  onOpenWindowView: (playerId: string) => void;
+  onOpenLookingGlass: (playerId: string) => void;
 };
 
 function getStatus(player: Player, isCurrentTurn: boolean, phase: GamePhase) {
@@ -33,7 +33,7 @@ export default function PlayerRow({
   phase,
   suit,
   chatText,
-  onOpenWindowView,
+  onOpenLookingGlass,
 }: PlayerRowProps) {
   const status = getStatus(player, isCurrentTurn, phase);
 
@@ -61,11 +61,32 @@ export default function PlayerRow({
           <p className="truncate font-semibold leading-tight text-ink">{player.name}</p>
           {!isSelf && (
             <button
-              onClick={() => onOpenWindowView(player.id)}
-              aria-label={`View ${player.name}'s window`}
-              className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border border-slate-300 text-xs text-slate-500"
+              onClick={() => onOpenLookingGlass(player.id)}
+              aria-label={`Open ${player.name}'s Looking Glass`}
+              className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border border-slate-300 text-slate-500"
             >
-              i
+              <svg
+                viewBox="0 0 24 24"
+                className="h-3 w-3"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  d="M4 15.5 15.5 4"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <rect
+                  x="14.2"
+                  y="2.8"
+                  width="7"
+                  height="4"
+                  rx="1"
+                  transform="rotate(45 17.7 4.8)"
+                />
+                <circle cx="4" cy="15.5" r="3.2" />
+              </svg>
             </button>
           )}
         </div>

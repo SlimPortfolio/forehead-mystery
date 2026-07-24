@@ -22,7 +22,7 @@ import ActionBar from "@/components/game/ActionBar";
 import RankSelectModal from "@/components/game/RankSelectModal";
 import GuessCardModal from "@/components/game/GuessCardModal";
 import ScratchpadModal from "@/components/game/ScratchpadModal";
-import WindowViewModal from "@/components/game/WindowViewModal";
+import LookingGlassModal from "@/components/game/LookingGlassModal";
 import MenuModal from "@/components/game/MenuModal";
 import HelpModal from "@/components/game/HelpModal";
 import CorrectGuessPopup from "@/components/game/CorrectGuessPopup";
@@ -1118,8 +1118,8 @@ export default function Home() {
     );
   }, [room, myPlayer]);
 
-  const windowViewTarget =
-    activeModal?.type === "window"
+  const lookingGlassTarget =
+    activeModal?.type === "lookingGlass"
       ? (room?.players.find((p) => p.id === activeModal.playerId) ?? null)
       : null;
 
@@ -1308,8 +1308,8 @@ export default function Home() {
                     room={room}
                     playerId={playerId}
                     activeChatBubbles={activeChatBubbles}
-                    onOpenWindowView={(id) =>
-                      setActiveModal({ type: "window", playerId: id })
+                    onOpenLookingGlass={(id) =>
+                      setActiveModal({ type: "lookingGlass", playerId: id })
                     }
                   />
                 </div>
@@ -1359,12 +1359,12 @@ export default function Home() {
         />
       )}
 
-      {activeModal?.type === "window" &&
-        windowViewTarget &&
+      {activeModal?.type === "lookingGlass" &&
+        lookingGlassTarget &&
         playerId &&
         room && (
-          <WindowViewModal
-            targetPlayer={windowViewTarget}
+          <LookingGlassModal
+            targetPlayer={lookingGlassTarget}
             viewerPlayerId={playerId}
             players={room.players}
             suit={suitForGame(room.gameNumber)}

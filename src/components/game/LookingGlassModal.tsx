@@ -2,7 +2,7 @@ import Modal from "./Modal";
 import { CARD_POOL, formatRank, Player } from "./types";
 import PlayingCard from "./PlayingCard";
 
-type WindowViewModalProps = {
+type LookingGlassModalProps = {
   targetPlayer: Player;
   viewerPlayerId: string;
   players: Player[];
@@ -19,16 +19,16 @@ type WindowViewModalProps = {
  * already see it in the main player list; only the derived list below
  * excludes it (the target wouldn't know their own card).
  */
-export default function WindowViewModal({
+export default function LookingGlassModal({
   targetPlayer,
   viewerPlayerId,
   players,
   suit,
   onClose,
-}: WindowViewModalProps) {
+}: LookingGlassModalProps) {
   return (
     <Modal
-      title={`Window View for: ${targetPlayer.name}`}
+      title={`Looking Glass for: ${targetPlayer.name}`}
       onClose={onClose}
       subheader={
         <div className="flex flex-col gap-2">

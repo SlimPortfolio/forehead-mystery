@@ -119,11 +119,11 @@ function RulesTab() {
       <Section number={2} title="Round 1: The Ranking Phase">
         <p>
           Look at your teammates&apos; cards and guess your rank in the group.
-          If you're an early player, base your guess on the cards and
-          probability. However, if you're a later player, you may consider your
-          teammates' guesses to help narrow down your position. Your goal here
-          is not merely to be correct, but rather to communicate information to
-          your teammates.
+          If you&apos;re an early player, base your guess on the cards and
+          probability. However, if you&apos;re a later player, you may consider
+          your teammates&apos; guesses to help narrow down your position. Your
+          goal here is not merely to be correct, but rather to communicate
+          information to your teammates.
         </p>
       </Section>
 
@@ -134,7 +134,7 @@ function RulesTab() {
           Use the deduction tools to help! You can reference the deduction tools
           in the tab above.
         </p>
-        <p>If everyone guesses correctly, you've won!</p>
+        <p>If everyone guesses correctly, you&apos;ve won!</p>
       </Section>
     </div>
   );
@@ -143,28 +143,30 @@ function RulesTab() {
 function ToolsTab() {
   return (
     <div>
-      <TabTitle>Your Tools</TabTitle>
+      <TabTitle>Deduction Tools</TabTitle>
       <Lead>
-        A few helpers are built into the table to keep track of your reads and
-        keep the game lively. Everything here is available during play.
+        There might be a lot of information to keep track of, but don&apos;t
+        worry, you have plenty of tools to help! Each of these tools are at your
+        disposal.
       </Lead>
 
       <div className="mt-6 grid gap-3 sm:grid-cols-2">
         <Tool name="Scratchpad">
-          Privately mark each card as possible, impossible, or most likely. Your
-          markings stay on your device only — nobody else can see them.
+          The Scratchpad tool allows you to mark each card as possible,
+          impossible, or most likely. The cards of other players are
+          automatically marked, showing you what the largest possible window can
+          be for you. As you mark possibilities, your marks will only be visible
+          to you.
         </Tool>
-        <Tool name="Window View (ⓘ)">
-          Tap the ⓘ next to any player to open their Window View and see the
-          game exactly as it looks from their seat.
+        <Tool name="Looking Glass">
+          Tap the icon next to any player to open their Looking Glass, which
+          allows you to see the game exactly as it looks from their seat,
+          without your card. This may help you understand what their ranking may
+          tell you about yourself.
         </Tool>
         <Tool name="Emote">
-          Send a bit of friendly trash talk to the table — your message pops up
-          as a speech bubble for everyone to see.
-        </Tool>
-        <Tool name="Menu">
-          Open the in-game menu to review your options or leave the current
-          game.
+          You can use the emote tool to send a message to your teammates. This
+          is actually NOT a deduction tool, it simply exists just for fun.
         </Tool>
       </div>
     </div>
