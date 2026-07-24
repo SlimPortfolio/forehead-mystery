@@ -40,3 +40,22 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* iOS Safari zooms the whole page in whenever a focused form control has a
+   font-size below 16px, and often never zooms back out — which reads as the
+   app being "stuck zoomed in" even after you navigate to a page with no
+   inputs (the zoom level persists across same-tab navigation). Force form
+   controls to render at >=16px on touch devices to suppress the auto-zoom
+   while leaving pinch-zoom intact. The `[class]` attribute selector outranks
+   the single-class `text-sm` utilities set on some inputs, and the bare
+   selectors cover controls that inherit their size from a parent label. */
+@media (pointer: coarse) {
+  input,
+  select,
+  textarea,
+  input[class],
+  select[class],
+  textarea[class] {
+    font-size: 16px;
+  }
+}
