@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   getGuessOutcome,
@@ -7,6 +10,11 @@ import {
   US_STATES,
 } from "./types";
 import PlayingCard from "./PlayingCard";
+import CityAutocomplete from "./CityAutocomplete";
+import { getCitiesForState } from "@/data/usCities";
+import { getCitiesForCountry, getCountries } from "@/data/worldCities";
+
+const INTERNATIONAL = "INTL";
 
 /** Chip shown next to the sole player who guessed wrong. */
 function JesterChip() {
@@ -24,6 +32,7 @@ type WinnerForm = {
   time: string;
   city: string;
   state: string;
+  country: string;
 };
 
 type FinishedScreenProps = {
@@ -49,8 +58,23 @@ export default function FinishedScreen({
   onStartNextGame,
   onReviewScratchpad,
 }: FinishedScreenProps) {
+  const [cityValid, setCityValid] = useState(false);
+  const [countries, setCountries] = useState<string[]>([]);
+  const isInternational = winnerForm.state === INTERNATIONAL;
   const suit = suitForGame(room.gameNumber);
   const orderedPlayers = orderPlayersByTurn(room);
+
+  // Load the country list the first time the host switches to International.
+  useEffect(() => {
+    if (!isInternational || countries.length > 0) return;
+    let active = true;
+    getCountries().then((list) => {
+      if (active) setCountries(list);
+    });
+    return () => {
+      active = false;
+    };
+  }, [isInternational, countries.length]);
 
   // The jester label only appears when exactly one player guessed wrong.
   const incorrectPlayers = orderedPlayers.filter(
@@ -101,12 +125,12 @@ export default function FinishedScreen({
       </div>
 
       {allCorrectlyIdentified && (
-        <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-          <h4 className="font-semibold text-amber-900">
+        <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+          <h4 className="font-semibold text-ink">
             Perfect game! Everyone identified their card.
           </h4>
           {!isHost ? (
-            <p className="mt-2 text-sm text-amber-800">
+            <p className="mt-2 text-sm text-slate-600">
               Ask your host to save this victory to the{" "}
               <Link href="/winners" className="underline">
                 winners page
@@ -144,40 +168,88 @@ export default function FinishedScreen({
               </p>
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="block text-sm font-medium text-slate-700">
-                  City
-                  <input
-                    value={winnerForm.city}
-                    onChange={(event) =>
-                      onWinnerFormChange({
-                        ...winnerForm,
-                        city: event.target.value,
-                      })
-                    }
-                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
-                    placeholder="e.g. Austin"
-                  />
-                </label>
-                <label className="block text-sm font-medium text-slate-700">
-                  State
+                  {isInternational ? "Region" : "State"}
                   <select
                     value={winnerForm.state}
                     onChange={(event) =>
                       onWinnerFormChange({
                         ...winnerForm,
                         state: event.target.value,
+                        // Reset dependent fields so a stale value can't linger.
+                        country: "",
+                        city: "",
                       })
                     }
                     className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
                   >
                     <option value="">Select...</option>
-                    {US_STATES.map((state) => (
-                      <option key={state} value={state}>
-                        {state}
-                      </option>
-                    ))}
+                    <option value={INTERNATIONAL}>International</option>
+                    <optgroup label="United States">
+                      {US_STATES.map((state) => (
+                        <option key={state} value={state}>
+                          {state}
+                        </option>
+                      ))}
+                    </optgroup>
                   </select>
                 </label>
+                {isInternational && (
+                  <label className="block text-sm font-medium text-slate-700">
+                    Country
+                    <select
+                      value={winnerForm.country}
+                      onChange={(event) =>
+                        onWinnerFormChange({
+                          ...winnerForm,
+                          country: event.target.value,
+                          // Clear the city so a value from another country can't linger.
+                          city: "",
+                        })
+                      }
+                      className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+                    >
+                      <option value="">Select...</option>
+                      {countries.map((country) => (
+                        <option key={country} value={country}>
+                          {country}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+                <label className="block text-sm font-medium text-slate-700">
+                  City
+                  <CityAutocomplete
+                    regionKey={
+                      isInternational ? winnerForm.country : winnerForm.state
+                    }
+                    getCities={
+                      isInternational ? getCitiesForCountry : getCitiesForState
+                    }
+                    value={winnerForm.city}
+                    onChange={(city) =>
+                      onWinnerFormChange({ ...winnerForm, city })
+                    }
+                    onValidityChange={setCityValid}
+                    placeholder={
+                      isInternational ? "e.g. Toronto" : "e.g. Austin"
+                    }
+                    disabledHint={
+                      isInternational
+                        ? "Select a country first"
+                        : "Select a state first"
+                    }
+                  />
+                </label>
               </div>
+              {winnerForm.city.trim() &&
+                !cityValid &&
+                (isInternational ? winnerForm.country : winnerForm.state) && (
+                  <p className="text-xs text-rose-600">
+                    Pick a city from the list to match{" "}
+                    {isInternational ? winnerForm.country : winnerForm.state}.
+                  </p>
+                )}
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                   Cards
@@ -198,10 +270,10 @@ export default function FinishedScreen({
                 disabled={
                   winnerSaveStatus === "saving" ||
                   !winnerForm.teamName.trim() ||
-                  !winnerForm.city.trim() ||
-                  !winnerForm.state
+                  !winnerForm.state ||
+                  !cityValid
                 }
-                className="rounded-2xl bg-amber-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-2xl bg-ink px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500"
               >
                 {winnerSaveStatus === "saving" ? "Saving..." : "Save victory"}
               </button>
@@ -225,7 +297,7 @@ export default function FinishedScreen({
         {isHost && (
           <button
             onClick={onStartNextGame}
-            className="rounded-2xl bg-amber-500 px-4 py-2 font-semibold text-white"
+            className="rounded-2xl bg-ink px-4 py-2 font-semibold text-white"
           >
             Next game
           </button>

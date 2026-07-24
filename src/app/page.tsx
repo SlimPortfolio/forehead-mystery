@@ -103,21 +103,43 @@ function getCardValue(card: string): number {
   return values[card] || 0;
 }
 
+// Blind-guess strategy for the ranking phase: without knowing its own card,
+// the bot looks at everyone else's visible cards and guesses the rank that
+// sits in the largest gap between known values, since that's the rank most
+// likely to be correct.
+function findBestRank(otherCards: string[]): number {
+  if (otherCards.length === 0) return 1;
+
+  const sortedValues = otherCards
+    .map((card) => getCardValue(card))
+    .sort((a, b) => a - b);
+
+  const gaps: number[] = [sortedValues[0] - 1];
+  for (let i = 0; i < sortedValues.length - 1; i++) {
+    gaps.push(sortedValues[i + 1] - sortedValues[i] - 1);
+  }
+  gaps.push(13 - sortedValues[sortedValues.length - 1]);
+  gaps.reverse();
+
+  let largestGap = 0;
+  let bestRank = 1;
+  for (let i = 0; i < gaps.length; i++) {
+    if (gaps[i] > largestGap) {
+      largestGap = gaps[i];
+      bestRank = i + 1;
+    }
+  }
+
+  return bestRank;
+}
+
 function getTestPlayerRanking(testPlayer: Player, allPlayers: Player[]): number {
-  if (!testPlayer.card) return 1;
-
-  const testPlayerCardVal = getCardValue(testPlayer.card);
-  const otherPlayers = allPlayers.filter((p) => p.id !== testPlayer.id);
-  const otherCards = otherPlayers
+  const otherCards = allPlayers
+    .filter((p) => p.id !== testPlayer.id)
     .map((p) => p.card)
-    .filter((c): c is string => !!c)
-    .sort((a, b) => getCardValue(a) - getCardValue(b));
+    .filter((c): c is string => !!c);
 
-  const cardsAbove = otherCards.filter(
-    (card) => getCardValue(card) > testPlayerCardVal,
-  ).length;
-
-  return cardsAbove + 1;
+  return findBestRank(otherCards);
 }
 
 export default function Home() {
@@ -136,6 +158,7 @@ export default function Home() {
     time: "",
     city: "",
     state: "",
+    country: "",
   });
   const [winnerSaveStatus, setWinnerSaveStatus] = useState<
     "idle" | "saving" | "saved" | "error"
@@ -200,7 +223,14 @@ export default function Home() {
       }
       winnerFormInitializedRef.current = false;
       setWinnerSaveStatus("idle");
-      setWinnerForm({ teamName: "", date: "", time: "", city: "", state: "" });
+      setWinnerForm({
+        teamName: "",
+        date: "",
+        time: "",
+        city: "",
+        state: "",
+        country: "",
+      });
     }
 
     previousPhaseRef.current = room.phase;
@@ -446,7 +476,7 @@ export default function Home() {
       };
 
       submitRoomState(nextRoom);
-    }, 500);
+    }, 2000);
 
     return () => clearTimeout(timer);
   }, [room, playerId]);
@@ -596,14 +626,20 @@ export default function Home() {
 
   const submitWinner = async () => {
     if (!room) return;
+    const isInternational = winnerForm.state === "INTL";
+    const region = isInternational ? winnerForm.country : winnerForm.state;
     if (
       !winnerForm.teamName.trim() ||
       !winnerForm.date ||
       !winnerForm.time ||
       !winnerForm.city.trim() ||
-      !winnerForm.state
+      !region
     ) {
-      setStatus("Please fill in team name, city, and state.");
+      setStatus(
+        isInternational
+          ? "Please fill in team name, city, and country."
+          : "Please fill in team name, city, and state.",
+      );
       return;
     }
 
@@ -616,7 +652,7 @@ export default function Home() {
           teamName: winnerForm.teamName.trim(),
           date: winnerForm.date,
           time: winnerForm.time,
-          location: `${winnerForm.city.trim()}, ${winnerForm.state}`,
+          location: `${winnerForm.city.trim()}, ${region}`,
           players: room.players.map((player) => ({
             name: player.name,
             card: player.card ?? "",
@@ -807,7 +843,11 @@ export default function Home() {
     setTimeout(() => setIsTransitioning(false), NEW_GAME_TRANSITION_MS);
   };
 
-  const startGame = (useTestPlayers = false, skipMinPlayers = false) => {
+  const startGame = (
+    useTestPlayers = false,
+    skipMinPlayers = false,
+    targetPlayerCount?: number,
+  ) => {
     if (!room || !myPlayer || !room.players.length) return;
     if (room.hostId !== playerId) {
       setStatus("Only the host can begin the game.");
@@ -816,7 +856,8 @@ export default function Home() {
 
     let playersToUse = room.players;
     if (useTestPlayers) {
-      const numTestPlayers = 4 - room.players.length;
+      const desiredTotal = targetPlayerCount ?? 4;
+      const numTestPlayers = desiredTotal - room.players.length;
       const testPlayers: Player[] = Array.from(
         { length: Math.max(0, numTestPlayers) },
         (_, i) => ({
@@ -869,34 +910,15 @@ export default function Home() {
   const submitRanking = (rank: number) => {
     if (!room || !myPlayer || !isMyTurn) return;
 
-    let nextPlayers = room.players.map((player) =>
+    const nextPlayers = room.players.map((player) =>
       player.id === myPlayer.id ? { ...player, ranking: rank } : player,
     );
 
-    let nextTurnIndex = room.currentTurnIndex + 1;
-    let nextPhase: GamePhase = nextTurnIndex >= room.turnOrder.length ? "guessing" : "ranking";
-
-    // Auto-submit rankings for test players
-    while (
-      nextPhase === "ranking" &&
-      nextTurnIndex < room.turnOrder.length
-    ) {
-      const nextPlayerId = room.turnOrder[nextTurnIndex];
-      const nextPlayer = nextPlayers.find((p) => p.id === nextPlayerId);
-
-      if (nextPlayer?.name.startsWith("Test Player")) {
-        const testRank = getTestPlayerRanking(nextPlayer, nextPlayers);
-        nextPlayers = nextPlayers.map((p) =>
-          p.id === nextPlayerId ? { ...p, ranking: testRank } : p,
-        );
-        nextTurnIndex += 1;
-        if (nextTurnIndex >= room.turnOrder.length) {
-          nextPhase = "guessing";
-        }
-      } else {
-        break;
-      }
-    }
+    const nextTurnIndex = room.currentTurnIndex + 1;
+    // Any following test-player turns are picked up and resolved (with a
+    // pondering delay) by the ranking-phase bot effect above, rather than
+    // being resolved instantly here.
+    const nextPhase: GamePhase = nextTurnIndex >= room.turnOrder.length ? "guessing" : "ranking";
 
     const nextRoom: Room = {
       ...room,
@@ -975,7 +997,12 @@ export default function Home() {
 
   const handleEndGame = () => {
     if (!room) return;
+    if (!window.confirm("End the game and close the room for everyone?")) {
+      return;
+    }
     submitRoomState({ ...room, phase: "finished" });
+    setJoined(false);
+    setActiveModal(null);
     setStatus("Game ended by host.");
   };
 
@@ -1147,8 +1174,7 @@ export default function Home() {
                 status={status}
                 isHost={room.hostId === playerId}
                 onStartGame={() => startGame(false)}
-                onStartWithTestPlayers={() => startGame(true)}
-                onStartAnyway={() => startGame(false, true)}
+                onStartWithBots={(totalPlayers) => startGame(true, false, totalPlayers)}
               />
             ) : room.phase === "finished" ? (
               <FinishedScreen

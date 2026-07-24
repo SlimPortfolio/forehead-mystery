@@ -34,9 +34,11 @@ export default function JoinScreen({
           Room code
           <input
             value={roomCode}
-            onChange={(event) => onRoomCodeChange(event.target.value.toUpperCase())}
+            onChange={(event) =>
+              onRoomCodeChange(event.target.value.toUpperCase())
+            }
             className="mt-2 w-full rounded-2xl border border-slate-300 bg-white px-3 py-2"
-            placeholder="e.g. MYST"
+            placeholder="e.g. PORK"
             maxLength={6}
           />
         </label>
@@ -74,8 +76,13 @@ export default function JoinScreen({
       <div className="rounded-3xl bg-ink p-6 text-slate-100">
         <h3 className="text-lg font-semibold">How it works</h3>
         <ul className="mt-3 space-y-2 text-sm text-slate-300">
-          <li>• Each player sees everyone else's cards, but their own remains hidden.</li>
-          <li>• Rank yourself each round and then submit a guess during your turn.</li>
+          <li>
+            • Each player sees everyone else's cards, but their own remains
+            hidden.
+          </li>
+          <li>
+            • Rank yourself each round and then submit a guess during your turn.
+          </li>
           <li>• Private scratchpad markings stay on your device only.</li>
         </ul>
       </div>
