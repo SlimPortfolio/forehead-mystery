@@ -15,78 +15,6 @@ type WinnersMapProps = {
 const DEFAULT_CENTER: [number, number] = [20, 0];
 const DEFAULT_ZOOM = 2;
 
-// TEMPORARY sample pins for trying out the map on the frontend before the
-// save-a-winner flow geocodes and persists real coordinates. Remove once
-// real winner data has lat/lng.
-const SAMPLE_WINNERS: WinnerRecord[] = [
-  {
-    id: "sample-london-1",
-    teamName: "The Card Sharks",
-    date: "2026-07-23",
-    time: "14:00",
-    location: "London, England",
-    lat: 51.5074,
-    lng: -0.1278,
-    players: [{ name: "Ava", card: "Queen of Hearts" }],
-    createdAt: "2026-07-23T14:00:00.000Z",
-  },
-  {
-    id: "sample-london-2",
-    teamName: "The Foggy Deducers",
-    date: "2026-07-21",
-    time: "18:45",
-    location: "London, England",
-    lat: 51.5074,
-    lng: -0.1278,
-    players: [{ name: "Priya", card: "10 of Diamonds" }],
-    createdAt: "2026-07-21T18:45:00.000Z",
-  },
-  {
-    id: "sample-dallas-1",
-    teamName: "Lone Star Sleuths",
-    date: "2026-07-23",
-    time: "14:15",
-    location: "Dallas, TX",
-    lat: 32.7767,
-    lng: -96.797,
-    players: [{ name: "Marcus", card: "King of Spades" }],
-    createdAt: "2026-07-23T14:15:00.000Z",
-  },
-  {
-    id: "sample-dallas-2",
-    teamName: "BBQ Brainiacs",
-    date: "2026-07-20",
-    time: "20:30",
-    location: "Dallas, TX",
-    lat: 32.7767,
-    lng: -96.797,
-    players: [{ name: "Jess", card: "Ace of Clubs" }],
-    createdAt: "2026-07-20T20:30:00.000Z",
-  },
-  {
-    id: "sample-florence-1",
-    teamName: "Rinascimento Rascals",
-    date: "2026-07-23",
-    time: "14:30",
-    location: "Florence, Italy",
-    lat: 43.7696,
-    lng: 11.2558,
-    players: [{ name: "Giulia", card: "Jack of Clubs" }],
-    createdAt: "2026-07-23T14:30:00.000Z",
-  },
-  {
-    id: "sample-florence-2",
-    teamName: "Ponte Vecchio Puzzlers",
-    date: "2026-07-22",
-    time: "11:10",
-    location: "Florence, Italy",
-    lat: 43.7696,
-    lng: 11.2558,
-    players: [{ name: "Marco", card: "2 of Hearts" }],
-    createdAt: "2026-07-22T11:10:00.000Z",
-  },
-];
-
 // Inline SVG pin, avoids Leaflet's default marker icon (its image paths
 // break under Next's bundler unless separately worked around). The center
 // shows the number of wins recorded at that pin's location.
@@ -107,7 +35,7 @@ export default function WinnersMap({ winners }: WinnersMapProps) {
   const mapRef = useRef<LeafletMap | null>(null);
   const popupRootsRef = useRef<Root[]>([]);
 
-  const pins = [...winners, ...SAMPLE_WINNERS].filter(
+  const pins = winners.filter(
     (winner): winner is WinnerRecord & { lat: number; lng: number } =>
       typeof winner.lat === "number" && typeof winner.lng === "number",
   );

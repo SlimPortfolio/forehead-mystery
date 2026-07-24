@@ -2,11 +2,13 @@
   "name": "forehead-mystery",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "add-winner": "node --env-file=.env.local --experimental-strip-types scripts/add-winner.ts"
   },
   "dependencies": {
     "leaflet": "^1.9.4",
