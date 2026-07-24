@@ -136,6 +136,7 @@ export default function Home() {
     time: "",
     city: "",
     state: "",
+    country: "",
   });
   const [winnerSaveStatus, setWinnerSaveStatus] = useState<
     "idle" | "saving" | "saved" | "error"
@@ -200,7 +201,14 @@ export default function Home() {
       }
       winnerFormInitializedRef.current = false;
       setWinnerSaveStatus("idle");
-      setWinnerForm({ teamName: "", date: "", time: "", city: "", state: "" });
+      setWinnerForm({
+        teamName: "",
+        date: "",
+        time: "",
+        city: "",
+        state: "",
+        country: "",
+      });
     }
 
     previousPhaseRef.current = room.phase;
@@ -596,14 +604,20 @@ export default function Home() {
 
   const submitWinner = async () => {
     if (!room) return;
+    const isInternational = winnerForm.state === "INTL";
+    const region = isInternational ? winnerForm.country : winnerForm.state;
     if (
       !winnerForm.teamName.trim() ||
       !winnerForm.date ||
       !winnerForm.time ||
       !winnerForm.city.trim() ||
-      !winnerForm.state
+      !region
     ) {
-      setStatus("Please fill in team name, city, and state.");
+      setStatus(
+        isInternational
+          ? "Please fill in team name, city, and country."
+          : "Please fill in team name, city, and state.",
+      );
       return;
     }
 
@@ -616,7 +630,7 @@ export default function Home() {
           teamName: winnerForm.teamName.trim(),
           date: winnerForm.date,
           time: winnerForm.time,
-          location: `${winnerForm.city.trim()}, ${winnerForm.state}`,
+          location: `${winnerForm.city.trim()}, ${region}`,
           players: room.players.map((player) => ({
             name: player.name,
             card: player.card ?? "",
