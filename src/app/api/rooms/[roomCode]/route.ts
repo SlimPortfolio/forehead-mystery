@@ -28,6 +28,9 @@ function isAllowedKey(key: string): boolean {
 // grow unbounded across a long-running room.
 const POST_GAME_CHAT_LIMIT = 200;
 
+// A room can never hold more than this many players (humans + bots).
+const MAX_ROOM_PLAYERS = 8;
+
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ roomCode: string }> },
@@ -39,6 +42,70 @@ export async function PATCH(
     const body = await request.json();
     const db = await getMongoDb();
     const rooms = db.collection<any>("rooms");
+
+    // Scoped, atomic player join. A joining client sends ONLY this — never the
+    // full room — so a join can't clobber a move another player is submitting
+    // at the same instant. The conditional filter appends the player only if
+    // (a) they're not already in the room (no duplicate on a double-submit)
+    // and (b) the room isn't already full — the $size guard makes the 8-player
+    // cap hold even if two players race for the last seat. When the append is
+    // rejected we return the current room so the client can see whether it
+    // actually made it in.
+    if ("playerJoin" in body) {
+      const newPlayer = body.playerJoin;
+      const joinId =
+        newPlayer && typeof newPlayer === "object"
+          ? (newPlayer as Record<string, unknown>).id
+          : undefined;
+      if (typeof joinId !== "string") {
+        return NextResponse.json({ error: "Invalid player" }, { status: 400 });
+      }
+
+      // In driver v7, findOneAndUpdate returns the document directly (or null),
+      // not a { value } wrapper.
+      const appended = await rooms.findOneAndUpdate(
+        {
+          _id: normalizedRoomCode,
+          "players.id": { $ne: joinId },
+          $expr: { $lt: [{ $size: "$players" }, MAX_ROOM_PLAYERS] },
+        },
+        { $push: { players: newPlayer }, $set: { updatedAt: new Date() } },
+        { returnDocument: "after" },
+      );
+
+      if (appended) {
+        return NextResponse.json({ room: appended }, { status: 200 });
+      }
+
+      // Append didn't happen (already in the room, or the room is full).
+      // Hand back the current state so the client can tell which it was.
+      const current = await rooms.findOne({ _id: normalizedRoomCode });
+      return NextResponse.json({ room: current }, { status: 200 });
+    }
+
+    // Scoped, atomic player removal ($pull by id). Used to remove a player
+    // who isn't part of the active game (a spectator waiting for the next
+    // game, whether they left on their own or the host kicked them). Because
+    // it only pulls one id and touches nothing else, it can't clobber a move
+    // another player is submitting at the same instant. Removing an *active*
+    // player is NOT done this way — that path (see the client) also ends the
+    // game and rewrites turn order, so it goes through a normal full write.
+    if ("playerRemove" in body) {
+      const removeId = body.playerRemove;
+      if (typeof removeId !== "string") {
+        return NextResponse.json({ error: "Invalid player" }, { status: 400 });
+      }
+      const removeUpdate = {
+        $pull: { players: { id: removeId } },
+        $set: { updatedAt: new Date() },
+      } as Record<string, unknown>;
+      const updated = await rooms.findOneAndUpdate(
+        { _id: normalizedRoomCode },
+        removeUpdate,
+        { returnDocument: "after" },
+      );
+      return NextResponse.json({ room: updated }, { status: 200 });
+    }
 
     const setUpdate: Record<string, unknown> = { updatedAt: new Date() };
     let pushMessage: unknown = undefined;
