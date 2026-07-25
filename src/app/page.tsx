@@ -28,9 +28,14 @@ import MenuModal from "@/components/game/MenuModal";
 import HelpModal from "@/components/game/HelpModal";
 import CorrectGuessPopup from "@/components/game/CorrectGuessPopup";
 import TransitionOverlay from "@/components/game/TransitionOverlay";
+import PendingJoinScreen from "@/components/game/PendingJoinScreen";
+import RemovedFromRoomScreen from "@/components/game/RemovedFromRoomScreen";
+import KickPlayerModal from "@/components/game/KickPlayerModal";
+import { UserX } from "lucide-react";
 
 const POLL_INTERVAL_MS = 2000;
 const NEW_GAME_TRANSITION_MS = 900;
+const MAX_ROOM_PLAYERS = 8;
 const STORAGE_PREFIX = "forehead-mystery-room";
 const PLAYER_ID_KEY = "forehead-mystery-player-id";
 const isLocal =
@@ -82,6 +87,44 @@ function createRoom(
     currentTurnIndex: 0,
     turnOrder: [hostPlayerId],
     gameNumber: 1,
+  };
+}
+
+// Strips a player out of the room: drops them from `players` and
+// `turnOrder`, shifts `currentTurnIndex` down if the removed seat was ahead
+// of it, and promotes the next remaining player to host if the departing
+// player was the host. Shared by both "leave" and "kick" so a removed
+// player never lingers as a ghost seat that a later "start next game" would
+// try to deal cards to.
+function removePlayerFromRoom(room: Room, removedPlayerId: string): Room {
+  const nextPlayers = room.players.filter(
+    (player) => player.id !== removedPlayerId,
+  );
+
+  const removedIndexInOrder = room.turnOrder.indexOf(removedPlayerId);
+  const nextTurnOrder = room.turnOrder.filter((id) => id !== removedPlayerId);
+
+  let nextCurrentTurnIndex = room.currentTurnIndex;
+  if (removedIndexInOrder !== -1 && removedIndexInOrder < room.currentTurnIndex) {
+    nextCurrentTurnIndex -= 1;
+  }
+
+  const nextHostId =
+    room.hostId === removedPlayerId
+      ? (nextPlayers[0]?.id ?? "")
+      : room.hostId;
+
+  const playersWithHost = nextPlayers.map((player) => ({
+    ...player,
+    isHost: player.id === nextHostId,
+  }));
+
+  return {
+    ...room,
+    players: playersWithHost,
+    turnOrder: nextTurnOrder,
+    currentTurnIndex: nextCurrentTurnIndex,
+    hostId: nextHostId,
   };
 }
 
@@ -605,14 +648,34 @@ export default function Home() {
     [room, playerId],
   );
 
+  // Players who actually took part in the current/most recent game — anyone
+  // who joined mid-game and hasn't been dealt in yet is excluded from
+  // rosters, results, and the perfect-game check for that game.
+  const activePlayers = useMemo(
+    () => room?.players.filter((player) => !player.pendingJoin) ?? [],
+    [room],
+  );
+
   const allCorrectlyIdentified = Boolean(
     room &&
     room.phase === "finished" &&
-    room.players.length > 0 &&
-    room.players.every((player) => player.isCorrectlyIdentified),
+    activePlayers.length > 0 &&
+    activePlayers.every((player) => player.isCorrectlyIdentified),
   );
 
   const isHost = Boolean(room && playerId && room.hostId === playerId);
+
+  // True once a poll picks up that the host removed this player from the
+  // room (they're still `joined` locally, but no longer in `room.players`).
+  const wasRemovedFromRoom = Boolean(joined && room && playerId && !myPlayer);
+
+  const isPendingForActiveGame = Boolean(
+    myPlayer?.pendingJoin &&
+    room &&
+    (room.phase === "ranking" ||
+      room.phase === "guessing" ||
+      room.phase === "confirmation"),
+  );
 
   // A perfect game the host hasn't saved to the winners page yet. Used to
   // guard against losing it by starting the next game, ending the room, or
@@ -626,12 +689,16 @@ export default function Home() {
       "This perfect game hasn't been saved to the winners page yet. Continue anyway?",
     );
 
-  // "In a game" = joined and mid-play (not the lobby or the finished screen).
-  // Used to guard against accidentally abandoning an active game via refresh,
-  // the browser back button, or clicking the logo/winners link.
+  // "In a game" = joined, actually dealt into the current game, and mid-play
+  // (not the lobby or the finished screen). A pendingJoin player has nothing
+  // to lose by navigating away, so they're excluded. Used to guard against
+  // accidentally abandoning an active game via refresh, the browser back
+  // button, or clicking the logo/winners link.
   const isInActiveGame = Boolean(
     joined &&
     room &&
+    myPlayer &&
+    !myPlayer.pendingJoin &&
     (room.phase === "ranking" ||
       room.phase === "guessing" ||
       room.phase === "confirmation"),
@@ -702,7 +769,7 @@ export default function Home() {
           date: winnerForm.date,
           time: winnerForm.time,
           location: `${winnerForm.city.trim()}, ${region}`,
-          players: room.players.map((player) => ({
+          players: activePlayers.map((player) => ({
             name: player.name,
             card: player.card ?? "",
           })),
@@ -785,46 +852,99 @@ export default function Home() {
 
       const existingRoom = data.room as Room | null;
 
-      if (!createNew && !existingRoom) {
+      // --- Create a brand-new room ---
+      // A freshly created room has no other writers yet, so the full-room
+      // write via submitRoomState is safe here.
+      if (createNew || !existingRoom) {
+        if (!createNew && !existingRoom) {
+          setStatus(
+            `Room ${normalizedCode} doesn't exist yet. Double-check the code, or create a new room instead.`,
+          );
+          return;
+        }
+        const nextRoom = createRoom(normalizedCode, playerId, playerName.trim());
+        setRoomCode(normalizedCode);
+        setJoined(true);
+        submitRoomState(nextRoom);
+        setStatus(`Joined room ${normalizedCode}`);
+        return;
+      }
+
+      // --- Join an existing room ---
+      const alreadyJoined = existingRoom.players.some(
+        (player) => player.id === playerId,
+      );
+
+      // Reconnecting to a room we're already in — no write at all, just drop
+      // back into the current synced state and let polling take over.
+      if (alreadyJoined) {
+        setRoom(existingRoom);
+        setRoomCode(normalizedCode);
+        setJoined(true);
+        setStatus(`Rejoined room ${normalizedCode}`);
+        return;
+      }
+
+      // Enforce the 8-player cap before letting anyone new in. The server
+      // re-checks this atomically, but this gives a clean message up front.
+      if (existingRoom.players.length >= MAX_ROOM_PLAYERS) {
         setStatus(
-          `Room ${normalizedCode} doesn't exist yet. Double-check the code, or create a new room instead.`,
+          `Room ${normalizedCode} is full (${MAX_ROOM_PLAYERS} players max).`,
         );
         return;
       }
 
-      const alreadyJoined = existingRoom?.players.some(
-        (player) => player.id === playerId,
+      // Joining while a game is already underway means this player sits the
+      // current game out — they're marked pendingJoin so they're excluded
+      // from turnOrder/dealing until the next game starts, at which point
+      // they're folded in as if they'd been there from the start.
+      const isMidGameJoin = existingRoom.phase !== "lobby";
+      const newPlayer: Player = {
+        id: playerId,
+        name: playerName.trim(),
+        isHost: false,
+        isReady: true,
+        eliminatedGuesses: [],
+        isCorrectlyIdentified: false,
+        pendingJoin: isMidGameJoin,
+      };
+
+      // Scoped, atomic append (see /api/rooms/[roomCode]). We send ONLY our
+      // own player, never the full room, so a join can never clobber a move
+      // another player is submitting at the same moment. The server appends
+      // us only if we're not already in and the room isn't full.
+      const joinResponse = await fetch(`${appUrl}/api/rooms/${normalizedCode}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ playerJoin: newPlayer }),
+      });
+      if (!joinResponse.ok) {
+        throw new Error(`Join failed: ${joinResponse.status}`);
+      }
+      const joinData = await joinResponse.json();
+      const joinedRoom = joinData.room as Room | null;
+
+      // The server hands back the authoritative room. If we're not in its
+      // player list, the last seat filled between our check and the write
+      // (a simultaneous join won the race).
+      const didJoin = Boolean(
+        joinedRoom?.players.some((player) => player.id === playerId),
       );
-      const nextPlayers =
-        existingRoom && !alreadyJoined
-          ? [
-              ...existingRoom.players,
-              {
-                id: playerId,
-                name: playerName.trim(),
-                isHost: false,
-                isReady: true,
-                eliminatedGuesses: [],
-                isCorrectlyIdentified: false,
-              },
-            ]
-          : (existingRoom?.players ?? []);
+      if (!joinedRoom || !didJoin) {
+        setStatus(
+          `Room ${normalizedCode} is full (${MAX_ROOM_PLAYERS} players max).`,
+        );
+        return;
+      }
 
-      const nextRoom =
-        existingRoom && !createNew
-          ? {
-              ...existingRoom,
-              players: nextPlayers,
-              turnOrder: existingRoom.turnOrder.length
-                ? existingRoom.turnOrder
-                : nextPlayers.map((player) => player.id),
-            }
-          : createRoom(normalizedCode, playerId, playerName.trim());
-
+      setRoom(joinedRoom);
       setRoomCode(normalizedCode);
       setJoined(true);
-      submitRoomState(nextRoom);
-      setStatus(`Joined room ${normalizedCode}`);
+      setStatus(
+        isMidGameJoin
+          ? `Joined room ${normalizedCode}. A game is already in progress — you'll join the next one.`
+          : `Joined room ${normalizedCode}`,
+      );
     } catch (error) {
       console.error("Room create/join failed", {
         roomCode: normalizedCode,
@@ -855,9 +975,24 @@ export default function Home() {
     if (!room || !myPlayer) return;
     if (hasUnsavedPerfectGame && !confirmDiscardUnsavedWin()) return;
 
-    // Rotate the turn order so whoever went second last game goes first now
-    const [previousFirstPlayer, ...restOfOrder] = room.turnOrder;
-    const rotatedTurnOrder = [...restOfOrder, previousFirstPlayer];
+    // Rotate the turn order so whoever went second last game goes first now.
+    // Anyone who joined mid-previous-game (pendingJoin) was never part of
+    // that turnOrder — fold them in now, in random order, since this is
+    // their first game. Also drop any id no longer in `players` (e.g. a
+    // player who left or was kicked since the last turnOrder was set).
+    const returningOrder = room.turnOrder.filter((id) =>
+      room.players.some((player) => player.id === id && !player.pendingJoin),
+    );
+    const [previousFirstPlayer, ...restOfOrder] = returningOrder;
+    const rotatedReturningOrder = previousFirstPlayer
+      ? [...restOfOrder, previousFirstPlayer]
+      : restOfOrder;
+    const newJoinerIds = shuffle(
+      room.players
+        .filter((player) => player.pendingJoin)
+        .map((player) => player.id),
+    );
+    const rotatedTurnOrder = [...rotatedReturningOrder, ...newJoinerIds];
 
     // Deal new cards
     const shuffledCards = shuffle(CARD_POOL).slice(0, room.players.length);
@@ -868,6 +1003,7 @@ export default function Home() {
       guess: null,
       eliminatedGuesses: [],
       isCorrectlyIdentified: false,
+      pendingJoin: false,
     }));
 
     const nextRoom: Room = {
@@ -941,6 +1077,7 @@ export default function Home() {
       guess: null,
       eliminatedGuesses: [],
       isCorrectlyIdentified: false,
+      pendingJoin: false,
     }));
 
     const nextRoom: Room = {
@@ -1045,12 +1182,96 @@ export default function Home() {
 
   const clearScratchpad = () => setScratchpad({});
 
+  // Scoped, atomic removal of a player who isn't part of the active game (a
+  // spectator waiting for the next game). Sends ONLY their id via $pull, so
+  // it can't clobber a move an active player is submitting at the same time.
+  // Updates local state optimistically without a full-room write and without
+  // tripping the poll-suppression window, mirroring the emote/chat pattern.
+  const removePendingPlayer = (removedPlayerId: string) => {
+    setRoom((current) =>
+      current
+        ? {
+            ...current,
+            players: current.players.filter(
+              (player) => player.id !== removedPlayerId,
+            ),
+          }
+        : current,
+    );
+
+    const sendRemove = () =>
+      fetch(`${appUrl}/api/rooms/${room?.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ playerRemove: removedPlayerId }),
+      }).then((response) => {
+        if (!response.ok) throw new Error(`PATCH failed: ${response.status}`);
+      });
+
+    sendRemove().catch(() => sendRemove().catch(() => {}));
+  };
+
   const handleLeaveGame = () => {
-    if (!room) return;
-    submitRoomState({ ...room, phase: "finished" });
+    if (!room || !myPlayer) return;
+    // A spectator waiting for the next game was never part of the active
+    // game, so leaving shouldn't end it for everyone else — and it goes
+    // through the scoped removal so it can't clobber a move in flight.
+    if (myPlayer.pendingJoin) {
+      removePendingPlayer(myPlayer.id);
+      setActiveModal(null);
+      setJoined(false);
+      setStatus("You left the game.");
+      return;
+    }
+    // An actively-playing player leaving still ends the game for the room
+    // (existing behavior), just without leaving a ghost seat behind for the
+    // next game.
+    const nextRoom = removePlayerFromRoom(room, myPlayer.id);
+    submitRoomState({ ...nextRoom, phase: "finished" });
     setActiveModal(null);
     setJoined(false);
     setStatus("You left the game.");
+  };
+
+  const handleKickPlayer = (targetPlayerId: string) => {
+    if (!room || room.hostId !== playerId) return;
+    const target = room.players.find((player) => player.id === targetPlayerId);
+    if (!target) return;
+    if (!window.confirm(`Remove ${target.name} from the room?`)) return;
+
+    // Kicking a spectator (not in the active game) needs no game-state change
+    // and uses the scoped removal so it can't clobber an in-flight move.
+    if (target.pendingJoin) {
+      removePendingPlayer(targetPlayerId);
+      setActiveModal(null);
+      setStatus(`${target.name} was removed from the room.`);
+      return;
+    }
+
+    let nextRoom = removePlayerFromRoom(room, targetPlayerId);
+
+    // If the kicked player was mid-turn (or every remaining turn has already
+    // passed once they're removed), advance the phase the same way the
+    // normal turn-completion logic would, so the game doesn't stall waiting
+    // on a player who's no longer here.
+    const isActiveTurnPhase =
+      room.phase === "ranking" ||
+      room.phase === "guessing" ||
+      room.phase === "confirmation";
+    if (isActiveTurnPhase) {
+      if (nextRoom.turnOrder.length === 0) {
+        nextRoom = { ...nextRoom, phase: "finished", currentTurnIndex: 0 };
+      } else if (nextRoom.currentTurnIndex >= nextRoom.turnOrder.length) {
+        nextRoom =
+          room.phase === "ranking"
+            ? { ...nextRoom, phase: "guessing", currentTurnIndex: 0, round: 2 }
+            : { ...nextRoom, phase: "finished" };
+      }
+    }
+
+    submitRoomState(nextRoom);
+    setActiveModal(null);
+    setStatus(`${target.name} was removed from the room.`);
   };
 
   const handleEndGame = () => {
@@ -1183,7 +1404,12 @@ export default function Home() {
   // scratchpad is reached via a dedicated "Review Scratchpad" button instead,
   // so we don't show a bar full of grayed-out Rank/Guess actions there.
   const showActionBar = Boolean(
-    joined && room && room.phase !== "lobby" && room.phase !== "finished",
+    joined &&
+    room &&
+    !wasRemovedFromRoom &&
+    !isPendingForActiveGame &&
+    room.phase !== "lobby" &&
+    room.phase !== "finished",
   );
 
   return (
@@ -1230,6 +1456,14 @@ export default function Home() {
                   <circle cx="12" cy="12" r="9" />
                   <path d="M9 9l6 6M15 9l-6 6" strokeLinecap="round" />
                 </svg>
+              </button>
+              <button
+                onClick={() => setActiveModal({ type: "kickPlayer" })}
+                aria-label="Remove a player"
+                title="Remove a player"
+                className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-slate-600 hover:bg-slate-100"
+              >
+                <UserX className="h-5 w-5" strokeWidth={2} />
               </button>
             </>
           )}
@@ -1324,7 +1558,17 @@ export default function Home() {
           />
         ) : room ? (
           <>
-            {room.phase === "lobby" ? (
+            {wasRemovedFromRoom ? (
+              <RemovedFromRoomScreen
+                onReturnHome={() => {
+                  setJoined(false);
+                  setActiveModal(null);
+                  setStatus("");
+                }}
+              />
+            ) : isPendingForActiveGame ? (
+              <PendingJoinScreen room={room} onLeave={handleLeaveGame} />
+            ) : room.phase === "lobby" ? (
               <LobbyScreen
                 room={room}
                 status={status}
@@ -1336,7 +1580,7 @@ export default function Home() {
               />
             ) : room.phase === "finished" ? (
               <FinishedScreen
-                room={room}
+                room={{ ...room, players: activePlayers }}
                 isHost={room.hostId === playerId}
                 playerId={playerId}
                 allCorrectlyIdentified={allCorrectlyIdentified}
@@ -1363,7 +1607,7 @@ export default function Home() {
 
                 <div className="mt-3">
                   <PlayerList
-                    room={room}
+                    room={{ ...room, players: activePlayers }}
                     playerId={playerId}
                     activeChatBubbles={activeChatBubbles}
                     onOpenLookingGlass={(id) =>
@@ -1439,6 +1683,15 @@ export default function Home() {
 
       {activeModal?.type === "help" && (
         <HelpModal onClose={() => setActiveModal(null)} />
+      )}
+
+      {activeModal?.type === "kickPlayer" && room && (
+        <KickPlayerModal
+          players={room.players}
+          hostId={room.hostId}
+          onKick={handleKickPlayer}
+          onClose={() => setActiveModal(null)}
+        />
       )}
 
       {binkPlayerName && (

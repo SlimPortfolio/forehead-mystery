@@ -16,6 +16,10 @@ export type Player = {
   guess?: string | null;
   eliminatedGuesses: string[];
   isCorrectlyIdentified: boolean;
+  /** True when this player joined while a game was already in progress. They
+   * sit out the current game (no card, not in turnOrder) and are dealt in
+   * once the next game starts. */
+  pendingJoin?: boolean;
 };
 
 export type ChatMessage = {
@@ -188,4 +192,5 @@ export type ActiveModal =
   | { type: "menu" }
   | { type: "lookingGlass"; playerId: string }
   | { type: "help" }
+  | { type: "kickPlayer" }
   | null;
