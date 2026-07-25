@@ -43,6 +43,7 @@ type FinishedScreenProps = {
   isHost: boolean;
   playerId: string | null;
   allCorrectlyIdentified: boolean;
+  isBotGame: boolean;
   winnerForm: WinnerForm;
   onWinnerFormChange: (form: WinnerForm) => void;
   winnerSaveStatus: "idle" | "saving" | "saved" | "error";
@@ -61,6 +62,7 @@ export default function FinishedScreen({
   isHost,
   playerId,
   allCorrectlyIdentified,
+  isBotGame,
   winnerForm,
   onWinnerFormChange,
   winnerSaveStatus,
@@ -185,7 +187,16 @@ export default function FinishedScreen({
           <h4 className="font-semibold text-ink">
             Perfect game! Everyone identified their card.
           </h4>
-          {!isHost ? (
+          {isBotGame ? (
+            <p className="mt-2 text-sm text-slate-600">
+              Nicely played! Bots always guess their own card correctly
+              though, so this one won&apos;t be saved to the{" "}
+              <Link href="/winners" className="underline">
+                winners page
+              </Link>
+              .
+            </p>
+          ) : !isHost ? (
             <p className="mt-2 text-sm text-slate-600">
               Ask your host to save this victory to the{" "}
               <Link href="/winners" className="underline">
