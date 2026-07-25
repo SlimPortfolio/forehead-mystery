@@ -1023,6 +1023,7 @@ export default function Home() {
       currentTurnIndex: 0,
       turnOrder: rotatedTurnOrder,
       gameNumber: (room.gameNumber ?? 1) + 1,
+      postGameChat: [],
     };
 
     // Clear the scratchpad
