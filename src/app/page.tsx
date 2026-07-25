@@ -1600,6 +1600,7 @@ export default function Home() {
                   <TransitionOverlay label="Loading new game..." />
                 )}
                 <GameHeader
+                  roomCode={room.id}
                   round={room.round}
                   phase={room.phase}
                   onOpenMenu={() => setActiveModal({ type: "menu" })}
