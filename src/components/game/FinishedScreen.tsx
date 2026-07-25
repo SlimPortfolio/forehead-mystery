@@ -12,6 +12,7 @@ import {
 import PlayingCard from "./PlayingCard";
 import PostGameChat from "./PostGameChat";
 import CityAutocomplete from "./CityAutocomplete";
+import GameMenu from "./GameMenu";
 import { getCitiesForState } from "@/data/usCities";
 import { getCitiesForCountry, getCountries } from "@/data/worldCities";
 
@@ -48,6 +49,10 @@ type FinishedScreenProps = {
   onStartNextGame: () => void;
   onReviewScratchpad: () => void;
   onSendPostGameChat: (text: string) => boolean;
+  shareUrl: string;
+  onEndGame: () => void;
+  onRemovePlayer: () => void;
+  onLeaveGame: () => void;
 };
 
 export default function FinishedScreen({
@@ -62,6 +67,10 @@ export default function FinishedScreen({
   onStartNextGame,
   onReviewScratchpad,
   onSendPostGameChat,
+  shareUrl,
+  onEndGame,
+  onRemovePlayer,
+  onLeaveGame,
 }: FinishedScreenProps) {
   const [cityValid, setCityValid] = useState(false);
   const [countries, setCountries] = useState<string[]>([]);
@@ -94,7 +103,17 @@ export default function FinishedScreen({
 
   return (
     <div className="flex-1 min-h-0 overflow-y-auto border border-slate-200 bg-white/80 p-4 shadow-sm backdrop-blur">
-      <h3 className="text-lg font-semibold">Game complete</h3>
+      <div className="flex items-start justify-between">
+        <h3 className="text-lg font-semibold">Game complete</h3>
+        <GameMenu
+          isHost={isHost}
+          shareUrl={shareUrl}
+          onStartNextGame={onStartNextGame}
+          onEndGame={onEndGame}
+          onRemovePlayer={onRemovePlayer}
+          onLeaveGame={onLeaveGame}
+        />
+      </div>
       <div className="mt-3 space-y-2">
         {orderedPlayers.map((player) => {
           // A player who joined mid-game didn't take part in this one — show

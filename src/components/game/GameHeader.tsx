@@ -1,10 +1,16 @@
 import { GamePhase } from "./types";
+import GameMenu from "./GameMenu";
 
 type GameHeaderProps = {
   roomCode: string;
   round: number;
   phase: GamePhase;
-  onOpenMenu: () => void;
+  isHost: boolean;
+  shareUrl: string;
+  onStartNextGame: () => void;
+  onEndGame: () => void;
+  onRemovePlayer: () => void;
+  onLeaveGame: () => void;
 };
 
 const PHASE_LABEL: Record<GamePhase, string> = {
@@ -19,7 +25,12 @@ export default function GameHeader({
   roomCode,
   round,
   phase,
-  onOpenMenu,
+  isHost,
+  shareUrl,
+  onStartNextGame,
+  onEndGame,
+  onRemovePlayer,
+  onLeaveGame,
 }: GameHeaderProps) {
   return (
     <div className="flex items-start justify-between">
@@ -29,13 +40,14 @@ export default function GameHeader({
         </p>
         <h2 className="text-2xl font-bold text-ink">{PHASE_LABEL[phase]}</h2>
       </div>
-      <button
-        onClick={onOpenMenu}
-        aria-label="Menu"
-        className="rounded-full px-2 py-1 text-2xl leading-none text-slate-500"
-      >
-        &#8942;
-      </button>
+      <GameMenu
+        isHost={isHost}
+        shareUrl={shareUrl}
+        onStartNextGame={onStartNextGame}
+        onEndGame={onEndGame}
+        onRemovePlayer={onRemovePlayer}
+        onLeaveGame={onLeaveGame}
+      />
     </div>
   );
 }

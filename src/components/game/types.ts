@@ -189,7 +189,6 @@ export type ActiveModal =
   | { type: "rank" }
   | { type: "guess" }
   | { type: "scratchpad" }
-  | { type: "menu" }
   | { type: "lookingGlass"; playerId: string }
   | { type: "help" }
   | { type: "kickPlayer" }

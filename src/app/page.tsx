@@ -14,6 +14,7 @@ import {
   suitForGame,
 } from "@/components/game/types";
 import AppHeader from "@/components/game/AppHeader";
+import HeaderActions from "@/components/game/HeaderActions";
 import JoinScreen from "@/components/game/JoinScreen";
 import LobbyScreen from "@/components/game/LobbyScreen";
 import FinishedScreen from "@/components/game/FinishedScreen";
@@ -24,14 +25,12 @@ import RankSelectModal from "@/components/game/RankSelectModal";
 import GuessCardModal from "@/components/game/GuessCardModal";
 import ScratchpadModal from "@/components/game/ScratchpadModal";
 import LookingGlassModal from "@/components/game/LookingGlassModal";
-import MenuModal from "@/components/game/MenuModal";
 import HelpModal from "@/components/game/HelpModal";
 import CorrectGuessPopup from "@/components/game/CorrectGuessPopup";
 import TransitionOverlay from "@/components/game/TransitionOverlay";
 import PendingJoinScreen from "@/components/game/PendingJoinScreen";
 import RemovedFromRoomScreen from "@/components/game/RemovedFromRoomScreen";
 import KickPlayerModal from "@/components/game/KickPlayerModal";
-import { UserX } from "lucide-react";
 
 const POLL_INTERVAL_MS = 2000;
 const NEW_GAME_TRANSITION_MS = 900;
@@ -1415,84 +1414,8 @@ export default function Home() {
   return (
     <main className="flex h-dvh w-full flex-col overflow-hidden bg-[radial-gradient(ellipse_at_top,#f6f4fe_0%,#e8ecfb_55%,#dde5f6_100%)] text-ink">
       <AppHeader onLogoClick={handleLogoClick}>
-        {joined &&
-          room &&
-          room.hostId === playerId &&
-          room.phase !== "lobby" && (
-            <>
-              <button
-                onClick={startNextGame}
-                aria-label="Start new game"
-                title="Start new game"
-                className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-slate-600 hover:bg-slate-100"
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  className="h-5 w-5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path
-                    d="M4 4v5h5M20 20v-5h-5M4.5 15a8 8 0 0 0 14.5 3M19.5 9A8 8 0 0 0 5 6"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </button>
-              <button
-                onClick={handleEndGame}
-                aria-label="End game and close room"
-                title="End game and close room"
-                className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-rose-600 hover:bg-rose-50"
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  className="h-5 w-5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <circle cx="12" cy="12" r="9" />
-                  <path d="M9 9l6 6M15 9l-6 6" strokeLinecap="round" />
-                </svg>
-              </button>
-              <button
-                onClick={() => setActiveModal({ type: "kickPlayer" })}
-                aria-label="Remove a player"
-                title="Remove a player"
-                className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-slate-600 hover:bg-slate-100"
-              >
-                <UserX className="h-5 w-5" strokeWidth={2} />
-              </button>
-            </>
-          )}
-        <button
-          onClick={() => setActiveModal({ type: "help" })}
-          aria-label="How to play"
-          title="How to play"
-          className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-slate-600 hover:bg-slate-100"
-        >
-          <svg
-            viewBox="0 0 24 24"
-            className="h-5 w-5"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <circle cx="12" cy="12" r="9" />
-            <path
-              d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.7v.5"
-              strokeLinecap="round"
-            />
-            <path d="M12 17h.01" strokeLinecap="round" />
-          </svg>
-        </button>
-        <Link
-          href="/winners"
-          aria-label="Winners page"
-          title="Hall of Fame"
-          onNavigate={(event) => {
+        <HeaderActions
+          onWinnersNavigate={(event) => {
             if (
               isInActiveGame &&
               !window.confirm(
@@ -1502,41 +1425,10 @@ export default function Home() {
               event.preventDefault();
             }
           }}
-          className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-amber-500 hover:bg-amber-50"
-        >
-          <svg
-            viewBox="0 0 24 24"
-            className="h-5 w-5"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <path
-              d="M6 4h12v3a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V4z"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <path
-              d="M6 5H4a2 2 0 0 0 2 3M18 5h2a2 2 0 0 1-2 3"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <path
-              d="M10 11v3M14 11v3M8 20h8M9 20l.5-3h5l.5 3"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </Link>
+        />
       </AppHeader>
 
       <div className="mx-auto flex w-full min-h-0 max-w-2xl flex-1 flex-col gap-3">
-        {!joined && status && (
-          <p className="px-3 text-xs font-medium text-ink/70 sm:px-6">
-            {status}
-          </p>
-        )}
-
         {!joined ? (
           <JoinScreen
             playerName={playerName}
@@ -1544,6 +1436,7 @@ export default function Home() {
             roomCode={roomCode}
             onRoomCodeChange={setRoomCode}
             isJoining={isJoining}
+            status={status}
             onJoin={() => joinOrCreateRoom(roomCode || "MYST", false)}
             onCreate={() => {
               const code = (
@@ -1593,6 +1486,10 @@ export default function Home() {
                   setActiveModal({ type: "scratchpad" })
                 }
                 onSendPostGameChat={handleSendPostGameChat}
+                shareUrl={`${appUrl}/?room=${room.id}`}
+                onEndGame={handleEndGame}
+                onRemovePlayer={() => setActiveModal({ type: "kickPlayer" })}
+                onLeaveGame={handleLeaveGame}
               />
             ) : (
               <div className="relative flex-1 min-h-0 overflow-y-auto border border-slate-200 bg-white/80 p-3 shadow-sm backdrop-blur sm:p-4">
@@ -1603,7 +1500,12 @@ export default function Home() {
                   roomCode={room.id}
                   round={room.round}
                   phase={room.phase}
-                  onOpenMenu={() => setActiveModal({ type: "menu" })}
+                  isHost={room.hostId === playerId}
+                  shareUrl={`${appUrl}/?room=${room.id}`}
+                  onStartNextGame={startNextGame}
+                  onEndGame={handleEndGame}
+                  onRemovePlayer={() => setActiveModal({ type: "kickPlayer" })}
+                  onLeaveGame={handleLeaveGame}
                 />
 
                 <div className="mt-3">
@@ -1674,13 +1576,6 @@ export default function Home() {
             onClose={() => setActiveModal(null)}
           />
         )}
-
-      {activeModal?.type === "menu" && (
-        <MenuModal
-          onLeaveGame={handleLeaveGame}
-          onClose={() => setActiveModal(null)}
-        />
-      )}
 
       {activeModal?.type === "help" && (
         <HelpModal onClose={() => setActiveModal(null)} />

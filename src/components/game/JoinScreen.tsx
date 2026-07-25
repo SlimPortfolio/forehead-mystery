@@ -4,6 +4,7 @@ type JoinScreenProps = {
   roomCode: string;
   onRoomCodeChange: (value: string) => void;
   isJoining: boolean;
+  status: string;
   onJoin: () => void;
   onCreate: () => void;
   onShowHelp: () => void;
@@ -15,6 +16,7 @@ export default function JoinScreen({
   roomCode,
   onRoomCodeChange,
   isJoining,
+  status,
   onJoin,
   onCreate,
   onShowHelp,
@@ -46,6 +48,9 @@ export default function JoinScreen({
 
       <div className="space-y-4 pt-6">
         <h2 className="text-xl font-semibold">Join or create a room</h2>
+        {status && (
+          <p className="text-sm font-medium text-ink/70">{status}</p>
+        )}
         <label className="block text-sm font-medium text-slate-700">
           Your name
           <input
