@@ -36,6 +36,25 @@ export default function PlayerRow({
   chatText,
   onOpenLookingGlass,
 }: PlayerRowProps) {
+  // A player who joined mid-game sits out the current game. Show them as a
+  // muted, non-interactive spectator row — no Looking Glass, rank, status, or
+  // card — so it's clear they're present but not part of this game yet.
+  if (player.pendingJoin) {
+    return (
+      <div className="flex items-center justify-between gap-2.5 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-3 py-2 opacity-60">
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-semibold leading-tight text-slate-500">
+            {player.name}
+          </p>
+          <p className="mt-0.5 text-xs leading-tight text-slate-400">
+            Will join next game
+          </p>
+        </div>
+        <PlayingCard card={null} suit={suit} size="xs" />
+      </div>
+    );
+  }
+
   const status = getStatus(player, isCurrentTurn, phase);
 
   let borderClass = "border-slate-200 bg-white";
