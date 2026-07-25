@@ -404,6 +404,16 @@ export default function Home() {
           const data = await response.json();
           const fetchedRoom = data.room as Room | null;
           const currentRoom = roomRef.current;
+          if (!fetchedRoom && currentRoom) {
+            // The room doc is gone — either it expired from inactivity (see
+            // the TTL index in src/lib/mongodb.ts) or someone deleted it.
+            // Send this client back to the home screen instead of leaving
+            // it stuck showing a room that no longer exists server-side.
+            setRoom(null);
+            setJoined(false);
+            setStatus("This room was closed due to inactivity.");
+            return;
+          }
           if (fetchedRoom && currentRoom) {
             // Deep comparison to detect changes
             if (
