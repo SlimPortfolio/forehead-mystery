@@ -662,6 +662,13 @@ export default function Home() {
     activePlayers.every((player) => player.isCorrectlyIdentified),
   );
 
+  // Bots always guess their own card correctly, so any game they're part of
+  // is guaranteed to be a "perfect game" — that's not a real win, so it must
+  // never be eligible for the winners log.
+  const isBotGame = activePlayers.some((player) =>
+    player.name.startsWith("Test Player"),
+  );
+
   const isHost = Boolean(room && playerId && room.hostId === playerId);
 
   // True once a poll picks up that the host removed this player from the
@@ -680,7 +687,10 @@ export default function Home() {
   // guard against losing it by starting the next game, ending the room, or
   // leaving/refreshing before it's recorded.
   const hasUnsavedPerfectGame = Boolean(
-    isHost && allCorrectlyIdentified && winnerSaveStatus !== "saved",
+    isHost &&
+    allCorrectlyIdentified &&
+    !isBotGame &&
+    winnerSaveStatus !== "saved",
   );
 
   const confirmDiscardUnsavedWin = () =>
@@ -740,7 +750,7 @@ export default function Home() {
   };
 
   const submitWinner = async () => {
-    if (!room) return;
+    if (!room || isBotGame) return;
     const isInternational = winnerForm.state === "INTL";
     const region = isInternational ? winnerForm.country : winnerForm.state;
     if (
@@ -1478,6 +1488,7 @@ export default function Home() {
                 isHost={room.hostId === playerId}
                 playerId={playerId}
                 allCorrectlyIdentified={allCorrectlyIdentified}
+                isBotGame={isBotGame}
                 winnerForm={winnerForm}
                 onWinnerFormChange={setWinnerForm}
                 winnerSaveStatus={winnerSaveStatus}
