@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
+  formatRank,
   getGuessOutcome,
   orderPlayersByTurn,
   Room,
@@ -163,7 +164,17 @@ export default function FinishedScreen({
                   </p>
                 )}
               </div>
-              <PlayingCard card={player.card ?? null} suit={suit} size="sm" />
+              <div className="flex flex-shrink-0 items-center gap-2">
+                <PlayingCard card={player.card ?? null} suit={suit} size="sm" />
+                <div className="flex flex-col items-center gap-0.5">
+                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-amber-800">
+                    Rank
+                  </span>
+                  <span className="text-sm font-bold leading-none text-ink">
+                    {player.ranking ? formatRank(player.ranking) : "???"}
+                  </span>
+                </div>
+              </div>
             </div>
           );
         })}
