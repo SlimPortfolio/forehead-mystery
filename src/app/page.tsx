@@ -1425,6 +1425,7 @@ export default function Home() {
               event.preventDefault();
             }
           }}
+          onShowHelp={() => setActiveModal({ type: "help" })}
         />
       </AppHeader>
 

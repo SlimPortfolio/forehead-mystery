@@ -1,8 +1,7 @@
-import AppHeader from "@/components/game/AppHeader";
 import { getMongoDb } from "@/lib/mongodb";
 import type { WinnerRecord } from "@/lib/winners";
 import WinnersMap from "@/components/game/WinnersMap";
-import HeaderActions from "@/components/game/HeaderActions";
+import WinnersHeader from "@/components/game/WinnersHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -35,9 +34,7 @@ export default async function WinnersPage() {
 
   return (
     <main className="flex h-dvh w-full flex-col overflow-hidden bg-[radial-gradient(ellipse_at_top,#f6f4fe_0%,#e8ecfb_55%,#dde5f6_100%)] text-ink">
-      <AppHeader>
-        <HeaderActions />
-      </AppHeader>
+      <WinnersHeader />
       <div className="mx-auto flex w-full min-h-0 max-w-2xl flex-1 flex-col gap-3">
         <section className="flex-1 min-h-0 space-y-6 overflow-y-auto border border-slate-200 bg-white/80 p-5 shadow-sm backdrop-blur">
           <div>
