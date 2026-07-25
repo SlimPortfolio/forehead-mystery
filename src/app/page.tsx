@@ -1580,7 +1580,7 @@ export default function Home() {
               />
             ) : room.phase === "finished" ? (
               <FinishedScreen
-                room={{ ...room, players: activePlayers }}
+                room={room}
                 isHost={room.hostId === playerId}
                 playerId={playerId}
                 allCorrectlyIdentified={allCorrectlyIdentified}
@@ -1607,7 +1607,7 @@ export default function Home() {
 
                 <div className="mt-3">
                   <PlayerList
-                    room={{ ...room, players: activePlayers }}
+                    room={room}
                     playerId={playerId}
                     activeChatBubbles={activeChatBubbles}
                     onOpenLookingGlass={(id) =>
@@ -1634,7 +1634,7 @@ export default function Home() {
 
       {activeModal?.type === "rank" && room && (
         <RankSelectModal
-          playerCount={room.players.length}
+          playerCount={activePlayers.length}
           onSelect={submitRanking}
           onClose={() => setActiveModal(null)}
         />
@@ -1654,7 +1654,7 @@ export default function Home() {
         <ScratchpadModal
           scratchpad={scratchpad}
           myPlayerId={playerId}
-          players={room.players}
+          players={activePlayers}
           onToggle={toggleScratchpad}
           onClear={clearScratchpad}
           onClose={() => setActiveModal(null)}
@@ -1668,7 +1668,7 @@ export default function Home() {
           <LookingGlassModal
             targetPlayer={lookingGlassTarget}
             viewerPlayerId={playerId}
-            players={room.players}
+            players={activePlayers}
             suit={suitForGame(room.gameNumber)}
             onClose={() => setActiveModal(null)}
           />

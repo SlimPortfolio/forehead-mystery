@@ -81,8 +81,12 @@ export default function FinishedScreen({
     };
   }, [isInternational, countries.length]);
 
+  // Mid-game joiners sat this game out — exclude them from the results roll-up
+  // (jester tally, winner card list) even though they're shown as spectators.
+  const gamePlayers = orderedPlayers.filter((player) => !player.pendingJoin);
+
   // The jester label only appears when exactly one player guessed wrong.
-  const incorrectPlayers = orderedPlayers.filter(
+  const incorrectPlayers = gamePlayers.filter(
     (player) => getGuessOutcome(player)?.tone === "error",
   );
   const jesterId =
@@ -93,6 +97,23 @@ export default function FinishedScreen({
       <h3 className="text-lg font-semibold">Game complete</h3>
       <div className="mt-3 space-y-2">
         {orderedPlayers.map((player) => {
+          // A player who joined mid-game didn't take part in this one — show
+          // them muted with a "next game" note, not a win/loss outcome.
+          if (player.pendingJoin) {
+            return (
+              <div
+                key={player.id}
+                className="flex items-center justify-between gap-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-3 opacity-60"
+              >
+                <div>
+                  <p className="font-semibold text-slate-500">{player.name}</p>
+                  <p className="text-sm text-slate-400">Will join next game</p>
+                </div>
+                <PlayingCard card={null} suit={suit} size="sm" />
+              </div>
+            );
+          }
+
           const outcome = getGuessOutcome(player);
           const borderClass =
             outcome?.tone === "success"
@@ -260,7 +281,7 @@ export default function FinishedScreen({
                   Cards
                 </p>
                 <div className="mt-1 flex flex-wrap gap-1.5">
-                  {room.players.map((player) => (
+                  {gamePlayers.map((player) => (
                     <span
                       key={player.id}
                       className="rounded-full border border-slate-200 bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700"
