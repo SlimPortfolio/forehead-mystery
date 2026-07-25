@@ -3,12 +3,15 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { HelpCircle, Menu, Trophy } from "lucide-react";
-import HelpModal from "./HelpModal";
 
 type HeaderActionsProps = {
   /** Intercept the Hall of Fame link click, e.g. to confirm before leaving an
    * active game. Omitted on pages (like /winners itself) that need no guard. */
   onWinnersNavigate?: (event: { preventDefault: () => void }) => void;
+  /** Open the shared How to Play modal. Rendered by the page itself (rather
+   * than locally here) so it isn't nested inside the header's backdrop-blur,
+   * which would otherwise become the containing block for its fixed overlay. */
+  onShowHelp: () => void;
 };
 
 /** Shared header popover (Hall of Fame + Help) rendered by every screen's
@@ -16,9 +19,9 @@ type HeaderActionsProps = {
  * the game view or on the /winners page. */
 export default function HeaderActions({
   onWinnersNavigate,
+  onShowHelp,
 }: HeaderActionsProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [showHelp, setShowHelp] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -76,7 +79,7 @@ export default function HeaderActions({
           <button
             onClick={() => {
               setIsOpen(false);
-              setShowHelp(true);
+              onShowHelp();
             }}
             className="flex w-full cursor-pointer items-center gap-3 px-3.5 py-2.5 text-left text-base text-slate-800 transition-colors hover:bg-slate-100"
           >
@@ -88,8 +91,6 @@ export default function HeaderActions({
           </button>
         </div>
       )}
-
-      {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
     </div>
   );
 }
