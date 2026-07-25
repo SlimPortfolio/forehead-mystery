@@ -1531,12 +1531,6 @@ export default function Home() {
       </AppHeader>
 
       <div className="mx-auto flex w-full min-h-0 max-w-2xl flex-1 flex-col gap-3">
-        {!joined && status && (
-          <p className="px-3 text-xs font-medium text-ink/70 sm:px-6">
-            {status}
-          </p>
-        )}
-
         {!joined ? (
           <JoinScreen
             playerName={playerName}
@@ -1544,6 +1538,7 @@ export default function Home() {
             roomCode={roomCode}
             onRoomCodeChange={setRoomCode}
             isJoining={isJoining}
+            status={status}
             onJoin={() => joinOrCreateRoom(roomCode || "MYST", false)}
             onCreate={() => {
               const code = (
