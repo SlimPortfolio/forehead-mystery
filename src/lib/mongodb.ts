@@ -19,7 +19,55 @@ export async function getMongoClient() {
   return cachedClient;
 }
 
+// A room with no activity (no PATCH touching `updatedAt`) for this long is
+// considered abandoned. MongoDB's TTL background monitor sweeps expired
+// documents on its own — no app-side cron or startup hook required.
+const ROOM_INACTIVITY_TTL_SECONDS = 2 * 60 * 60;
+
+let indexesReady: Promise<void> | null = null;
+
+async function createOrUpdateTtlIndex(db: Awaited<ReturnType<MongoClient["db"]>>) {
+  try {
+    await db
+      .collection("rooms")
+      .createIndex(
+        { updatedAt: 1 },
+        { expireAfterSeconds: ROOM_INACTIVITY_TTL_SECONDS },
+      );
+  } catch (error: any) {
+    // The index already exists with a different expireAfterSeconds (e.g. an
+    // earlier deploy used a different TTL). createIndex refuses to redefine
+    // it in place, so reconcile via collMod instead of leaving the stale
+    // value in effect.
+    if (error?.codeName === "IndexOptionsConflict" || error?.code === 85) {
+      await db.command({
+        collMod: "rooms",
+        index: {
+          keyPattern: { updatedAt: 1 },
+          expireAfterSeconds: ROOM_INACTIVITY_TTL_SECONDS,
+        },
+      });
+      return;
+    }
+    throw error;
+  }
+}
+
+function ensureIndexes(db: Awaited<ReturnType<MongoClient["db"]>>) {
+  if (!indexesReady) {
+    indexesReady = createOrUpdateTtlIndex(db).catch((error) => {
+      // Don't let a failed index call wedge every future request; the
+      // room APIs still work without the TTL index, just without cleanup.
+      indexesReady = null;
+      console.error("[mongodb] failed to ensure rooms TTL index", error);
+    });
+  }
+  return indexesReady;
+}
+
 export async function getMongoDb() {
   const client = await getMongoClient();
-  return client.db(dbName);
+  const db = client.db(dbName);
+  await ensureIndexes(db);
+  return db;
 }

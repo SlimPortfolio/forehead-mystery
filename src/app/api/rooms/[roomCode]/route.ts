@@ -16,6 +16,7 @@ const ALLOWED_ROOM_FIELDS = new Set([
   "turnOrder",
   "gameNumber",
   "chatMessages",
+  "postGameChat",
 ]);
 
 function isAllowedKey(key: string): boolean {
