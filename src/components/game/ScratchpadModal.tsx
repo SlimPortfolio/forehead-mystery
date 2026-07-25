@@ -1,5 +1,5 @@
 import Modal from "./Modal";
-import { CARD_POOL, CardState, Player } from "./types";
+import { CARD_POOL, CardState, formatRank, Player } from "./types";
 
 type ScratchpadModalProps = {
   scratchpad: Record<string, CardState>;
@@ -33,10 +33,14 @@ export default function ScratchpadModal({
     >
       <div className="flex flex-col gap-1">
         {[...CARD_POOL].reverse().map((card) => {
-          const isHeldByOther = players
-            .filter((p) => p.id !== myPlayerId)
-            .some((p) => p.card === card);
-          const state: CardState = isHeldByOther ? "impossible" : (scratchpad[card] ?? "possible");
+          const owner = players.find(
+            (p) => p.id !== myPlayerId && p.card === card,
+          );
+          const isHeldByOther = Boolean(owner);
+          const ownerHasGuessed = owner?.ranking != null;
+          const state: CardState = isHeldByOther
+            ? "impossible"
+            : (scratchpad[card] ?? "possible");
           const displayState =
             state === "most-likely"
               ? "Most likely"
@@ -46,9 +50,11 @@ export default function ScratchpadModal({
                   : "Impossible"
                 : "Possible";
 
-          let className = "rounded-lg border px-2.5 py-1 text-left text-xs font-medium";
+          let className =
+            "rounded-lg border px-2.5 py-1 text-left text-xs font-medium";
           if (isHeldByOther) {
-            className += " border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed";
+            className +=
+              " border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed";
           } else if (state === "most-likely") {
             className += " border-amber-400 bg-amber-100 text-amber-800";
           } else if (state === "impossible") {
@@ -64,7 +70,26 @@ export default function ScratchpadModal({
               disabled={isHeldByOther}
               className={className}
             >
-              {card} - {displayState}
+              {owner ? (
+                <span className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-slate-400">
+                    {card} - That&apos;s not possible
+                  </span>
+                  {ownerHasGuessed && (
+                    <>
+                      <span className="text-slate-300">•</span>
+                      <span className="text-ink font-medium">
+                        {owner.name} guessed
+                      </span>
+                      <span className="rounded-full bg-pink-300 px-2 py-0.5 text-[10px] font-bold uppercase text-black">
+                        {formatRank(owner.ranking as number)}
+                      </span>
+                    </>
+                  )}
+                </span>
+              ) : (
+                `${card} - ${displayState}`
+              )}
             </button>
           );
         })}
