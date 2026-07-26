@@ -27,6 +27,7 @@ import ScratchpadModal from "@/components/game/ScratchpadModal";
 import LookingGlassModal from "@/components/game/LookingGlassModal";
 import HelpModal from "@/components/game/HelpModal";
 import CorrectGuessPopup from "@/components/game/CorrectGuessPopup";
+import { computeGameMetrics } from "@/lib/metrics";
 import TransitionOverlay from "@/components/game/TransitionOverlay";
 import PendingJoinScreen from "@/components/game/PendingJoinScreen";
 import RemovedFromRoomScreen from "@/components/game/RemovedFromRoomScreen";
@@ -193,6 +194,7 @@ export default function Home() {
   const [playerName, setPlayerName] = useState("");
   const [room, setRoom] = useState<Room | null>(null);
   const [playerId, setPlayerId] = useState<string | null>(null);
+  const [isHighEloMatch, setIsHighEloMatch] = useState(false);
   const [joined, setJoined] = useState(false);
   const [status, setStatus] = useState("");
   const [pendingGuess, setPendingGuess] = useState<string | null>(null);
@@ -252,6 +254,7 @@ export default function Home() {
     if (queryRoom) {
       setRoomCode(queryRoom.toUpperCase());
     }
+    setIsHighEloMatch(params.has("highElo"));
   }, []);
 
   // Clear scratchpad whenever we detect a genuine transition into a fresh
@@ -638,6 +641,12 @@ export default function Home() {
       }
 
       submitRoomState(nextRoom);
+
+      // Natural completion only — early ends (host end / leave / kick) don't
+      // run through this effect, so abandoned games are never logged.
+      if (nextRoom.phase === "finished") {
+        logGameMetrics(nextRoom);
+      }
     }, 2000);
 
     return () => clearTimeout(timer);
@@ -801,6 +810,27 @@ export default function Home() {
       console.error("Failed to save winner", error);
       setWinnerSaveStatus("error");
     }
+  };
+
+  // Fire-and-forget analytics write for a naturally-completed game. Only ever
+  // called from the host-only confirmation effect, so exactly one write lands
+  // per game. Bot games are skipped (bots always guess correctly, which would
+  // skew the data) just like the winners log. A logging failure is swallowed
+  // so it can never disrupt gameplay.
+  const logGameMetrics = (finishedRoom: Room) => {
+    const active = finishedRoom.players.filter((player) => !player.pendingJoin);
+    if (active.length === 0) return;
+    if (active.some((player) => player.name.startsWith("Test Player"))) return;
+
+    const highEloMatch =
+      typeof window !== "undefined" &&
+      new URLSearchParams(window.location.search).has("highElo");
+
+    fetch(`${appUrl}/api/metrics`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(computeGameMetrics(active, highEloMatch)),
+    }).catch((error) => console.error("Failed to log game metrics", error));
   };
 
   const submitRoomState = (nextRoom: Room) => {
@@ -1434,7 +1464,16 @@ export default function Home() {
 
   return (
     <main className="flex h-dvh w-full flex-col overflow-hidden bg-[radial-gradient(ellipse_at_top,#f6f4fe_0%,#e8ecfb_55%,#dde5f6_100%)] text-ink">
-      <AppHeader onLogoClick={handleLogoClick}>
+      <AppHeader
+        onLogoClick={handleLogoClick}
+        badge={
+          isHighEloMatch ? (
+            <span className="rounded-full bg-pink-300 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide text-black">
+              High Elo
+            </span>
+          ) : undefined
+        }
+      >
         <HeaderActions
           onWinnersNavigate={(event) => {
             if (
