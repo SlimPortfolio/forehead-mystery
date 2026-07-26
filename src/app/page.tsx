@@ -1547,6 +1547,9 @@ export default function Home() {
                 onReviewScratchpad={() =>
                   setActiveModal({ type: "scratchpad" })
                 }
+                onOpenLookingGlass={(id) =>
+                  setActiveModal({ type: "lookingGlass", playerId: id })
+                }
                 onSendPostGameChat={handleSendPostGameChat}
                 shareUrl={`${appUrl}/?room=${room.id}`}
                 onEndGame={handleEndGame}
