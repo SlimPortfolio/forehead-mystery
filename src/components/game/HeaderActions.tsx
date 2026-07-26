@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { HelpCircle, Menu, Trophy } from "lucide-react";
+import { BarChart3, HelpCircle, Menu, Trophy } from "lucide-react";
 
 type HeaderActionsProps = {
   /** Intercept the Hall of Fame link click, e.g. to confirm before leaving an
@@ -75,6 +75,14 @@ export default function HeaderActions({
           >
             <Trophy className="h-5 w-5 text-amber-500" strokeWidth={1.75} />
             Hall of Fame
+          </Link>
+          <Link
+            href="/data"
+            onNavigate={() => setIsOpen(false)}
+            className="flex w-full cursor-pointer items-center gap-3 px-3.5 py-2.5 text-left text-base text-slate-800 transition-colors hover:bg-slate-100"
+          >
+            <BarChart3 className="h-5 w-5 text-indigo-500" strokeWidth={1.75} />
+            Data
           </Link>
           <button
             onClick={() => {
