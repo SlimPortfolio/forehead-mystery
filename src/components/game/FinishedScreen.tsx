@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Telescope } from "lucide-react";
 import {
   formatRank,
   getGuessOutcome,
@@ -50,6 +51,7 @@ type FinishedScreenProps = {
   onSubmitWinner: () => void;
   onStartNextGame: () => void;
   onReviewScratchpad: () => void;
+  onOpenLookingGlass: (playerId: string) => void;
   onSendPostGameChat: (text: string) => boolean;
   shareUrl: string;
   onEndGame: () => void;
@@ -69,6 +71,7 @@ export default function FinishedScreen({
   onSubmitWinner,
   onStartNextGame,
   onReviewScratchpad,
+  onOpenLookingGlass,
   onSendPostGameChat,
   shareUrl,
   onEndGame,
@@ -153,6 +156,15 @@ export default function FinishedScreen({
                 <div className="flex items-center gap-1.5">
                   <p className="font-semibold text-ink">{player.name}</p>
                   {player.id === jesterId && <JesterChip />}
+                  {player.id !== playerId && (
+                    <button
+                      onClick={() => onOpenLookingGlass(player.id)}
+                      aria-label={`Open ${player.name}'s Looking Glass`}
+                      className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border border-slate-300 text-slate-500"
+                    >
+                      <Telescope className="h-3.5 w-3.5" strokeWidth={2} />
+                    </button>
+                  )}
                 </div>
                 {outcome && (
                   <p
