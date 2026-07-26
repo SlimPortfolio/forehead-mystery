@@ -1468,7 +1468,7 @@ export default function Home() {
         onLogoClick={handleLogoClick}
         badge={
           isHighEloMatch ? (
-            <span className="rounded-full border border-amber-300 bg-amber-100 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-amber-800">
+            <span className="rounded-full bg-pink-300 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide text-black">
               High Elo
             </span>
           ) : undefined
