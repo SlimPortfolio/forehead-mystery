@@ -14,6 +14,11 @@ type WinnersMapProps = {
 
 const DEFAULT_CENTER: [number, number] = [20, 0];
 const DEFAULT_ZOOM = 2;
+const MIN_ZOOM = 1;
+const WORLD_BOUNDS: [[number, number], [number, number]] = [
+  [-90, -180],
+  [90, 180],
+];
 
 // Inline SVG pin, avoids Leaflet's default marker icon (its image paths
 // break under Next's bundler unless separately worked around). The center
@@ -63,6 +68,9 @@ export default function WinnersMap({ winners }: WinnersMapProps) {
 
       const map = L.map(containerRef.current, {
         zoomControl: false,
+        minZoom: MIN_ZOOM,
+        maxBounds: WORLD_BOUNDS,
+        maxBoundsViscosity: 1.0,
       }).setView(DEFAULT_CENTER, DEFAULT_ZOOM);
 
       L.control.zoom({ position: "bottomleft" }).addTo(map);
@@ -72,6 +80,7 @@ export default function WinnersMap({ winners }: WinnersMapProps) {
         attribution:
           '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
         maxZoom: 19,
+        noWrap: true,
       }).addTo(map);
 
       const markers = Array.from(groups.values()).map((group) => {
