@@ -683,6 +683,16 @@ export default function Home() {
   const isMyTurn = Boolean(
     room && currentPlayer && playerId && currentPlayer.id === playerId,
   );
+
+  // Tint the whole screen when it's genuinely this player's turn to act, so
+  // they immediately notice the game is waiting on them. Gated to the active
+  // turn phases — `isMyTurn` is also true for whoever sits at turnOrder[0] in
+  // the lobby / finished screens, where a highlight would be misleading.
+  const isMyActiveTurn = Boolean(
+    isMyTurn &&
+    room &&
+    (room.phase === "ranking" || room.phase === "guessing"),
+  );
   const myPlayer = useMemo(
     () => room?.players.find((player) => player.id === playerId) ?? null,
     [room, playerId],
@@ -1578,7 +1588,13 @@ export default function Home() {
                 onLeaveGame={handleLeaveGame}
               />
             ) : (
-              <div className="relative flex-1 min-h-0 overflow-y-auto border border-slate-200 bg-white/80 p-3 shadow-sm backdrop-blur sm:p-4">
+              <div
+                className={`relative flex-1 min-h-0 overflow-y-auto border border-slate-200 p-3 shadow-sm backdrop-blur transition-colors duration-500 sm:p-4 ${
+                  isMyActiveTurn
+                    ? "bg-[radial-gradient(ellipse_at_top,#f6f4fe_0%,#e8ecfb_55%,#dde5f6_100%)]"
+                    : "bg-white/80"
+                }`}
+              >
                 {isTransitioning && (
                   <TransitionOverlay label="Loading new game..." />
                 )}
