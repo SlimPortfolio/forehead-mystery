@@ -36,6 +36,22 @@ import KickPlayerModal from "@/components/game/KickPlayerModal";
 const POLL_INTERVAL_MS = 2000;
 const NEW_GAME_TRANSITION_MS = 900;
 const MAX_ROOM_PLAYERS = 8;
+// Bots draw a random (unique) name from this pool instead of "Test Player N".
+const TEST_PLAYER_NAMES = [
+  "Lisbon",
+  "Berlin",
+  "Denver",
+  "Moscow",
+  "Helsinki",
+  "Nairobi",
+  "Tokyo",
+  "Rio",
+  "Stockholm",
+  "Bogota",
+  "Oslo",
+  "Marseille",
+  "Manila",
+];
 const STORAGE_PREFIX = "forehead-mystery-room";
 const PLAYER_ID_KEY = "forehead-mystery-player-id";
 const isLocal =
@@ -1095,11 +1111,12 @@ export default function Home() {
     if (useTestPlayers) {
       const desiredTotal = targetPlayerCount ?? 4;
       const numTestPlayers = desiredTotal - room.players.length;
+      const botNames = shuffle(TEST_PLAYER_NAMES);
       const testPlayers: Player[] = Array.from(
         { length: Math.max(0, numTestPlayers) },
         (_, i) => ({
           id: createId("test-player"),
-          name: `Test Player ${i + 1}`,
+          name: `${botNames[i] ?? `Test Player ${i + 1}`} BOT`,
           isHost: false,
           isReady: true,
           eliminatedGuesses: [],
