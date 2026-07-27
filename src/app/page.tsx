@@ -71,6 +71,12 @@ function createId(prefix: string) {
   return `${prefix}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+// Bots are created with `createId("test-player")`. Detect them by id prefix
+// rather than display name so renaming the bot name pool never disables them.
+function isBotPlayer(player: { id: string }) {
+  return player.id.startsWith("test-player");
+}
+
 function shuffle<T>(values: T[]) {
   const copy = [...values];
   for (let index = copy.length - 1; index > 0; index -= 1) {
@@ -546,7 +552,7 @@ export default function Home() {
 
     if (
       !currentPlayerInTurn ||
-      !currentPlayerInTurn.name.startsWith("Test Player") ||
+      !isBotPlayer(currentPlayerInTurn) ||
       currentPlayerInTurn.ranking
     )
       return;
@@ -590,7 +596,7 @@ export default function Home() {
 
     if (
       !currentPlayerInTurn ||
-      !currentPlayerInTurn.name.startsWith("Test Player")
+      !isBotPlayer(currentPlayerInTurn)
     )
       return;
 
@@ -700,9 +706,7 @@ export default function Home() {
   // Bots always guess their own card correctly, so any game they're part of
   // is guaranteed to be a "perfect game" — that's not a real win, so it must
   // never be eligible for the winners log.
-  const isBotGame = activePlayers.some((player) =>
-    player.name.startsWith("Test Player"),
-  );
+  const isBotGame = activePlayers.some((player) => isBotPlayer(player));
 
   const isHost = Boolean(room && playerId && room.hostId === playerId);
 
@@ -836,7 +840,7 @@ export default function Home() {
   const logGameMetrics = (finishedRoom: Room) => {
     const active = finishedRoom.players.filter((player) => !player.pendingJoin);
     if (active.length === 0) return;
-    if (active.some((player) => player.name.startsWith("Test Player"))) return;
+    if (active.some((player) => isBotPlayer(player))) return;
 
     const highEloMatch =
       typeof window !== "undefined" &&
