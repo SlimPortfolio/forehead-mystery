@@ -1,16 +1,18 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 
 export type ToastData = {
   id: string;
   message: string;
-  /** Cosmetic accent — "join" reads green, "leave" reads slate. */
+  /** Cosmetic accent — "join" reads green, "leave" reads light red. */
   tone: "join" | "leave";
 };
 
 const AUTO_DISMISS_MS = 4000;
+// How long the fade in/out transition runs (kept in sync with the CSS below).
+const FADE_MS = 220;
 // Drag this many px horizontally (either direction) to flick a toast away.
 const SWIPE_DISMISS_PX = 80;
 
@@ -19,17 +21,33 @@ type ToastItemProps = {
   onDismiss: (id: string) => void;
 };
 
-/** A single dismissible toast: auto-clears after a few seconds, closes on the
- * X button, and can be flicked away horizontally with a pointer/touch swipe. */
+/** A single dismissible toast: fades in on mount, auto-clears after a few
+ * seconds, closes on the X button, and can be flicked away horizontally with a
+ * pointer/touch swipe. Dismissal fades out before the toast is removed. */
 function ToastItem({ toast, onDismiss }: ToastItemProps) {
   const [dragX, setDragX] = useState(0);
   const [dragging, setDragging] = useState(false);
+  const [visible, setVisible] = useState(false);
   const startXRef = useRef<number | null>(null);
+  const dismissedRef = useRef(false);
+
+  // Fade out first, then remove once the transition has had time to play.
+  const beginDismiss = useCallback(() => {
+    if (dismissedRef.current) return;
+    dismissedRef.current = true;
+    setVisible(false);
+    window.setTimeout(() => onDismiss(toast.id), FADE_MS);
+  }, [onDismiss, toast.id]);
 
   useEffect(() => {
-    const timer = setTimeout(() => onDismiss(toast.id), AUTO_DISMISS_MS);
-    return () => clearTimeout(timer);
-  }, [toast.id, onDismiss]);
+    // Flip to visible on the next frame so the mount transition animates.
+    const raf = requestAnimationFrame(() => setVisible(true));
+    const timer = window.setTimeout(beginDismiss, AUTO_DISMISS_MS);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(timer);
+    };
+  }, [beginDismiss]);
 
   const handlePointerDown = (event: React.PointerEvent) => {
     startXRef.current = event.clientX;
@@ -44,7 +62,7 @@ function ToastItem({ toast, onDismiss }: ToastItemProps) {
 
   const handlePointerUp = () => {
     if (Math.abs(dragX) > SWIPE_DISMISS_PX) {
-      onDismiss(toast.id);
+      beginDismiss();
       return;
     }
     startXRef.current = null;
@@ -55,7 +73,12 @@ function ToastItem({ toast, onDismiss }: ToastItemProps) {
   const accent =
     toast.tone === "join"
       ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-      : "border-slate-200 bg-white text-slate-700";
+      : "border-rose-200 bg-rose-50 text-rose-700";
+
+  // Reduce opacity as the toast is dragged away; while hidden (entering or
+  // leaving) the fade transition owns opacity instead.
+  const swipeOpacity =
+    1 - Math.min(Math.abs(dragX) / (SWIPE_DISMISS_PX * 2), 0.7);
 
   return (
     <div
@@ -65,9 +88,11 @@ function ToastItem({ toast, onDismiss }: ToastItemProps) {
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
       style={{
-        transform: `translateX(${dragX}px)`,
-        opacity: 1 - Math.min(Math.abs(dragX) / (SWIPE_DISMISS_PX * 2), 0.7),
-        transition: dragging ? "none" : "transform 0.2s, opacity 0.2s",
+        transform: `translate(${dragX}px, ${visible ? 0 : -8}px)`,
+        opacity: visible ? swipeOpacity : 0,
+        transition: dragging
+          ? "none"
+          : `transform ${FADE_MS}ms ease, opacity ${FADE_MS}ms ease`,
         touchAction: "pan-y",
       }}
       className={`pointer-events-auto flex w-full max-w-sm cursor-grab touch-none items-center gap-2 rounded-2xl border px-3 py-2 text-sm font-medium shadow-lg backdrop-blur active:cursor-grabbing ${accent}`}
@@ -76,7 +101,7 @@ function ToastItem({ toast, onDismiss }: ToastItemProps) {
       <button
         type="button"
         aria-label="Dismiss"
-        onClick={() => onDismiss(toast.id)}
+        onClick={() => beginDismiss()}
         // Stop the click from starting a drag on the parent.
         onPointerDown={(event) => event.stopPropagation()}
         className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-current/60 hover:bg-black/5"
@@ -92,11 +117,12 @@ type ToastStackProps = {
   onDismiss: (id: string) => void;
 };
 
-/** Fixed, centered stack of toasts near the top of the screen. */
+/** Fixed, centered stack of toasts positioned below the app header so the
+ * header bar stays visible and accessible. */
 export default function ToastStack({ toasts, onDismiss }: ToastStackProps) {
   if (toasts.length === 0) return null;
   return (
-    <div className="pointer-events-none fixed inset-x-0 top-3 z-50 flex flex-col items-center gap-2 px-3">
+    <div className="pointer-events-none fixed inset-x-0 top-20 z-50 flex flex-col items-center gap-2 px-3">
       {toasts.map((toast) => (
         <ToastItem key={toast.id} toast={toast} onDismiss={onDismiss} />
       ))}
