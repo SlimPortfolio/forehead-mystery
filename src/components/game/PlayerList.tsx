@@ -5,6 +5,10 @@ type PlayerListProps = {
   room: Room;
   playerId: string | null;
   activeChatBubbles: Record<string, string>;
+  /** Deal-in reveal progress: the number of cards (in turn order) that have
+   * flipped face-up so far. `null` means no reveal is running, so every card
+   * shows face-up normally. */
+  cardRevealCount: number | null;
   onOpenLookingGlass: (playerId: string) => void;
 };
 
@@ -20,6 +24,7 @@ export default function PlayerList({
   room,
   playerId,
   activeChatBubbles,
+  cardRevealCount,
   onOpenLookingGlass,
 }: PlayerListProps) {
   const currentPlayerId = room.turnOrder[room.currentTurnIndex];
@@ -28,7 +33,7 @@ export default function PlayerList({
 
   return (
     <div className="flex flex-col gap-2">
-      {orderedPlayers.map((player) => (
+      {orderedPlayers.map((player, index) => (
         <PlayerRow
           key={player.id}
           player={player}
@@ -38,6 +43,7 @@ export default function PlayerList({
           phase={room.phase}
           suit={suit}
           chatText={activeChatBubbles[player.id]}
+          faceDown={cardRevealCount !== null && index >= cardRevealCount}
           onOpenLookingGlass={onOpenLookingGlass}
         />
       ))}

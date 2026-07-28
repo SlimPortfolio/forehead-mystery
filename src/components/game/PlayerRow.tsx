@@ -11,6 +11,9 @@ type PlayerRowProps = {
   phase: GamePhase;
   suit: string;
   chatText?: string;
+  /** True while this player's card is still face-down during the start-of-game
+   * deal-in reveal. */
+  faceDown?: boolean;
   onOpenLookingGlass: (playerId: string) => void;
 };
 
@@ -34,6 +37,7 @@ export default function PlayerRow({
   phase,
   suit,
   chatText,
+  faceDown = false,
   onOpenLookingGlass,
 }: PlayerRowProps) {
   // A player who joined mid-game sits out the current game. Show them as a
@@ -59,7 +63,9 @@ export default function PlayerRow({
 
   let borderClass = "border-slate-200 bg-white";
   if (isCurrentTurn) {
-    borderClass = "border-amber-400 bg-amber-50";
+    // The pulse animation drives the border/background colors itself, so the
+    // static amber classes are left off this row to avoid fighting it.
+    borderClass = "animate-turn-pulse";
   } else if (status?.tone === "success") {
     borderClass = "border-emerald-300 bg-emerald-50";
   } else if (status?.tone === "error") {
@@ -106,7 +112,7 @@ export default function PlayerRow({
 
       <div className="relative flex-shrink-0">
         {chatText && <ChatBubble text={chatText} />}
-        <PlayingCard card={displayCard} suit={suit} size="xs" />
+        <PlayingCard card={displayCard} suit={suit} size="xs" faceDown={faceDown} />
       </div>
 
       <div className="flex flex-shrink-0 flex-col items-center gap-0.5">

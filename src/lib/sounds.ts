@@ -28,6 +28,24 @@ let unlocked = false;
 let muted: boolean | null = null;
 const muteListeners = new Set<() => void>();
 
+// ─────────────────────────────────────────────────────────────────────────────
+// BACKGROUND MUSIC — feature-complete but disabled until we have a music track.
+// To enable: uncomment this block, the music-mute functions, the getMusicAudio/
+// primeMusic helpers + `primeMusic()` call below, and the music toggle in
+// HeaderActions.tsx. Drop the track into `public/sounds/music-loop.m4a`. (The
+// audio session is already "playback", so the game's own music will mix over
+// the sound effects with no further change.)
+//
+// const MUSIC_FILE = "/sounds/music-loop.m4a";
+// const MUSIC_VOLUME = 0.3;
+// const MUSIC_MUTE_STORAGE_KEY = "forehead-mystery:music-muted";
+//
+// // Music preference + element mirror the sound-effect state above.
+// let musicMuted: boolean | null = null;
+// const musicMuteListeners = new Set<() => void>();
+// let musicAudio: HTMLAudioElement | null = null;
+// ─────────────────────────────────────────────────────────────────────────────
+
 function loadMuted(): boolean {
   if (muted !== null) return muted;
   if (typeof window === "undefined") return false;
@@ -61,6 +79,48 @@ export function getMutedServerSnapshot(): boolean {
   return false;
 }
 
+// BACKGROUND MUSIC (disabled — see the banner near the top of this file):
+// function loadMusicMuted(): boolean {
+//   if (musicMuted !== null) return musicMuted;
+//   if (typeof window === "undefined") return false;
+//   musicMuted = window.localStorage.getItem(MUSIC_MUTE_STORAGE_KEY) === "true";
+//   return musicMuted;
+// }
+//
+// /** Persist the music on/off preference, notify subscribers, and start or stop
+//  * the live track to match. */
+// export function setMusicMuted(value: boolean) {
+//   musicMuted = value;
+//   if (typeof window !== "undefined") {
+//     window.localStorage.setItem(MUSIC_MUTE_STORAGE_KEY, String(value));
+//   }
+//   // Reflect the change on the running element. If unlock hasn't happened yet
+//   // the element doesn't exist; `unlockSounds` will read the preference then.
+//   if (musicAudio) {
+//     if (value) {
+//       musicAudio.pause();
+//     } else if (unlocked) {
+//       musicAudio.play().catch(() => {});
+//     }
+//   }
+//   musicMuteListeners.forEach((listener) => listener());
+// }
+//
+// export function subscribeMusicMuted(listener: () => void): () => void {
+//   musicMuteListeners.add(listener);
+//   return () => {
+//     musicMuteListeners.delete(listener);
+//   };
+// }
+//
+// export function getMusicMutedSnapshot(): boolean {
+//   return loadMusicMuted();
+// }
+//
+// export function getMusicMutedServerSnapshot(): boolean {
+//   return false;
+// }
+
 function getAudio(sound: GameSound): HTMLAudioElement | null {
   if (typeof window === "undefined") return null;
   let audio = audioCache[sound];
@@ -79,6 +139,21 @@ export function unlockSounds() {
   if (unlocked || typeof window === "undefined") return;
   unlocked = true;
 
+  // Set the page's audio session to "playback" so our sound effects stay audible
+  // even when the phone's ringer/silent switch is off. Trade-off: this pauses the
+  // user's own background music (Spotify, etc.) while our audio owns the session.
+  // Guarded because the API only exists in Safari 16.4+ (a no-op elsewhere).
+  const audioSession = (
+    navigator as Navigator & { audioSession?: { type: string } }
+  ).audioSession;
+  if (audioSession) {
+    try {
+      audioSession.type = "playback";
+    } catch {
+      // Ignore unsupported values / read-only failures.
+    }
+  }
+
   // Prime each element within the gesture so later programmatic plays are allowed.
   (Object.keys(SOUND_FILES) as GameSound[]).forEach((sound) => {
     const audio = getAudio(sound);
@@ -95,7 +170,42 @@ export function unlockSounds() {
         audio.muted = false;
       });
   });
+
+  // primeMusic(); // BACKGROUND MUSIC disabled — see the banner near the top.
 }
+
+// BACKGROUND MUSIC (disabled — see the banner near the top of this file):
+// function getMusicAudio(): HTMLAudioElement | null {
+//   if (typeof window === "undefined") return null;
+//   if (!musicAudio) {
+//     musicAudio = new Audio(MUSIC_FILE);
+//     musicAudio.preload = "auto";
+//     musicAudio.loop = true;
+//     musicAudio.volume = MUSIC_VOLUME;
+//   }
+//   return musicAudio;
+// }
+//
+// /** Unlock the music element within the user gesture, then leave it playing
+//  * unless music is muted. Priming (a muted play) is what lets a later unmute
+//  * start playback without its own gesture. */
+// function primeMusic() {
+//   const music = getMusicAudio();
+//   if (!music) return;
+//   music.muted = true;
+//   music
+//     .play()
+//     .then(() => {
+//       music.muted = false;
+//       if (loadMusicMuted()) {
+//         music.pause();
+//         music.currentTime = 0;
+//       }
+//     })
+//     .catch(() => {
+//       music.muted = false;
+//     });
+// }
 
 /** Play a game sound. No-op before `unlockSounds()`, when muted, or if the file
  * is missing. */

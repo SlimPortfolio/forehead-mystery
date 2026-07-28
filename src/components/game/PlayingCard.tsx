@@ -7,6 +7,10 @@ type PlayingCardProps = {
   card?: string | null;
   suit?: string;
   size?: "xs" | "sm" | "md" | "lg";
+  /** When true, the card shows its patterned back and (with the flip wrapper)
+   * animates a rotate-to-reveal when it later becomes false. Used for the
+   * deal-in reveal at the start of a game. */
+  faceDown?: boolean;
 };
 
 /** Special-deck art theme, toggled on via the ?bok-special URL param. */
@@ -60,18 +64,37 @@ const LOGO_SIZE_CLASSES: Record<NonNullable<PlayingCardProps["size"]>, string> =
   lg: "h-8 w-8",
 };
 
+/** The patterned reverse of a card, shown while it's face-down. Fills its
+ * parent face; the diagonal stripe pattern reads at every card size. */
+function CardBack() {
+  return (
+    <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-lg border-2 border-indigo-300 bg-indigo-500 shadow-sm">
+      <div
+        className="h-full w-full"
+        style={{
+          backgroundImage:
+            "repeating-linear-gradient(45deg, rgba(255,255,255,0.18) 0, rgba(255,255,255,0.18) 2px, transparent 2px, transparent 6px)",
+        }}
+      />
+    </div>
+  );
+}
+
 /** Suit is passed in by the caller (one suit per game, not per card) and
  * only affects rank/pip color. */
-export default function PlayingCard({ card, suit = "♦", size = "md" }: PlayingCardProps) {
+export default function PlayingCard({
+  card,
+  suit = "♦",
+  size = "md",
+  faceDown = false,
+}: PlayingCardProps) {
   const isHidden = !card;
   const display = card ?? "?";
   const isRed = suit === "♦" || suit === "♥";
   const isSpecial = useBokSpecial();
 
-  return (
-    <div
-      className={`flex shrink-0 flex-col items-center justify-center rounded-lg border-2 border-slate-300 bg-white shadow-sm ${SIZE_CLASSES[size]}`}
-    >
+  const front = (
+    <div className="flex h-full w-full flex-col items-center justify-center rounded-lg border-2 border-slate-300 bg-white shadow-sm">
       <span
         className={`font-bold leading-none ${
           isHidden ? "text-slate-400" : isRed ? "text-rose-600" : "text-ink"
@@ -88,6 +111,17 @@ export default function PlayingCard({ card, suit = "♦", size = "md" }: Playing
       ) : (
         <span className={`leading-none ${isRed ? "text-rose-600" : "text-ink"}`}>{suit}</span>
       )}
+    </div>
+  );
+
+  return (
+    <div className={`card-flip shrink-0 ${SIZE_CLASSES[size]}`}>
+      <div className={`card-flip-inner ${faceDown ? "is-facedown" : ""}`}>
+        <div className="card-face">{front}</div>
+        <div className="card-face card-face-back">
+          <CardBack />
+        </div>
+      </div>
     </div>
   );
 }

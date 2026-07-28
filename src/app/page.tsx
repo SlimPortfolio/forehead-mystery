@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActiveModal,
   CARD_POOL,
@@ -33,6 +33,7 @@ import TransitionOverlay from "@/components/game/TransitionOverlay";
 import PendingJoinScreen from "@/components/game/PendingJoinScreen";
 import RemovedFromRoomScreen from "@/components/game/RemovedFromRoomScreen";
 import KickPlayerModal from "@/components/game/KickPlayerModal";
+import ToastStack, { ToastData } from "@/components/game/Toast";
 
 const POLL_INTERVAL_MS = 2000;
 const NEW_GAME_TRANSITION_MS = 900;
@@ -241,6 +242,16 @@ export default function Home() {
   const [activeChatBubbles, setActiveChatBubbles] = useState<
     Record<string, string>
   >({});
+  // Deal-in reveal: number of cards (in turn order) flipped face-up so far, or
+  // null when no reveal is running (every card shows normally). Set to 0 at a
+  // fresh game start so every card starts face-down, then counted up.
+  const [cardRevealCount, setCardRevealCount] = useState<number | null>(null);
+  const revealPrevPhaseRef = useRef<GamePhase | null>(null);
+  const revealTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  // Join/leave toasts, plus a snapshot of the last-seen player roster (id ->
+  // name) used to diff who arrived or left between room updates.
+  const [toasts, setToasts] = useState<ToastData[]>([]);
+  const prevPlayerNamesRef = useRef<Map<string, string> | null>(null);
   const previousPhaseRef = useRef<GamePhase | null>(null);
   const roomRef = useRef<Room | null>(null);
   const suppressPollUntilRef = useRef<number>(0);
@@ -340,6 +351,130 @@ export default function Home() {
 
     previousPhaseRef.current = room.phase;
   }, [room?.id, room?.phase, room?.round, room?.currentTurnIndex, playerId]);
+
+  // Deal-in reveal: flip every card face-down, then flip them face-up one by
+  // one in turn order. Purely cosmetic and local to each client. Cancels any
+  // in-flight reveal first so a rapid re-deal can't leave overlapping timers.
+  const runCardReveal = useCallback((total: number) => {
+    revealTimersRef.current.forEach(clearTimeout);
+    revealTimersRef.current = [];
+
+    if (total <= 0) {
+      setCardRevealCount(null);
+      return;
+    }
+
+    // START_DELAY lets the "Loading new game..." overlay clear before the
+    // first card flips; STAGGER paces the one-by-one reveal.
+    const START_DELAY = 700;
+    const STAGGER = 260;
+
+    setCardRevealCount(0); // every card face-down to start
+
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    for (let revealed = 1; revealed <= total; revealed += 1) {
+      timers.push(
+        setTimeout(
+          () => setCardRevealCount(revealed),
+          START_DELAY + revealed * STAGGER,
+        ),
+      );
+    }
+    // Once every card is face-up, clear the reveal so nothing stays special.
+    timers.push(
+      setTimeout(
+        () => setCardRevealCount(null),
+        START_DELAY + (total + 1) * STAGGER,
+      ),
+    );
+
+    revealTimersRef.current = timers;
+  }, []);
+
+  // Cancel any pending reveal timers on unmount.
+  useEffect(() => {
+    return () => revealTimersRef.current.forEach(clearTimeout);
+  }, []);
+
+  // Kick the deal-in reveal for clients that learn a fresh game started via
+  // polling (i.e. everyone who isn't the host who clicked). The host triggers
+  // it directly from startGame/startNextGame, since the transition into a
+  // fresh ranking phase can't always be observed as a phase *change* here (the
+  // finished screen unmounts the game view). Gated on having seen a prior
+  // phase so refreshing straight onto the ranking screen doesn't replay it.
+  useEffect(() => {
+    if (!room) return;
+
+    const prevPhase = revealPrevPhaseRef.current;
+    revealPrevPhaseRef.current = room.phase;
+
+    const isFreshGameStart =
+      room.phase === "ranking" &&
+      room.round === 1 &&
+      room.currentTurnIndex === 0 &&
+      prevPhase !== null &&
+      prevPhase !== "ranking";
+
+    // The host already started the reveal locally; don't double-trigger it.
+    if (!isFreshGameStart || room.hostId === playerId) return;
+
+    runCardReveal(room.players.length);
+  }, [room?.phase, room?.round, room?.currentTurnIndex, playerId, runCardReveal]);
+
+  const dismissToast = useCallback((id: string) => {
+    setToasts((current) => current.filter((toast) => toast.id !== id));
+  }, []);
+
+  // Pop a toast whenever a (human) player joins or leaves the room. Diffs the
+  // current roster against the previous snapshot by id. The first roster we
+  // see just primes the snapshot without toasting, so players already present
+  // when you arrive don't each fire a "joined" toast. Bots are skipped — they
+  // appear in a batch when the host starts a game, which isn't a real join.
+  useEffect(() => {
+    if (!room || !joined) return;
+
+    const currentNames = new Map(
+      room.players.map((player) => [player.id, player.name] as const),
+    );
+
+    const previous = prevPlayerNamesRef.current;
+    prevPlayerNamesRef.current = currentNames;
+
+    // First observation (or after leaving/rejoining) — prime, don't announce.
+    if (previous === null) return;
+
+    const newToasts: ToastData[] = [];
+
+    for (const [id, name] of currentNames) {
+      if (previous.has(id)) continue;
+      if (id === playerId || id.startsWith("test-player")) continue;
+      newToasts.push({
+        id: `join-${id}-${Date.now()}`,
+        message: `${name} joined`,
+        tone: "join",
+      });
+    }
+    for (const [id, name] of previous) {
+      if (currentNames.has(id)) continue;
+      if (id === playerId || id.startsWith("test-player")) continue;
+      newToasts.push({
+        id: `leave-${id}-${Date.now()}`,
+        message: `${name} left`,
+        tone: "leave",
+      });
+    }
+
+    if (newToasts.length > 0) {
+      // Cap the visible stack so a burst can't tower off-screen.
+      setToasts((current) => [...current, ...newToasts].slice(-3));
+    }
+  }, [room?.players, joined, playerId]);
+
+  // Reset the roster snapshot when we leave a room, so rejoining primes fresh
+  // (and doesn't announce everyone already there as a fresh "join").
+  useEffect(() => {
+    if (!joined) prevPlayerNamesRef.current = null;
+  }, [joined]);
 
   // Default the winner-form date/time to "now" the moment a game finishes.
   useEffect(() => {
@@ -1189,6 +1324,7 @@ export default function Home() {
 
     setIsTransitioning(true);
     submitRoomState(nextRoom);
+    runCardReveal(nextPlayers.length);
     setStatus("New game started! Begin with the ranking phase.");
     setTimeout(() => setIsTransitioning(false), NEW_GAME_TRANSITION_MS);
   };
@@ -1251,10 +1387,14 @@ export default function Home() {
       round: 1,
       currentTurnIndex: 0,
       turnOrder: shuffle(nextPlayers.map((player) => player.id)),
+      // Wipe the shared chat log so lobby chatter doesn't carry into the
+      // postgame chat once this game finishes. (startNextGame clears it too.)
+      postGameChat: [],
     };
 
     setIsTransitioning(true);
     submitRoomState(nextRoom);
+    runCardReveal(nextPlayers.length);
     setStatus("The game has started. Submit your ranking.");
     setTimeout(() => setIsTransitioning(false), NEW_GAME_TRANSITION_MS);
   };
@@ -1641,6 +1781,9 @@ export default function Home() {
                 room={room}
                 status={status}
                 isHost={room.hostId === playerId}
+                playerId={playerId}
+                chatMessages={room.postGameChat ?? []}
+                onSendChat={handleSendPostGameChat}
                 onStartGame={() => startGame(false)}
                 onStartWithBots={(totalPlayers) =>
                   startGame(true, false, totalPlayers)
@@ -1698,6 +1841,7 @@ export default function Home() {
                     room={room}
                     playerId={playerId}
                     activeChatBubbles={activeChatBubbles}
+                    cardRevealCount={cardRevealCount}
                     onOpenLookingGlass={(id) =>
                       setActiveModal({ type: "lookingGlass", playerId: id })
                     }
@@ -1778,6 +1922,8 @@ export default function Home() {
       {binkPlayerName && (
         <CorrectGuessPopup playerName={binkPlayerName} closing={binkClosing} />
       )}
+
+      <ToastStack toasts={toasts} onDismiss={dismissToast} />
     </main>
   );
 }
