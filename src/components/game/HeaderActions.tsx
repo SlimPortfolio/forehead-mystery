@@ -1,8 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
-import { BarChart3, HelpCircle, Menu, Trophy } from "lucide-react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import {
+  BarChart3,
+  HelpCircle,
+  Menu,
+  Trophy,
+  Volume2,
+  VolumeX,
+} from "lucide-react";
+import {
+  getMutedServerSnapshot,
+  getMutedSnapshot,
+  setSoundMuted,
+  subscribeMuted,
+} from "@/lib/sounds";
 
 type HeaderActionsProps = {
   /** Intercept the Hall of Fame link click, e.g. to confirm before leaving an
@@ -23,6 +36,15 @@ export default function HeaderActions({
 }: HeaderActionsProps) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  // Reflects the persisted mute preference; server snapshot is false so the
+  // markup matches on hydration, then updates to the stored value.
+  const muted = useSyncExternalStore(
+    subscribeMuted,
+    getMutedSnapshot,
+    getMutedServerSnapshot,
+  );
+
+  const toggleMute = () => setSoundMuted(!muted);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -96,6 +118,17 @@ export default function HeaderActions({
               strokeWidth={1.75}
             />
             Help
+          </button>
+          <button
+            onClick={toggleMute}
+            className="flex w-full cursor-pointer items-center gap-3 px-3.5 py-2.5 text-left text-base text-slate-800 transition-colors hover:bg-slate-100"
+          >
+            {muted ? (
+              <VolumeX className="h-5 w-5 text-slate-500" strokeWidth={1.75} />
+            ) : (
+              <Volume2 className="h-5 w-5 text-slate-500" strokeWidth={1.75} />
+            )}
+            {muted ? "Unmute sound effects" : "Mute sound effects"}
           </button>
         </div>
       )}

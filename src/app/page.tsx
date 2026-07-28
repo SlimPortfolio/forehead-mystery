@@ -28,6 +28,7 @@ import LookingGlassModal from "@/components/game/LookingGlassModal";
 import HelpModal from "@/components/game/HelpModal";
 import CorrectGuessPopup from "@/components/game/CorrectGuessPopup";
 import { computeGameMetrics } from "@/lib/metrics";
+import { playSound, unlockSounds } from "@/lib/sounds";
 import TransitionOverlay from "@/components/game/TransitionOverlay";
 import PendingJoinScreen from "@/components/game/PendingJoinScreen";
 import RemovedFromRoomScreen from "@/components/game/RemovedFromRoomScreen";
@@ -249,6 +250,15 @@ export default function Home() {
     null,
   );
   const wasConfirmationPhaseRef = useRef(false);
+  // Tracks the last turn index we saw during an active turn phase, so we only
+  // chime when the turn advances forward (someone finished their turn), not when
+  // a new round resets the index to 0. Undefined until first observation so we
+  // don't fire a cue for state we didn't watch transition.
+  const previousTurnIndexRef = useRef<number | undefined>(undefined);
+  // Tracks the previously seen phase so we can chime when the final turn ends
+  // the game (the turn index never advances forward for it). Undefined until
+  // first observation so refreshing onto the results screen stays silent.
+  const previousPhaseForSoundRef = useRef<GamePhase | undefined>(undefined);
   const chatTimeoutRefs = useRef<Record<string, ReturnType<typeof setTimeout>>>(
     {},
   );
@@ -258,6 +268,23 @@ export default function Home() {
   useEffect(() => {
     roomRef.current = room;
   }, [room]);
+
+  // Unlock audio playback on the first user interaction — browsers block
+  // programmatic sound until then. Runs once, then removes the listeners.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const unlock = () => {
+      unlockSounds();
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+    };
+    window.addEventListener("pointerdown", unlock);
+    window.addEventListener("keydown", unlock);
+    return () => {
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+    };
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -351,8 +378,14 @@ export default function Home() {
     const actingPlayer = room.players.find(
       (player) => player.id === room.turnOrder[room.currentTurnIndex],
     );
-    if (!actingPlayer?.isCorrectlyIdentified) return;
+    if (!actingPlayer) return;
 
+    if (!actingPlayer.isCorrectlyIdentified) {
+      playSound("incorrect");
+      return;
+    }
+
+    playSound("correct");
     setBinkPlayerName(actingPlayer.name);
     setBinkClosing(false);
     if (binkTimeoutRef.current) clearTimeout(binkTimeoutRef.current);
@@ -372,6 +405,56 @@ export default function Home() {
       if (binkTimeoutRef.current) clearTimeout(binkTimeoutRef.current);
     };
   }, []);
+
+  // Turn-completed cue. Fires only when the turn index moves forward within an
+  // active phase — i.e. a player just finished their turn and it passed to the
+  // next player. Derived from synced room state so all clients chime together.
+  // Deliberately silent when a phase/round begins (index resets to 0, which is
+  // never greater than the last index) so no sound plays at game start or when
+  // round 2 begins — only after an actual turn completes.
+  useEffect(() => {
+    if (!room) return;
+
+    const isActiveTurnPhase =
+      room.phase === "ranking" || room.phase === "guessing";
+    // Ignore non-turn phases (lobby/confirmation/finished) so the last active
+    // index is preserved across the confirmation pause between guesses.
+    if (!isActiveTurnPhase) return;
+
+    const currentIndex = room.currentTurnIndex;
+    const previousIndex = previousTurnIndexRef.current;
+    previousTurnIndexRef.current = currentIndex;
+
+    // Not on first observation, and only on a forward advance (turn completed).
+    if (previousIndex === undefined || currentIndex <= previousIndex) return;
+
+    playSound("turnChange");
+  }, [room?.phase, room?.currentTurnIndex]);
+
+  // The last player of a round finishes by advancing the PHASE, not the turn
+  // index (which resets to 0), so the index-based effect above never catches
+  // them. Chime on those round-ending transitions so the final ranker and the
+  // final guesser aren't silent:
+  //   ranking               -> guessing  (last ranker done, round 2 begins)
+  //   guessing/confirmation -> finished  (last guesser done, game ends)
+  // Gated on having seen the prior phase, so loading straight onto the guessing
+  // or results screen (no prior phase) stays silent.
+  useEffect(() => {
+    if (!room) return;
+
+    const previousPhase = previousPhaseForSoundRef.current;
+    previousPhaseForSoundRef.current = room.phase;
+
+    const lastRankerFinished =
+      previousPhase === "ranking" && room.phase === "guessing";
+    const lastGuesserFinished =
+      (previousPhase === "guessing" || previousPhase === "confirmation") &&
+      room.phase === "finished";
+
+    if (lastRankerFinished || lastGuesserFinished) {
+      playSound("turnChange");
+    }
+  }, [room?.phase]);
 
   // Show a chat speech bubble per player, each with its own duration and
   // ref-based timer (same non-cleanup-driven pattern as the bink popup) so
