@@ -71,6 +71,12 @@ function createId(prefix: string) {
   return `${prefix}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+// Bots are created with `createId("test-player")`. Detect them by id prefix
+// rather than display name so renaming the bot name pool never disables them.
+function isBotPlayer(player: { id: string }) {
+  return player.id.startsWith("test-player");
+}
+
 function shuffle<T>(values: T[]) {
   const copy = [...values];
   for (let index = copy.length - 1; index > 0; index -= 1) {
@@ -546,7 +552,7 @@ export default function Home() {
 
     if (
       !currentPlayerInTurn ||
-      !currentPlayerInTurn.name.startsWith("Test Player") ||
+      !isBotPlayer(currentPlayerInTurn) ||
       currentPlayerInTurn.ranking
     )
       return;
@@ -590,7 +596,7 @@ export default function Home() {
 
     if (
       !currentPlayerInTurn ||
-      !currentPlayerInTurn.name.startsWith("Test Player")
+      !isBotPlayer(currentPlayerInTurn)
     )
       return;
 
@@ -677,6 +683,16 @@ export default function Home() {
   const isMyTurn = Boolean(
     room && currentPlayer && playerId && currentPlayer.id === playerId,
   );
+
+  // Tint the whole screen when it's genuinely this player's turn to act, so
+  // they immediately notice the game is waiting on them. Gated to the active
+  // turn phases — `isMyTurn` is also true for whoever sits at turnOrder[0] in
+  // the lobby / finished screens, where a highlight would be misleading.
+  const isMyActiveTurn = Boolean(
+    isMyTurn &&
+    room &&
+    (room.phase === "ranking" || room.phase === "guessing"),
+  );
   const myPlayer = useMemo(
     () => room?.players.find((player) => player.id === playerId) ?? null,
     [room, playerId],
@@ -700,9 +716,7 @@ export default function Home() {
   // Bots always guess their own card correctly, so any game they're part of
   // is guaranteed to be a "perfect game" — that's not a real win, so it must
   // never be eligible for the winners log.
-  const isBotGame = activePlayers.some((player) =>
-    player.name.startsWith("Test Player"),
-  );
+  const isBotGame = activePlayers.some((player) => isBotPlayer(player));
 
   const isHost = Boolean(room && playerId && room.hostId === playerId);
 
@@ -836,7 +850,7 @@ export default function Home() {
   const logGameMetrics = (finishedRoom: Room) => {
     const active = finishedRoom.players.filter((player) => !player.pendingJoin);
     if (active.length === 0) return;
-    if (active.some((player) => player.name.startsWith("Test Player"))) return;
+    if (active.some((player) => isBotPlayer(player))) return;
 
     const highEloMatch =
       typeof window !== "undefined" &&
@@ -1574,7 +1588,13 @@ export default function Home() {
                 onLeaveGame={handleLeaveGame}
               />
             ) : (
-              <div className="relative flex-1 min-h-0 overflow-y-auto border border-slate-200 bg-white/80 p-3 shadow-sm backdrop-blur sm:p-4">
+              <div
+                className={`relative flex-1 min-h-0 overflow-y-auto border border-slate-200 p-3 shadow-sm backdrop-blur transition-colors duration-500 sm:p-4 ${
+                  isMyActiveTurn
+                    ? "bg-[radial-gradient(ellipse_at_top,#f6f4fe_0%,#e8ecfb_55%,#dde5f6_100%)]"
+                    : "bg-white/80"
+                }`}
+              >
                 {isTransitioning && (
                   <TransitionOverlay label="Loading new game..." />
                 )}
