@@ -5,22 +5,26 @@ import { PostGameChatMessage } from "./types";
 
 const REFRACTORY_MS = 2000;
 
-type PostGameChatProps = {
+type RoomChatProps = {
   messages: PostGameChatMessage[];
   playerId: string | null;
   onSend: (text: string) => boolean;
+  /** Heading shown above the log — e.g. "Lobby Chat" or "Postgame Chat". */
+  title?: string;
 };
 
-/** Free-text chat for the results screen. `onSend` returns false when the
- * caller's own 2s refractory window is still active (see handleSendPostGameChat
- * in page.tsx) — in that case the draft is left in place instead of clearing,
- * and the button/input stay disabled locally so a player can't queue up a
- * burst of requests by mashing send. */
-export default function PostGameChat({
+/** Free-text room chat, shared by the lobby (while players wait) and the
+ * results screen. `onSend` returns false when the caller's own 2s refractory
+ * window is still active (see handleSendPostGameChat in page.tsx) — in that
+ * case the draft is left in place instead of clearing, and the button/input
+ * stay disabled locally so a player can't queue up a burst of requests by
+ * mashing send. */
+export default function RoomChat({
   messages,
   playerId,
   onSend,
-}: PostGameChatProps) {
+  title = "Postgame Chat",
+}: RoomChatProps) {
   const [draft, setDraft] = useState("");
   const [onCooldown, setOnCooldown] = useState(false);
 
@@ -38,7 +42,7 @@ export default function PostGameChat({
 
   return (
     <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-      <h4 className="font-semibold text-ink">Postgame Chat</h4>
+      <h4 className="font-semibold text-ink">{title}</h4>
       <div className="mt-2 h-56 space-y-1.5 overflow-y-auto pr-1">
         {messages.length === 0 ? (
           <p className="text-sm text-slate-500">No messages yet.</p>

@@ -12,7 +12,7 @@ import {
   US_STATES,
 } from "./types";
 import PlayingCard from "./PlayingCard";
-import PostGameChat from "./PostGameChat";
+import RoomChat from "./RoomChat";
 import CityAutocomplete from "./CityAutocomplete";
 import GameMenu from "./GameMenu";
 import { getCitiesForState } from "@/data/usCities";
@@ -366,10 +366,11 @@ export default function FinishedScreen({
         </div>
       )}
 
-      <PostGameChat
+      <RoomChat
         messages={room.postGameChat ?? []}
         playerId={playerId}
         onSend={onSendPostGameChat}
+        title="Postgame Chat"
       />
 
       <div className="mt-4 flex flex-wrap gap-2">

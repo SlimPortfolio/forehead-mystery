@@ -1,12 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { Room } from "./types";
+import { PostGameChatMessage, Room } from "./types";
+import RoomChat from "./RoomChat";
 
 type LobbyScreenProps = {
   room: Room;
   status: string;
   isHost: boolean;
+  playerId: string | null;
+  chatMessages: PostGameChatMessage[];
+  onSendChat: (text: string) => boolean;
   onStartGame: () => void;
   onStartWithBots: (totalPlayers: number) => void;
 };
@@ -18,6 +22,9 @@ export default function LobbyScreen({
   room,
   status,
   isHost,
+  playerId,
+  chatMessages,
+  onSendChat,
   onStartGame,
   onStartWithBots,
 }: LobbyScreenProps) {
@@ -134,6 +141,13 @@ export default function LobbyScreen({
       <p className="mt-4 text-sm text-slate-600">
         The host can begin the game once there are 4-8 players in the room.
       </p>
+
+      <RoomChat
+        messages={chatMessages}
+        playerId={playerId}
+        onSend={onSendChat}
+        title="Lobby Chat"
+      />
     </div>
   );
 }
