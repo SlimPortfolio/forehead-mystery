@@ -70,14 +70,12 @@ function CardBack() {
   return (
     <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-lg border-2 border-indigo-300 bg-indigo-500 shadow-sm">
       <div
-        className="flex h-full w-full items-center justify-center"
+        className="h-full w-full"
         style={{
           backgroundImage:
             "repeating-linear-gradient(45deg, rgba(255,255,255,0.18) 0, rgba(255,255,255,0.18) 2px, transparent 2px, transparent 6px)",
         }}
-      >
-        <span className="text-xs font-black leading-none text-white/80">?</span>
-      </div>
+      />
     </div>
   );
 }
