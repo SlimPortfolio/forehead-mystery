@@ -6,6 +6,7 @@ import {
   BarChart3,
   HelpCircle,
   Menu,
+  // Music, // BACKGROUND MUSIC disabled — see sounds.ts
   Trophy,
   Volume2,
   VolumeX,
@@ -15,6 +16,11 @@ import {
   getMutedSnapshot,
   setSoundMuted,
   subscribeMuted,
+  // BACKGROUND MUSIC disabled — see sounds.ts
+  // getMusicMutedServerSnapshot,
+  // getMusicMutedSnapshot,
+  // setMusicMuted,
+  // subscribeMusicMuted,
 } from "@/lib/sounds";
 
 type HeaderActionsProps = {
@@ -43,8 +49,15 @@ export default function HeaderActions({
     getMutedSnapshot,
     getMutedServerSnapshot,
   );
+  // BACKGROUND MUSIC disabled — see sounds.ts
+  // const musicMuted = useSyncExternalStore(
+  //   subscribeMusicMuted,
+  //   getMusicMutedSnapshot,
+  //   getMusicMutedServerSnapshot,
+  // );
 
   const toggleMute = () => setSoundMuted(!muted);
+  // const toggleMusic = () => setMusicMuted(!musicMuted);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -130,6 +143,18 @@ export default function HeaderActions({
             )}
             {muted ? "Unmute sound effects" : "Mute sound effects"}
           </button>
+          {/* BACKGROUND MUSIC disabled — see sounds.ts
+          <button
+            onClick={toggleMusic}
+            className="flex w-full cursor-pointer items-center gap-3 px-3.5 py-2.5 text-left text-base text-slate-800 transition-colors hover:bg-slate-100"
+          >
+            <Music
+              className={`h-5 w-5 ${musicMuted ? "text-slate-300" : "text-slate-500"}`}
+              strokeWidth={1.75}
+            />
+            {musicMuted ? "Turn music on" : "Turn music off"}
+          </button>
+          */}
         </div>
       )}
     </div>
