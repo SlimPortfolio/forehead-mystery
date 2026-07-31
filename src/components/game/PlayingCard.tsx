@@ -11,6 +11,10 @@ type PlayingCardProps = {
    * animates a rotate-to-reveal when it later becomes false. Used for the
    * deal-in reveal at the start of a game. */
   faceDown?: boolean;
+  /** Force the special-deck art on/off, overriding the ?bok-special URL check.
+   * Used by the winners map so a game's recorded deck shows regardless of how
+   * the viewer opened the page. Undefined = fall back to the URL param. */
+  special?: boolean;
 };
 
 /** Special-deck art theme, toggled on via the ?bok-special URL param. */
@@ -87,11 +91,14 @@ export default function PlayingCard({
   suit = "♦",
   size = "md",
   faceDown = false,
+  special,
 }: PlayingCardProps) {
   const isHidden = !card;
   const display = card ?? "?";
   const isRed = suit === "♦" || suit === "♥";
-  const isSpecial = useBokSpecial();
+  const urlSpecial = useBokSpecial();
+  // An explicit `special` prop wins; otherwise fall back to the URL param.
+  const isSpecial = special ?? urlSpecial;
 
   const front = (
     <div className="flex h-full w-full flex-col items-center justify-center rounded-lg border-2 border-slate-300 bg-white shadow-sm">

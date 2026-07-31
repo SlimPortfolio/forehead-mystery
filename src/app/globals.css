@@ -126,10 +126,34 @@ body {
   animation: turn-pulse 1.8s ease-in-out infinite;
 }
 @media (prefers-reduced-motion: reduce) {
-  .card-flip-inner {
+  /* Swap the 3D flip for a soft opacity cross-fade — a reveal without the
+     vestibular motion that Reduce Motion is asking us to avoid (a full 3D spin
+     would be jarring, and disabling it outright made cards just snap in). The
+     inner element stops rotating; the card back simply fades away to uncover
+     the face beneath it, still one-by-one via the same deal-in timing. */
+  .card-flip-inner,
+  .card-flip-inner.is-facedown {
+    transform: none;
     transition: none;
   }
+  .card-face-back {
+    transform: none; /* undo the 180° so the flat back isn't mirrored */
+    opacity: 0; /* face-up by default: back hidden, front shows through */
+    transition: opacity 0.45s ease;
+  }
+  .card-flip-inner.is-facedown .card-face-back {
+    opacity: 1; /* face-down: the back covers the face */
+  }
+
+  /* The pulse keyframes are the *only* thing that colors the current-turn row,
+     so simply disabling the animation would leave it with no highlight at all
+     (this bit iPhones with Reduce Motion on). Pin it to the animation's darkest
+     amber frame instead, so whoever's turn it is still stands out — just
+     statically, without the breathing motion. */
   .animate-turn-pulse {
     animation: none;
+    border-color: #fbbf24; /* amber-400 */
+    background-color: #fffbeb; /* amber-50 */
+    box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.3);
   }
 }

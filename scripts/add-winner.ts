@@ -7,7 +7,8 @@
 //
 // <json> shape:
 //   {"teamName":"...","date":"YYYY-MM-DD","time":"HH:MM","location":"City, Region",
-//    "players":[{"name":"...","card":"..."}]}
+//    "players":[{"name":"...","card":"..."}],"suit":"♥","special":false}
+//   (suit and special are optional; suit is the game's suit symbol.)
 import { MongoClient } from "mongodb";
 import { geocodeLocation } from "../src/lib/geocode.ts";
 
@@ -18,6 +19,8 @@ type WinnerInput = {
   time?: unknown;
   location?: unknown;
   players?: PlayerInput[];
+  suit?: unknown;
+  special?: unknown;
 };
 
 async function main() {
@@ -35,6 +38,8 @@ async function main() {
   const date = String(input.date ?? "").trim();
   const time = String(input.time ?? "").trim();
   const location = String(input.location ?? "").trim();
+  const suit = String(input.suit ?? "").trim();
+  const special = Boolean(input.special);
   const players = (input.players ?? [])
     .map((player) => ({
       name: String(player?.name ?? "").trim(),
@@ -69,6 +74,8 @@ async function main() {
       lat,
       lng,
       players,
+      ...(suit ? { suit } : {}),
+      ...(special ? { special: true } : {}),
       createdAt: new Date(),
     };
     const result = await client.db(dbName).collection("winners").insertOne(record);

@@ -23,6 +23,36 @@ export type GameMetricRecord = GameMetricPayload & {
   createdAt: string;
 };
 
+// ─── Time-range filtering (used by the /data dashboard) ──────────────────────
+export type MetricRange = "1D" | "1W" | "1M" | "1Y" | "ALL";
+
+/** Rolling windows counting back from "now" (not calendar buckets), matching
+ * the stock-chart mental model and staying timezone-agnostic — it's pure
+ * duration math, so there's no UTC-vs-local boundary to get wrong. */
+export const METRIC_RANGES: { id: MetricRange; label: string; days: number | null }[] = [
+  { id: "1D", label: "1D", days: 1 },
+  { id: "1W", label: "1W", days: 7 },
+  { id: "1M", label: "1M", days: 30 },
+  { id: "1Y", label: "1Y", days: 365 },
+  { id: "ALL", label: "All", days: null },
+];
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** True when `createdAt` falls within `range` counting back from `now`. "ALL"
+ * (and any unparseable range) always passes; an unparseable date never does. */
+export function isWithinRange(
+  createdAt: string,
+  range: MetricRange,
+  now: number = Date.now(),
+): boolean {
+  const config = METRIC_RANGES.find((r) => r.id === range);
+  if (!config || config.days === null) return true;
+  const ts = new Date(createdAt).getTime();
+  if (Number.isNaN(ts)) return false;
+  return ts >= now - config.days * DAY_MS;
+}
+
 function cardValue(card: string | undefined): number {
   // CARD_POOL is ordered Ace (low) -> King (high), so its index is the value.
   return card ? CARD_POOL.indexOf(card) : -1;

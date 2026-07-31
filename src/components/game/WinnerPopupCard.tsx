@@ -110,10 +110,13 @@ export default function WinnerPopupCard({ winners }: WinnerPopupCardProps) {
       {/* Winning hand — cards evenly distributed, wrapping to a second row at 5+ */}
       <div className="mt-2.5 grid grid-cols-4 gap-x-2 gap-y-1.5">
         {winner.players.map((player, playerIndex) => {
-          const { rank, suit } = parseCard(player.card);
+          const parsed = parseCard(player.card);
+          // Prefer the suit recorded for the game (one suit per game). Legacy
+          // records without it fall back to whatever the card string implies.
+          const suit = winner.suit ?? parsed.suit;
           return (
             <div key={`${winner.id}-${playerIndex}`} className="flex flex-col items-center">
-              <PlayingCard card={rank} suit={suit} size="xs" />
+              <PlayingCard card={parsed.rank} suit={suit} size="xs" special={winner.special} />
               <span className="mt-0.5 w-full truncate text-center text-[10px] leading-tight text-slate-500">
                 {player.name}
               </span>

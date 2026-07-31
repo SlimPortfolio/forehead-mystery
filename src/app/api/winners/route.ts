@@ -15,6 +15,8 @@ export async function POST(request: Request) {
     const date = String(body?.date || "").trim();
     const time = String(body?.time || "").trim();
     const location = String(body?.location || "").trim();
+    const suit = String(body?.suit || "").trim();
+    const special = Boolean(body?.special);
     const rawPlayers = Array.isArray(body?.players) ? body.players : [];
 
     if (!teamName || !date || !time || !location) {
@@ -51,6 +53,10 @@ export async function POST(request: Request) {
       lat,
       lng,
       players,
+      // Only persist a suit when one was actually supplied; likewise keep the
+      // special flag off unless explicitly set, so legacy/unknown games stay clean.
+      ...(suit ? { suit } : {}),
+      ...(special ? { special: true } : {}),
       createdAt: new Date(),
     };
 
