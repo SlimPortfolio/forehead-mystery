@@ -374,10 +374,11 @@ export default function Home() {
     const timers: ReturnType<typeof setTimeout>[] = [];
     for (let revealed = 1; revealed <= total; revealed += 1) {
       timers.push(
-        setTimeout(
-          () => setCardRevealCount(revealed),
-          START_DELAY + revealed * STAGGER,
-        ),
+        setTimeout(() => {
+          setCardRevealCount(revealed);
+          // One flip cue per card as it turns face-up (the deal-in reveal).
+          playSound("cardFlip");
+        }, START_DELAY + revealed * STAGGER),
       );
     }
     // Once every card is face-up, clear the reveal so nothing stays special.
@@ -563,7 +564,10 @@ export default function Home() {
     // Not on first observation, and only on a forward advance (turn completed).
     if (previousIndex === undefined || currentIndex <= previousIndex) return;
 
-    playSound("turnChange");
+    // When the turn lands on the local player, play the dedicated "your move"
+    // cue instead of the generic turn-change thwack.
+    const currentActorId = room.turnOrder[currentIndex];
+    playSound(currentActorId === playerId ? "yourMove" : "turnChange");
   }, [room?.phase, room?.currentTurnIndex]);
 
   // The last player of a round finishes by advancing the PHASE, not the turn
@@ -586,7 +590,13 @@ export default function Home() {
       (previousPhase === "guessing" || previousPhase === "confirmation") &&
       room.phase === "finished";
 
-    if (lastRankerFinished || lastGuesserFinished) {
+    if (lastRankerFinished) {
+      // Guessing round 2 opens on turnOrder[0]; give that first guesser the
+      // "your move" cue if it's the local player, otherwise the generic thwack.
+      const firstGuesserId = room.turnOrder[0];
+      playSound(firstGuesserId === playerId ? "yourMove" : "turnChange");
+    } else if (lastGuesserFinished) {
+      // Game over — no next turn, just the round-ending thwack.
       playSound("turnChange");
     }
   }, [room?.phase]);
@@ -1045,6 +1055,13 @@ export default function Home() {
           date: winnerForm.date,
           time: winnerForm.time,
           location: `${winnerForm.city.trim()}, ${region}`,
+          // Record the game's suit (one per game) and whether the special
+          // ?bok-special deck was in play, so the winners map renders the
+          // exact cards this team won with.
+          suit: suitForGame(room.gameNumber),
+          special:
+            typeof window !== "undefined" &&
+            new URLSearchParams(window.location.search).has("bok-special"),
           players: activePlayers.map((player) => ({
             name: player.name,
             card: player.card ?? "",

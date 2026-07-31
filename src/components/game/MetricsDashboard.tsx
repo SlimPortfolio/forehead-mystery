@@ -1,9 +1,27 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { GameMetricRecord } from "@/lib/metrics";
+import {
+  isWithinRange,
+  METRIC_RANGES,
+  type GameMetricRecord,
+  type MetricRange,
+} from "@/lib/metrics";
 
 type Tab = "normal" | "highElo";
+
+// Player-count filter. "any" keeps every game; the rest match an exact head
+// count. The game seats 4–8, so those are the buckets offered.
+type PlayerCount = "any" | 4 | 5 | 6 | 7 | 8;
+const PLAYER_COUNTS: { id: PlayerCount; label: string }[] = [
+  { id: 4, label: "4P" },
+  { id: 5, label: "5P" },
+  { id: 6, label: "6P" },
+  { id: 7, label: "7P" },
+  { id: 8, label: "8P" },
+  // Kept last so the catch-all sits on the right, mirroring "All" in the range row.
+  { id: "any", label: "Any" },
+];
 
 function average(values: number[]): number {
   if (values.length === 0) return 0;
@@ -47,14 +65,28 @@ export default function MetricsDashboard({
   metrics: GameMetricRecord[];
 }) {
   const [tab, setTab] = useState<Tab>("normal");
+  const [range, setRange] = useState<MetricRange>("ALL");
+  const [playerCount, setPlayerCount] = useState<PlayerCount>("any");
+
+  // Apply the time-range and player-count filters first, then split by game
+  // type — so the type-tab counts and every stat below reflect all three.
+  const scopedGames = useMemo(
+    () =>
+      metrics.filter(
+        (game) =>
+          isWithinRange(game.createdAt, range) &&
+          (playerCount === "any" || game.numberOfPlayers === playerCount),
+      ),
+    [metrics, range, playerCount],
+  );
 
   const normalGames = useMemo(
-    () => metrics.filter((game) => !game.highEloMatch),
-    [metrics],
+    () => scopedGames.filter((game) => !game.highEloMatch),
+    [scopedGames],
   );
   const highEloGames = useMemo(
-    () => metrics.filter((game) => game.highEloMatch),
-    [metrics],
+    () => scopedGames.filter((game) => game.highEloMatch),
+    [scopedGames],
   );
 
   const games = tab === "highElo" ? highEloGames : normalGames;
@@ -71,10 +103,9 @@ export default function MetricsDashboard({
     game.numberOfPlayers > 0 &&
     game.numberOfCorrectRank === game.numberOfPlayers;
 
-  // Metric 1: does nailing the ranks track with winning? Split win rate by
-  // whether the ranks came out fully correct.
+  // Metric 1: does nailing the ranks track with winning? The win rate among
+  // games where every rank came out correct.
   const ranksCorrectGames = games.filter(allRanksCorrect);
-  const ranksWrongGames = games.filter((game) => !allRanksCorrect(game));
 
   // How often every player nails their rank, across all games in this tab.
   const allRanksCorrectRate = pct(ranksCorrectGames.length, totalGames);
@@ -88,6 +119,21 @@ export default function MetricsDashboard({
     victories.length,
   );
 
+  // The flip side: of all wins, how many had at least one rank wrong.
+  const imperfectRankVictories = victories.filter(
+    (game) => !allRanksCorrect(game),
+  );
+  const imperfectRankVictoryRate = pct(
+    imperfectRankVictories.length,
+    victories.length,
+  );
+
+  // Across won games, the average share of players who landed on their true
+  // rank — i.e. what portion of cards were "in the right range" in victories.
+  const victoryRightRangeRate = average(
+    victories.map((game) => game.percentOfCorrectRank),
+  );
+
   const tabs: { id: Tab; label: string; count: number }[] = [
     { id: "normal", label: "Normal games", count: normalGames.length },
     { id: "highElo", label: "High Elo", count: highEloGames.length },
@@ -95,6 +141,68 @@ export default function MetricsDashboard({
 
   return (
     <>
+      <div className="space-y-1">
+        <p className="px-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+          Date Range
+        </p>
+        <div
+          role="tablist"
+          aria-label="Date range"
+          className="flex gap-1 rounded-2xl border border-slate-200 bg-slate-100/70 p-1"
+        >
+          {METRIC_RANGES.map(({ id, label }) => {
+          const active = range === id;
+          return (
+            <button
+              key={id}
+              role="tab"
+              type="button"
+              aria-selected={active}
+              onClick={() => setRange(id)}
+              className={`flex-1 rounded-xl px-3 py-1.5 text-sm font-semibold transition ${
+                active
+                  ? "bg-white text-ink shadow-sm"
+                  : "text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              {label}
+            </button>
+          );
+          })}
+        </div>
+      </div>
+
+      <div className="space-y-1">
+        <p className="px-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+          Number of Players
+        </p>
+        <div
+          role="tablist"
+          aria-label="Number of players"
+          className="flex gap-1 rounded-2xl border border-slate-200 bg-slate-100/70 p-1"
+        >
+          {PLAYER_COUNTS.map(({ id, label }) => {
+          const active = playerCount === id;
+          return (
+            <button
+              key={id}
+              role="tab"
+              type="button"
+              aria-selected={active}
+              onClick={() => setPlayerCount(id)}
+              className={`flex-1 rounded-xl px-3 py-1.5 text-sm font-semibold transition ${
+                active
+                  ? "bg-white text-ink shadow-sm"
+                  : "text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              {label}
+            </button>
+          );
+          })}
+        </div>
+      </div>
+
       <div
         role="tablist"
         aria-label="Game type"
@@ -132,8 +240,11 @@ export default function MetricsDashboard({
 
       {totalGames === 0 ? (
         <p className="text-sm text-slate-500">
-          No {tab === "highElo" ? "high Elo" : "normal"} games have been logged
-          yet.
+          No {tab === "highElo" ? "high Elo" : "normal"} games
+          {range === "ALL" && playerCount === "any"
+            ? " have been logged yet"
+            : " match these filters"}
+          .
         </p>
       ) : (
         <div className="space-y-6">
@@ -179,10 +290,10 @@ export default function MetricsDashboard({
                 }`}
               />
               <StatCard
-                label="Win rate · some ranks wrong"
-                value={`${winRate(ranksWrongGames)}%`}
-                sub={`${ranksWrongGames.length} ${
-                  ranksWrongGames.length === 1 ? "game" : "games"
+                label="Wins · some ranks wrong"
+                value={`${imperfectRankVictoryRate}%`}
+                sub={`${imperfectRankVictories.length} of ${victories.length} ${
+                  victories.length === 1 ? "win" : "wins"
                 }`}
               />
               <StatCard
@@ -191,6 +302,11 @@ export default function MetricsDashboard({
                 sub={`${perfectRankVictories.length} of ${victories.length} ${
                   victories.length === 1 ? "win" : "wins"
                 }`}
+              />
+              <StatCard
+                label="Wins · cards in right range"
+                value={`${victoryRightRangeRate}%`}
+                sub="Avg share of cards on their true rank, in won games."
               />
             </div>
           </div>

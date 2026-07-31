@@ -56,9 +56,12 @@ export type Room = {
 
 /** Preset trash-talk lines players can fire off during a game. */
 export const EMOTE_OPTIONS = [
+  "All aboard the bink train!",
   "Can we get much higher!?",
   "I'm in the dirt",
+  "I'm the KING",
   "Just pick a card man!",
+  "LOL",
   "Tell me everything",
   "That tells me everything I need to know",
   "That's not possible...",

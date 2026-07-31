@@ -22,6 +22,8 @@ async function getWinners(): Promise<WinnerRecord[]> {
     lat: typeof doc.lat === "number" ? doc.lat : null,
     lng: typeof doc.lng === "number" ? doc.lng : null,
     players: doc.players ?? [],
+    suit: typeof doc.suit === "string" ? doc.suit : undefined,
+    special: doc.special === true,
     createdAt:
       doc.createdAt instanceof Date
         ? doc.createdAt.toISOString()
