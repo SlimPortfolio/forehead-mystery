@@ -15,6 +15,7 @@ const ALLOWED_ROOM_FIELDS = new Set([
   "currentTurnIndex",
   "turnOrder",
   "gameNumber",
+  "bokSpecial",
   "chatMessages",
   "postGameChat",
 ]);

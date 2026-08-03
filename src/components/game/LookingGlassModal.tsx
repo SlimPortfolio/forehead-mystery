@@ -7,6 +7,8 @@ type LookingGlassModalProps = {
   viewerPlayerId: string;
   players: Player[];
   suit: string;
+  /** Host-synced special deck art (Room.bokSpecial). */
+  special?: boolean;
   onClose: () => void;
 };
 
@@ -24,6 +26,7 @@ export default function LookingGlassModal({
   viewerPlayerId,
   players,
   suit,
+  special,
   onClose,
 }: LookingGlassModalProps) {
   return (
@@ -33,7 +36,7 @@ export default function LookingGlassModal({
       subheader={
         <div className="flex flex-col gap-2">
           <div className="flex items-center gap-3">
-            <PlayingCard card={targetPlayer.card ?? null} suit={suit} size="sm" />
+            <PlayingCard card={targetPlayer.card ?? null} suit={suit} size="sm" special={special} />
             <div className="flex flex-col items-start gap-0.5">
               <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
                 Rank

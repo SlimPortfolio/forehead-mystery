@@ -31,7 +31,7 @@ export default function ScratchpadModal({
         </button>
       }
     >
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-1.5">
         {[...CARD_POOL].reverse().map((card) => {
           const owner = players.find(
             (p) => p.id !== myPlayerId && p.card === card,

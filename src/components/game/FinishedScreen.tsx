@@ -30,6 +30,17 @@ function JesterChip() {
   );
 }
 
+/** Chip shown next to the sole player who guessed right — the mirror of the
+ * Jester (only one person correct instead of only one person wrong). */
+function KingChip() {
+  return (
+    <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-emerald-300 bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800">
+      King!
+      <span aria-hidden>👑</span>
+    </span>
+  );
+}
+
 type WinnerForm = {
   teamName: string;
   date: string;
@@ -82,6 +93,8 @@ export default function FinishedScreen({
   const [countries, setCountries] = useState<string[]>([]);
   const isInternational = winnerForm.state === INTERNATIONAL;
   const suit = suitForGame(room.gameNumber);
+  // Host-synced special deck (Room.bokSpecial) — same for every viewer.
+  const special = Boolean(room.bokSpecial);
   const orderedPlayers = orderPlayersByTurn(room);
 
   // Load the country list the first time the host switches to International.
@@ -106,6 +119,13 @@ export default function FinishedScreen({
   );
   const jesterId =
     incorrectPlayers.length === 1 ? incorrectPlayers[0].id : null;
+
+  // The king label is the mirror: it only appears when exactly one player
+  // guessed right (everyone else was wrong or didn't identify their card).
+  const correctPlayers = gamePlayers.filter(
+    (player) => getGuessOutcome(player)?.tone === "success",
+  );
+  const kingId = correctPlayers.length === 1 ? correctPlayers[0].id : null;
 
   return (
     <div className="flex-1 min-h-0 overflow-y-auto border border-slate-200 bg-white/80 p-4 shadow-sm backdrop-blur">
@@ -134,7 +154,7 @@ export default function FinishedScreen({
                   <p className="font-semibold text-slate-500">{player.name}</p>
                   <p className="text-sm text-slate-400">Will join next game</p>
                 </div>
-                <PlayingCard card={null} suit={suit} size="sm" />
+                <PlayingCard card={null} suit={suit} size="sm" special={special} />
               </div>
             );
           }
@@ -155,6 +175,7 @@ export default function FinishedScreen({
               <div>
                 <div className="flex items-center gap-1.5">
                   <p className="font-semibold text-ink">{player.name}</p>
+                  {player.id === kingId && <KingChip />}
                   {player.id === jesterId && <JesterChip />}
                   {player.id !== playerId && (
                     <button
@@ -179,7 +200,7 @@ export default function FinishedScreen({
                 )}
               </div>
               <div className="flex flex-shrink-0 items-center gap-2">
-                <PlayingCard card={player.card ?? null} suit={suit} size="sm" />
+                <PlayingCard card={player.card ?? null} suit={suit} size="sm" special={special} />
                 <div className="flex flex-col items-center gap-0.5">
                   <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-amber-800">
                     Rank

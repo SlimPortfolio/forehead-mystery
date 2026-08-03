@@ -30,6 +30,9 @@ export default function PlayerList({
   const currentPlayerId = room.turnOrder[room.currentTurnIndex];
   const orderedPlayers = orderPlayersByTurn(room);
   const suit = suitForGame(room.gameNumber);
+  // Host-synced special deck (see Room.bokSpecial). Passed explicitly so every
+  // player's cards match the host's setting, not their own ?bok-special URL.
+  const special = Boolean(room.bokSpecial);
 
   return (
     <div className="flex flex-col gap-2">
@@ -42,6 +45,7 @@ export default function PlayerList({
           hasActedThisPhase={hasActedThisPhase(player, room.phase)}
           phase={room.phase}
           suit={suit}
+          special={special}
           chatText={activeChatBubbles[player.id]}
           faceDown={cardRevealCount !== null && index >= cardRevealCount}
           onOpenLookingGlass={onOpenLookingGlass}
