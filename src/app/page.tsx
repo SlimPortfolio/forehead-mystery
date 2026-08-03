@@ -92,6 +92,7 @@ function createRoom(
   roomCode: string,
   hostPlayerId: string,
   hostName: string,
+  bokSpecial: boolean,
 ): Room {
   return {
     id: roomCode,
@@ -111,6 +112,10 @@ function createRoom(
     currentTurnIndex: 0,
     turnOrder: [hostPlayerId],
     gameNumber: 1,
+    // Captured from the host's URL at creation and synced to everyone, so the
+    // special deck depends only on the host — matching how ?highElo is a
+    // host-only classifier rather than a per-player toggle.
+    bokSpecial,
   };
 }
 
@@ -990,13 +995,20 @@ export default function Home() {
       room.phase === "confirmation"),
   );
 
+  // Once you're in a room, a full-page reload drops you back to the join
+  // screen — `room`/`joined` aren't rehydrated on mount, only your player id
+  // is. So warn before ANY unload while in a room (lobby, mid-game, or the
+  // finished screen), not just during active play.
+  const isInRoom = Boolean(joined && room && myPlayer);
+
   // Warn before a full page unload (refresh, tab close, or a back-button that
-  // leaves the document) while a game is in progress, or while a perfect
-  // game is still unsaved. The browser shows its own generic confirmation
-  // prompt; the message string is ignored by modern browsers but
-  // returnValue must be set for the prompt to appear.
+  // leaves the document) whenever the player is in a room, so a stray refresh
+  // (or pull-to-refresh) can't silently bounce them back to the join screen.
+  // The browser shows its own generic confirmation prompt; the message string
+  // is ignored by modern browsers but returnValue must be set for the prompt
+  // to appear.
   useEffect(() => {
-    if (!isInActiveGame && !hasUnsavedPerfectGame) return;
+    if (!isInRoom) return;
 
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
       event.preventDefault();
@@ -1005,7 +1017,7 @@ export default function Home() {
 
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [isInActiveGame, hasUnsavedPerfectGame]);
+  }, [isInRoom]);
 
   // Clicking the logo returns to the home/join screen. Because the game view
   // lives at "/" as a client-side SPA, we reset local state rather than route,
@@ -1057,11 +1069,11 @@ export default function Home() {
           location: `${winnerForm.city.trim()}, ${region}`,
           // Record the game's suit (one per game) and whether the special
           // ?bok-special deck was in play, so the winners map renders the
-          // exact cards this team won with.
+          // exact cards this team won with. The deck flag comes from synced
+          // room state (set by the host at creation), so it's the same for
+          // every player regardless of who saves the win.
           suit: suitForGame(room.gameNumber),
-          special:
-            typeof window !== "undefined" &&
-            new URLSearchParams(window.location.search).has("bok-special"),
+          special: Boolean(room.bokSpecial),
           players: activePlayers.map((player) => ({
             name: player.name,
             card: player.card ?? "",
@@ -1176,7 +1188,13 @@ export default function Home() {
           );
           return;
         }
-        const nextRoom = createRoom(normalizedCode, playerId, playerName.trim());
+        const nextRoom = createRoom(
+          normalizedCode,
+          playerId,
+          playerName.trim(),
+          typeof window !== "undefined" &&
+            new URLSearchParams(window.location.search).has("bok-special"),
+        );
         setRoomCode(normalizedCode);
         setJoined(true);
         submitRoomState(nextRoom);
@@ -1919,6 +1937,7 @@ export default function Home() {
             viewerPlayerId={playerId}
             players={activePlayers}
             suit={suitForGame(room.gameNumber)}
+            special={Boolean(room.bokSpecial)}
             onClose={() => setActiveModal(null)}
           />
         )}

@@ -33,6 +33,12 @@ body {
   width: 100%;
   max-width: 100%;
   overflow-x: hidden;
+  /* Disable the mobile "pull down to refresh" gesture. A stray overscroll at
+     the top of the page was reloading the SPA and bouncing players back to the
+     join screen (game state isn't rehydrated on reload). `contain` keeps normal
+     in-page scrolling but stops the scroll chain from reaching the browser's
+     native refresh. */
+  overscroll-behavior-y: contain;
 }
 
 body {

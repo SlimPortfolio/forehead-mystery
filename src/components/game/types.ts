@@ -45,6 +45,10 @@ export type Room = {
   turnOrder: string[];
   /** Increments each time a new game is dealt; drives which suit cards display this game. */
   gameNumber?: number;
+  /** Whether this room uses the special "bok" deck art. Set once by the host at
+   * room creation (from their ?bok-special URL param) and synced to everyone, so
+   * the special deck depends on the host — not on each player's own URL. */
+  bokSpecial?: boolean;
   /** Latest preset chat message per player, shown as a speech bubble by the sender's row.
    * Keyed by playerId so simultaneous emotes from different players don't clobber each other. */
   chatMessages?: Record<string, ChatMessage>;
@@ -62,6 +66,7 @@ export const EMOTE_OPTIONS = [
   "I'm the KING",
   "Just pick a card man!",
   "LOL",
+  "🦆 QUACK!",
   "Tell me everything",
   "That tells me everything I need to know",
   "That's not possible...",

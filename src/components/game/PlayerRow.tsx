@@ -10,6 +10,8 @@ type PlayerRowProps = {
   hasActedThisPhase: boolean;
   phase: GamePhase;
   suit: string;
+  /** Host-synced special deck art (Room.bokSpecial). */
+  special?: boolean;
   chatText?: string;
   /** True while this player's card is still face-down during the start-of-game
    * deal-in reveal. */
@@ -36,6 +38,7 @@ export default function PlayerRow({
   hasActedThisPhase,
   phase,
   suit,
+  special,
   chatText,
   faceDown = false,
   onOpenLookingGlass,
@@ -54,7 +57,7 @@ export default function PlayerRow({
             Will join next game
           </p>
         </div>
-        <PlayingCard card={null} suit={suit} size="xs" />
+        <PlayingCard card={null} suit={suit} size="xs" special={special} />
       </div>
     );
   }
@@ -112,7 +115,7 @@ export default function PlayerRow({
 
       <div className="relative flex-shrink-0">
         {chatText && <ChatBubble text={chatText} />}
-        <PlayingCard card={displayCard} suit={suit} size="xs" faceDown={faceDown} />
+        <PlayingCard card={displayCard} suit={suit} size="xs" faceDown={faceDown} special={special} />
       </div>
 
       <div className="flex flex-shrink-0 flex-col items-center gap-0.5">
