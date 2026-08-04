@@ -1794,11 +1794,13 @@ export default function Home() {
     room.phase !== "finished",
   );
 
-  // The "so simple" taunt only makes sense mid-guessing, and only once someone
-  // has actually guessed wrong — so it names the most recent wrong guesser and
-  // is otherwise hidden from the emote menu.
+  // The "so simple" taunt only makes sense once someone has actually guessed
+  // wrong; until then it's hidden from the emote menu. From that point on it
+  // stays available for the rest of the guessing round — including the
+  // confirmation pause after each guess — always naming whoever guessed wrong
+  // most recently, no matter how many turns have passed since.
   const wrongGuesserName =
-    room && room.phase === "guessing"
+    room && (room.phase === "guessing" || room.phase === "confirmation")
       ? getMostRecentWrongGuesserName(room)
       : null;
   const simpleEmote = wrongGuesserName ? simpleTaunt(wrongGuesserName) : null;

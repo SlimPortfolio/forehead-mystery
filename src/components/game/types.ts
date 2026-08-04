@@ -58,22 +58,30 @@ export type Room = {
   postGameChat?: PostGameChatMessage[];
 };
 
-/** Preset trash-talk lines players can fire off during a game. */
-export const EMOTE_OPTIONS = [
+/** Preset trash-talk lines players can fire off during a game. Kept
+ * alphabetized here for readability, and sorted again on the way out so a
+ * line pasted in the wrong spot still lands in the right place in the menu. */
+const EMOTE_LINES = [
+  "🦆 QUACK!",
   "All aboard the bink train!",
-  "Can we get much higher!?",
+  // "Can we get much higher!?",
+  "I don't want to be the Jester!",
   "I'm in the dirt",
+  "I'm Just That Good",
+  // "I'm the king!",
   "Just pick a card man!",
   "LOL",
-  "🦆 QUACK!",
   "Tell me everything",
   "That tells me everything I need to know",
   "That's not possible...",
   "What, HOW!?",
   "You think you're better than me",
   "You think, YOU'RE the highest?",
-  "I'm Just That Good",
 ];
+
+export const EMOTE_OPTIONS = [...EMOTE_LINES].sort((a, b) =>
+  a.localeCompare(b),
+);
 
 /** Template for the dynamic "so simple" taunt; the target's name is appended.
  * Not part of EMOTE_OPTIONS because it only appears during guessing and only
@@ -170,13 +178,19 @@ export function orderPlayersByTurn(room: Room): Player[] {
 
 /** Name of the player who most recently guessed their own card wrong, or null
  * if nobody has guessed wrong yet this game. Each player guesses exactly once,
- * in turnOrder, so the most recent wrong guess is simply the last player before
- * the current guesser whose eliminatedGuesses is non-empty — found by scanning
- * turn order backward from the current turn. */
+ * in turnOrder, and only a wrong guess records an eliminatedGuess — so the
+ * whole turn order can be scanned backward for the last player with a
+ * non-empty eliminatedGuesses. Players who haven't had their turn yet have
+ * nothing recorded, so they're skipped naturally.
+ *
+ * Deliberately independent of currentTurnIndex: the answer must keep naming
+ * the same player as later turns come and go (including correct guesses and
+ * the confirmation pause, where the acting player sits AT currentTurnIndex
+ * having already guessed). */
 export function getMostRecentWrongGuesserName(room: Room): string | null {
-  const { turnOrder, players, currentTurnIndex } = room;
+  const { turnOrder, players } = room;
   const byId = new Map(players.map((player) => [player.id, player]));
-  for (let i = currentTurnIndex - 1; i >= 0; i--) {
+  for (let i = turnOrder.length - 1; i >= 0; i--) {
     const player = byId.get(turnOrder[i]);
     if (player && player.eliminatedGuesses.length > 0) {
       return player.name;
