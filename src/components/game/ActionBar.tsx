@@ -136,6 +136,9 @@ export default function ActionBar({
                   {text}
                 </button>
               ))}
+              {/* Always last in the list, below the sorted presets — it's
+                  context-dependent, so it stays pinned to the bottom rather
+                  than jumping around as the named player changes. */}
               {dynamicEmote && (
                 <button
                   key={dynamicEmote}
@@ -143,7 +146,7 @@ export default function ActionBar({
                     onSendEmote(dynamicEmote);
                     setIsEmoteOpen(false);
                   }}
-                  className="cursor-pointer rounded-xl px-3 py-2 text-left text-sm font-medium text-slate-700 hover:bg-slate-100"
+                  className="mt-1 cursor-pointer rounded-xl border-t border-slate-200 px-3 pt-3 pb-2 text-left text-sm font-medium text-slate-700 hover:bg-slate-100"
                 >
                   {dynamicEmote}
                 </button>
