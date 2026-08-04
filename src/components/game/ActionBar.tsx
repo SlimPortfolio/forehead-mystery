@@ -8,6 +8,9 @@ type ActionBarProps = {
   onOpenScratchpad: () => void;
   onGuessCard: () => void;
   onSendEmote: (text: string) => void;
+  /** Extra context-only emote (e.g. the "so simple" taunt), shown below the
+   * preset list when the game state warrants it. Null when not applicable. */
+  dynamicEmote?: string | null;
 };
 
 function RankIcon() {
@@ -84,6 +87,7 @@ export default function ActionBar({
   onOpenScratchpad,
   onGuessCard,
   onSendEmote,
+  dynamicEmote,
 }: ActionBarProps) {
   const [isEmoteOpen, setIsEmoteOpen] = useState(false);
   const emoteWrapperRef = useRef<HTMLDivElement>(null);
@@ -132,6 +136,18 @@ export default function ActionBar({
                   {text}
                 </button>
               ))}
+              {dynamicEmote && (
+                <button
+                  key={dynamicEmote}
+                  onClick={() => {
+                    onSendEmote(dynamicEmote);
+                    setIsEmoteOpen(false);
+                  }}
+                  className="cursor-pointer rounded-xl px-3 py-2 text-left text-sm font-medium text-slate-700 hover:bg-slate-100"
+                >
+                  {dynamicEmote}
+                </button>
+              )}
             </div>
           )}
           <ActionButton

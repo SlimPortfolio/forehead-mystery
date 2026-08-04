@@ -63,7 +63,6 @@ export const EMOTE_OPTIONS = [
   "All aboard the bink train!",
   "Can we get much higher!?",
   "I'm in the dirt",
-  "I'm the KING",
   "Just pick a card man!",
   "LOL",
   "🦆 QUACK!",
@@ -73,7 +72,15 @@ export const EMOTE_OPTIONS = [
   "What, HOW!?",
   "You think you're better than me",
   "You think, YOU'RE the highest?",
+  "I'm Just That Good",
 ];
+
+/** Template for the dynamic "so simple" taunt; the target's name is appended.
+ * Not part of EMOTE_OPTIONS because it only appears during guessing and only
+ * once someone has actually guessed wrong (see getMostRecentWrongGuesserName). */
+export function simpleTaunt(name: string) {
+  return `You're so simple, ${name}`;
+}
 
 export const US_STATES = [
   "AL",
@@ -159,6 +166,23 @@ export function orderPlayersByTurn(room: Room): Player[] {
 
   const remaining = players.filter((player) => !turnOrder.includes(player.id));
   return [...ordered, ...remaining];
+}
+
+/** Name of the player who most recently guessed their own card wrong, or null
+ * if nobody has guessed wrong yet this game. Each player guesses exactly once,
+ * in turnOrder, so the most recent wrong guess is simply the last player before
+ * the current guesser whose eliminatedGuesses is non-empty — found by scanning
+ * turn order backward from the current turn. */
+export function getMostRecentWrongGuesserName(room: Room): string | null {
+  const { turnOrder, players, currentTurnIndex } = room;
+  const byId = new Map(players.map((player) => [player.id, player]));
+  for (let i = currentTurnIndex - 1; i >= 0; i--) {
+    const player = byId.get(turnOrder[i]);
+    if (player && player.eliminatedGuesses.length > 0) {
+      return player.name;
+    }
+  }
+  return null;
 }
 
 /** One suit per game, cycling — cosmetic only, does not affect game logic. */

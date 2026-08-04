@@ -8,9 +8,11 @@ import {
   CardState,
   ChatMessage,
   GamePhase,
+  getMostRecentWrongGuesserName,
   Player,
   PostGameChatMessage,
   Room,
+  simpleTaunt,
   suitForGame,
 } from "@/components/game/types";
 import AppHeader from "@/components/game/AppHeader";
@@ -1823,6 +1825,15 @@ export default function Home() {
     room.phase !== "finished",
   );
 
+  // The "so simple" taunt only makes sense mid-guessing, and only once someone
+  // has actually guessed wrong — so it names the most recent wrong guesser and
+  // is otherwise hidden from the emote menu.
+  const wrongGuesserName =
+    room && room.phase === "guessing"
+      ? getMostRecentWrongGuesserName(room)
+      : null;
+  const simpleEmote = wrongGuesserName ? simpleTaunt(wrongGuesserName) : null;
+
   return (
     <main className="flex h-dvh w-full flex-col overflow-hidden bg-[radial-gradient(ellipse_at_top,#f6f4fe_0%,#e8ecfb_55%,#dde5f6_100%)] text-ink">
       <AppHeader
@@ -1968,6 +1979,7 @@ export default function Home() {
           onOpenScratchpad={() => setActiveModal({ type: "scratchpad" })}
           onGuessCard={() => setActiveModal({ type: "guess" })}
           onSendEmote={handleSendChat}
+          dynamicEmote={simpleEmote}
         />
       )}
 
