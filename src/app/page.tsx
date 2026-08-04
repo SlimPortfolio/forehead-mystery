@@ -36,6 +36,15 @@ import KickPlayerModal from "@/components/game/KickPlayerModal";
 import ToastStack, { ToastData } from "@/components/game/Toast";
 
 const POLL_INTERVAL_MS = 2000;
+// How long the post-guess "confirmation" reveal lingers before the turn
+// advances to the next guesser. The acting player drives this advance.
+const CONFIRMATION_REVEAL_MS = 2000;
+// Extra grace period after the reveal before the host performs a *fallback*
+// advance — only used if the acting player's own advance never landed (e.g.
+// they closed their tab mid-reveal). Long enough that the host has polled and
+// seen a successful actor-driven advance first, so the fallback stays dormant
+// in the normal case.
+const CONFIRMATION_FALLBACK_MS = 3000;
 const NEW_GAME_TRANSITION_MS = 900;
 const MAX_ROOM_PLAYERS = 8;
 // Bots draw a random (unique) name from this pool instead of "Test Player N".
@@ -859,37 +868,59 @@ export default function Home() {
     return () => clearTimeout(timer);
   }, [room, playerId]);
 
+  // Advance from the post-guess "confirmation" reveal to the next guesser's
+  // turn. This is the ONLY transition that flips the phase back to "guessing"
+  // and re-enables the Guess button for the next player, so it has to be
+  // reliable. Two things make it so:
+  //
+  //   1. Deps are limited to phase/turn/identity — NOT the whole `room`. The
+  //      cleanup clears the pending timer, so if `room` were a dep, any
+  //      unrelated churn during the reveal (an emote, a chat message, a
+  //      routine poll picking up someone else's change) would clear and
+  //      restart the timer. A trickle of reactions could push the advance out
+  //      indefinitely, stranding everyone in "confirmation" with a grayed-out
+  //      Guess button. Narrow deps mean the timer is scheduled exactly once
+  //      per confirmation and runs to completion.
+  //
+  //   2. The player who just guessed (the "actor") drives the advance, with
+  //      the host as a later fallback. The actor is guaranteed present at this
+  //      instant; a host who closed or backgrounded their tab is not, and a
+  //      host-only advance used to strand the room forever in that case. Only
+  //      the actor and host ever schedule, so no third client races them, and
+  //      the fallback re-checks the latest state before writing so it can't
+  //      double-advance once the actor's write has landed.
   useEffect(() => {
-    if (
-      !room ||
-      !playerId ||
-      room.phase !== "confirmation" ||
-      room.hostId !== playerId
-    )
-      return;
+    if (!room || !playerId || room.phase !== "confirmation") return;
 
-    const currentPlayerId = room.turnOrder[room.currentTurnIndex];
-    const currentPlayerInTurn = room.players.find(
-      (p) => p.id === currentPlayerId,
-    );
+    const actorId = room.turnOrder[room.currentTurnIndex];
+    const isActor = actorId === playerId;
+    const isHost = room.hostId === playerId;
+    if (!isActor && !isHost) return;
 
-    if (!currentPlayerInTurn) return;
+    const delay = isActor
+      ? CONFIRMATION_REVEAL_MS
+      : CONFIRMATION_REVEAL_MS + CONFIRMATION_FALLBACK_MS;
 
     const timer = setTimeout(() => {
-      const nextTurnIndex = room.currentTurnIndex + 1;
+      // Recompute from the freshest synced state, and bail unless we're still
+      // in this same confirmation. If the actor's advance already landed, the
+      // host fallback sees phase !== "confirmation" (or a different actor) and
+      // does nothing — so the two writers can never double-increment.
+      const latest = roomRef.current;
+      if (!latest || latest.phase !== "confirmation") return;
+      if (latest.turnOrder[latest.currentTurnIndex] !== actorId) return;
 
-      const nextRoom: Room = {
-        ...room,
-      };
+      const nextTurnIndex = latest.currentTurnIndex + 1;
+      const nextRoom: Room = { ...latest };
 
-      if (nextTurnIndex >= room.turnOrder.length) {
+      if (nextTurnIndex >= latest.turnOrder.length) {
         // Everyone has guessed - Round 2 (guessing) is complete, game ends
         nextRoom.phase = "finished";
       } else {
         // Next player's turn
         nextRoom.phase = "guessing";
         nextRoom.currentTurnIndex = nextTurnIndex;
-        nextRoom.players = room.players.map((player) => ({
+        nextRoom.players = latest.players.map((player) => ({
           ...player,
           guess: null,
         }));
@@ -902,10 +933,10 @@ export default function Home() {
       if (nextRoom.phase === "finished") {
         logGameMetrics(nextRoom);
       }
-    }, 2000);
+    }, delay);
 
     return () => clearTimeout(timer);
-  }, [room, playerId]);
+  }, [room?.phase, room?.currentTurnIndex, playerId]);
 
   const currentPlayer = useMemo(() => {
     if (!room) return null;
