@@ -22,6 +22,9 @@ async function getMetrics(): Promise<GameMetricRecord[]> {
     numberOfCorrectRank: Number(doc.numberOfCorrectRank ?? 0),
     percentOfCorrectRank: Number(doc.percentOfCorrectRank ?? 0),
     highEloMatch: Boolean(doc.highEloMatch),
+    // Absent on records written before bot games were tracked — those are all
+    // human games, so the `undefined -> false` default is correct.
+    botGame: Boolean(doc.botGame),
     cardCombination: Array.isArray(doc.cardCombination)
       ? doc.cardCombination.map((card: unknown) => String(card))
       : [],

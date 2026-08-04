@@ -13,6 +13,10 @@ export type GameMetricPayload = {
   numberOfCorrectRank: number;
   percentOfCorrectRank: number;
   highEloMatch: boolean;
+  /** A game with at least one bot in it. Bots always guess their own card
+   * correctly, so these are tracked in their own section and deliberately
+   * excluded from the normal and high-Elo stats. */
+  botGame: boolean;
   cardCombination: string[];
   /** Logged for later analysis only — never rendered on the /data page. */
   playerCards: PlayerCard[];
@@ -69,6 +73,7 @@ function toPercent(count: number, total: number): number {
 export function computeGameMetrics(
   activePlayers: Player[],
   highEloMatch: boolean,
+  botGame: boolean,
 ): GameMetricPayload {
   const numberOfPlayers = activePlayers.length;
 
@@ -104,6 +109,7 @@ export function computeGameMetrics(
     numberOfCorrectRank,
     percentOfCorrectRank: toPercent(numberOfCorrectRank, numberOfPlayers),
     highEloMatch,
+    botGame,
     cardCombination,
     playerCards,
   };

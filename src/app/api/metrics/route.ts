@@ -37,6 +37,7 @@ export async function POST(request: Request) {
       numberOfCorrectRank: toFiniteNumber(body?.numberOfCorrectRank),
       percentOfCorrectRank: toFiniteNumber(body?.percentOfCorrectRank),
       highEloMatch: Boolean(body?.highEloMatch),
+      botGame: Boolean(body?.botGame),
       cardCombination,
       playerCards,
       createdAt: new Date(),
