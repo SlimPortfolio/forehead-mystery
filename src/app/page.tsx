@@ -1165,14 +1165,15 @@ export default function Home() {
 
   // Fire-and-forget analytics write for a naturally-completed game. Only ever
   // called from the host-only confirmation effect, so exactly one write lands
-  // per game. Bot games are skipped (bots always guess correctly, which would
-  // skew the data) just like the winners log. A logging failure is swallowed
-  // so it can never disrupt gameplay.
+  // per game. Bot games are logged too, but flagged so the /data page keeps
+  // them in their own section — bots always guess correctly, which would skew
+  // the normal and high-Elo stats. A logging failure is swallowed so it can
+  // never disrupt gameplay.
   const logGameMetrics = (finishedRoom: Room) => {
     const active = finishedRoom.players.filter((player) => !player.pendingJoin);
     if (active.length === 0) return;
-    if (active.some((player) => isBotPlayer(player))) return;
 
+    const botGame = active.some((player) => isBotPlayer(player));
     const highEloMatch =
       typeof window !== "undefined" &&
       new URLSearchParams(window.location.search).has("highElo");
@@ -1180,7 +1181,7 @@ export default function Home() {
     fetch(`${appUrl}/api/metrics`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(computeGameMetrics(active, highEloMatch)),
+      body: JSON.stringify(computeGameMetrics(active, highEloMatch, botGame)),
     }).catch((error) => console.error("Failed to log game metrics", error));
   };
 

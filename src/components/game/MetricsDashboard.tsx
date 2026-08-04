@@ -8,7 +8,7 @@ import {
   type MetricRange,
 } from "@/lib/metrics";
 
-type Tab = "normal" | "highElo";
+type Tab = "normal" | "highElo" | "bot";
 
 // Player-count filter. "any" keeps every game; the rest match an exact head
 // count. The game seats 4–8, so those are the buckets offered.
@@ -80,16 +80,24 @@ export default function MetricsDashboard({
     [metrics, range, playerCount],
   );
 
+  // The three buckets are disjoint: a bot game is only ever a bot game, so it
+  // can never move the normal or high-Elo numbers (bots always guess their own
+  // card correctly, which would skew every rate below).
+  const botGames = useMemo(
+    () => scopedGames.filter((game) => game.botGame),
+    [scopedGames],
+  );
   const normalGames = useMemo(
-    () => scopedGames.filter((game) => !game.highEloMatch),
+    () => scopedGames.filter((game) => !game.botGame && !game.highEloMatch),
     [scopedGames],
   );
   const highEloGames = useMemo(
-    () => scopedGames.filter((game) => game.highEloMatch),
+    () => scopedGames.filter((game) => !game.botGame && game.highEloMatch),
     [scopedGames],
   );
 
-  const games = tab === "highElo" ? highEloGames : normalGames;
+  const games =
+    tab === "highElo" ? highEloGames : tab === "bot" ? botGames : normalGames;
 
   const totalGames = games.length;
   const wins = games.filter((game) => game.gameWon).length;
@@ -135,9 +143,14 @@ export default function MetricsDashboard({
   );
 
   const tabs: { id: Tab; label: string; count: number }[] = [
-    { id: "normal", label: "Normal games", count: normalGames.length },
+    // Short labels so three tabs + their count badges still fit on a phone.
+    { id: "normal", label: "Normal", count: normalGames.length },
     { id: "highElo", label: "High Elo", count: highEloGames.length },
+    { id: "bot", label: "Bots", count: botGames.length },
   ];
+
+  const tabLabel =
+    tab === "highElo" ? "high Elo" : tab === "bot" ? "bot" : "normal";
 
   return (
     <>
@@ -240,7 +253,7 @@ export default function MetricsDashboard({
 
       {totalGames === 0 ? (
         <p className="text-sm text-slate-500">
-          No {tab === "highElo" ? "high Elo" : "normal"} games
+          No {tabLabel} games
           {range === "ALL" && playerCount === "any"
             ? " have been logged yet"
             : " match these filters"}
