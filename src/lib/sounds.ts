@@ -11,7 +11,8 @@ export type GameSound =
   | "correct"
   | "incorrect"
   | "cardFlip"
-  | "yourMove";
+  | "yourMove"
+  | "victory";
 
 // Drop the matching files into `public/sounds/`. Paths are public-root relative.
 const SOUND_FILES: Record<GameSound, string> = {
@@ -22,12 +23,16 @@ const SOUND_FILES: Record<GameSound, string> = {
   cardFlip: "/sounds/flip-card.mp3",
   // Played (in place of thwack) when it becomes the local player's turn.
   yourMove: "/sounds/your-move.mp3",
+  // Victory fanfare — played once for everyone on a perfect-game finish.
+  victory: "/sounds/victory-bella-ciao.m4a",
 };
 
 // Per-sound playback volume, 0–1. Omitted sounds default to 1 (100%).
 const SOUND_VOLUMES: Partial<Record<GameSound, number>> = {
   correct: 0.2,
   yourMove: 0.4,
+  // A full track rather than a short cue — keep it in the background, not blaring.
+  victory: 0.5,
   // Fires rapidly once per card as the hand deals in, so keep each flip gentle.
   cardFlip: 0.7,
 };
@@ -38,6 +43,13 @@ const SOUND_VOLUMES: Partial<Record<GameSound, number>> = {
 // straight off the element. Keep boosts modest — too high just hard-clips.
 const SOUND_GAINS: Partial<Record<GameSound, number>> = {
   turnChange: 1.6, // thwack — bumped up a touch above the raw file level.
+};
+
+// Sounds that repeat from the start when they finish, until `stopSound` is
+// called. Everything else plays once through. The victory fanfare loops for as
+// long as the perfect-game screen is up.
+const LOOPING_SOUNDS: Partial<Record<GameSound, boolean>> = {
+  victory: true,
 };
 
 const MUTE_STORAGE_KEY = "forehead-mystery:muted";
@@ -155,6 +167,7 @@ function getAudio(sound: GameSound): HTMLAudioElement | null {
     audio = new Audio(SOUND_FILES[sound]);
     audio.preload = "auto";
     audio.volume = SOUND_VOLUMES[sound] ?? 1;
+    audio.loop = LOOPING_SOUNDS[sound] ?? false;
     audioCache[sound] = audio;
   }
   // Wire boosted sounds into the gain graph once the context exists. If wiring
@@ -304,4 +317,13 @@ export function playSound(sound: GameSound) {
   audio.play().catch(() => {
     // Autoplay still blocked or file missing — fail silently.
   });
+}
+
+/** Stop a sound and rewind it to the start. Used to end looping sounds like the
+ * victory fanfare when its screen closes. No-op if the sound never played. */
+export function stopSound(sound: GameSound) {
+  const audio = audioCache[sound];
+  if (!audio) return;
+  audio.pause();
+  audio.currentTime = 0;
 }

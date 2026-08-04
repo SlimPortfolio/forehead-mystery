@@ -28,7 +28,8 @@ import LookingGlassModal from "@/components/game/LookingGlassModal";
 import HelpModal from "@/components/game/HelpModal";
 import CorrectGuessPopup from "@/components/game/CorrectGuessPopup";
 import { computeGameMetrics } from "@/lib/metrics";
-import { playSound, unlockSounds } from "@/lib/sounds";
+import { playSound, stopSound, unlockSounds } from "@/lib/sounds";
+import { fireVictoryConfetti } from "@/lib/confetti";
 import TransitionOverlay from "@/components/game/TransitionOverlay";
 import PendingJoinScreen from "@/components/game/PendingJoinScreen";
 import RemovedFromRoomScreen from "@/components/game/RemovedFromRoomScreen";
@@ -46,6 +47,10 @@ const CONFIRMATION_REVEAL_MS = 2000;
 // in the normal case.
 const CONFIRMATION_FALLBACK_MS = 3000;
 const NEW_GAME_TRANSITION_MS = 900;
+// How often the victory confetti re-pops while the perfect-game screen is up.
+// A bit longer than each burst's own duration (see fireVictoryConfetti); the
+// trailing particles fall through the short gap so the screen stays covered.
+const VICTORY_CONFETTI_INTERVAL_MS = 6000;
 const MAX_ROOM_PLAYERS = 8;
 // Bots draw a random (unique) name from this pool instead of "Test Player N".
 const TEST_PLAYER_NAMES = [
@@ -610,8 +615,23 @@ export default function Home() {
       const firstGuesserId = room.turnOrder[0];
       playSound(firstGuesserId === playerId ? "yourMove" : "turnChange");
     } else if (lastGuesserFinished) {
-      // Game over — no next turn, just the round-ending thwack.
-      playSound("turnChange");
+      // Game over. On a perfect game — every participant (mid-game joiners
+      // excluded) identified their own card — celebrate with the victory song
+      // and confetti. Otherwise just the round-ending thwack. Computed inline
+      // from `room` here because the derived `allCorrectlyIdentified` is
+      // declared further down and would be in the TDZ if referenced from this
+      // effect's dependency array.
+      const participants = room.players.filter((player) => !player.pendingJoin);
+      const perfectGame =
+        participants.length > 0 &&
+        participants.every((player) => player.isCorrectlyIdentified);
+      if (!perfectGame) {
+        playSound("turnChange");
+      }
+      // On a perfect game the victory song (looping) and confetti (repeating)
+      // are both owned by the dedicated `allCorrectlyIdentified` effect below,
+      // so nothing plays here — that effect starts them when the screen appears
+      // and stops them when it leaves.
     }
   }, [room?.phase]);
 
@@ -976,6 +996,27 @@ export default function Home() {
     activePlayers.length > 0 &&
     activePlayers.every((player) => player.isCorrectlyIdentified),
   );
+
+  // Own the whole celebration while the perfect-game victory screen is up: start
+  // the looping victory song, pop the confetti immediately, then re-pop it on an
+  // interval. Cleanup (next game, leaving the room, etc.) stops the song and the
+  // interval. The song starts once and loops via the audio element — it isn't
+  // restarted on every re-pop. Gated on `joined` as well as the perfect-game
+  // flag: returning to the home screen via the logo clears `joined` but leaves
+  // `room` finished, so without this the celebration would keep running there.
+  useEffect(() => {
+    if (!joined || !allCorrectlyIdentified) return;
+    playSound("victory");
+    fireVictoryConfetti();
+    const intervalId = setInterval(
+      fireVictoryConfetti,
+      VICTORY_CONFETTI_INTERVAL_MS,
+    );
+    return () => {
+      clearInterval(intervalId);
+      stopSound("victory");
+    };
+  }, [joined, allCorrectlyIdentified]);
 
   // Bots always guess their own card correctly, so any game they're part of
   // is guaranteed to be a "perfect game" — that's not a real win, so it must
