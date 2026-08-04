@@ -66,6 +66,7 @@ const EMOTE_LINES = [
   "All aboard the bink train!",
   // "Can we get much higher!?",
   "I don't want to be the Jester!",
+  "I know EXACTLY who I am",
   "I'm in the dirt",
   "I'm Just That Good",
   // "I'm the king!",
