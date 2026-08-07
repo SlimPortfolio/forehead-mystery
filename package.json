@@ -11,6 +11,7 @@
     "add-winner": "node --env-file=.env.local --experimental-strip-types scripts/add-winner.ts"
   },
   "dependencies": {
+    "@clerk/nextjs": "^7.7.1",
     "canvas-confetti": "^1.9.4",
     "leaflet": "^1.9.4",
     "lucide-react": "^1.26.0",
