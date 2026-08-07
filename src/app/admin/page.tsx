@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { UserButton } from "@clerk/nextjs";
-import AppHeader from "@/components/game/AppHeader";
+import WinnersHeader from "@/components/game/WinnersHeader";
+import AccountButton from "@/components/admin/AccountButton";
 import AdminGate from "@/components/admin/AdminGate";
 import FeedbackBoard from "@/components/admin/FeedbackBoard";
 import { getAdminIdentity, isSignedIn } from "@/lib/admin";
@@ -27,7 +27,7 @@ export default async function AdminPage() {
 
   return (
     <main className="flex h-dvh w-full flex-col overflow-hidden bg-[radial-gradient(ellipse_at_top,#f6f4fe_0%,#e8ecfb_55%,#dde5f6_100%)] text-ink">
-      <AppHeader>{admin && <UserButton />}</AppHeader>
+      <WinnersHeader>{admin && <AccountButton />}</WinnersHeader>
       <div className="mx-auto flex w-full min-h-0 max-w-2xl flex-1 flex-col gap-3">
         <section className="flex-1 min-h-0 space-y-6 overflow-y-auto border border-slate-200 bg-white/80 p-5 shadow-sm backdrop-blur">
           {admin ? (

@@ -44,9 +44,31 @@ export default function AdminGate({ signedIn }: { signedIn: boolean }) {
 
   // Hash routing keeps the whole sign-in flow on /admin, so there's no
   // catch-all sign-in route to add or keep in sync.
+  //
+  // The redirect URLs are pinned to /admin on purpose. Clerk otherwise falls
+  // back to its hosted Account Portal at accounts.<domain>, which cannot exist
+  // on a *.vercel.app domain — nobody can add DNS records for it, so the
+  // browser just gets ERR_CONNECTION_CLOSED. Keeping every hop on our own
+  // origin avoids that entirely.
+  //
+  // Sign-up and the social/SSO buttons are hidden for the same reason plus a
+  // policy one: admin accounts are created by hand in the Clerk dashboard, so
+  // a "Sign up" link here can only ever lead somewhere broken or somewhere
+  // unauthorized. Hiding them leaves email + password as the one way in.
   return (
     <div className="flex justify-center">
-      <SignIn routing="hash" />
+      <SignIn
+        routing="hash"
+        forceRedirectUrl="/admin"
+        fallbackRedirectUrl="/admin"
+        appearance={{
+          elements: {
+            footerAction: { display: "none" },
+            socialButtonsRoot: { display: "none" },
+            dividerRow: { display: "none" },
+          },
+        }}
+      />
     </div>
   );
 }

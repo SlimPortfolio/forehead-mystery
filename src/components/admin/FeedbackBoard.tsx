@@ -1,17 +1,19 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Inbox, RefreshCw } from "lucide-react";
+import { Inbox, RefreshCw, Search, SearchX, X } from "lucide-react";
 import {
   FEEDBACK_STATUSES,
   isOpenStatus,
+  matchesSearch,
+  sortByDate,
+  SORT_LABELS,
   STATUS_LABELS,
   STATUS_STYLES,
   type FeedbackRecord,
   type FeedbackStatus,
+  type SortOrder,
 } from "@/lib/feedback";
-
-type StatusFilter = FeedbackStatus | "all";
 
 function formatDate(iso: string): string {
   const date = new Date(iso);
@@ -75,12 +77,11 @@ function FeedbackCard({
       </dl>
 
       <div className="flex items-center gap-2 border-t border-slate-100 pt-3">
-        <label
-          htmlFor={`status-${item.id}`}
-          className="text-sm text-slate-600"
-        >
+        <label htmlFor={`status-${item.id}`} className="text-sm text-slate-600">
           Status
         </label>
+        {/* Carries the status colour so the control itself reads as the state,
+            not just the pill above it. */}
         <select
           id={`status-${item.id}`}
           value={item.status}
@@ -88,7 +89,7 @@ function FeedbackCard({
           onChange={(event) =>
             onStatusChange(event.target.value as FeedbackStatus)
           }
-          className="rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm text-ink shadow-sm outline-none transition-colors focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 disabled:opacity-50"
+          className={`cursor-pointer rounded-lg px-2.5 py-1.5 text-sm font-medium shadow-sm outline-none ring-1 ring-inset transition-colors focus:ring-2 focus:ring-indigo-300 disabled:cursor-wait disabled:opacity-50 ${STATUS_STYLES[item.status]}`}
         >
           {FEEDBACK_STATUSES.map((status) => (
             <option key={status} value={status}>
@@ -148,8 +149,8 @@ function Section({
  * already has the feedback in it, then mutates in place as statuses change.
  *
  * Splits into the two piles the dev team actually works from — anything still
- * needing attention vs. anything closed out — while the status filter narrows
- * to a single specific status when triaging.
+ * needing attention vs. anything closed out — with search, status chips and
+ * date sorting narrowing what lands in each.
  */
 export default function FeedbackBoard({
   initialFeedback,
@@ -157,21 +158,46 @@ export default function FeedbackBoard({
   initialFeedback: FeedbackRecord[];
 }) {
   const [feedback, setFeedback] = useState(initialFeedback);
-  const [filter, setFilter] = useState<StatusFilter>("all");
+  const [search, setSearch] = useState("");
+  // Empty set means "no status filter", which reads better than pre-selecting
+  // all four — clearing chips returns you to the full list.
+  const [activeStatuses, setActiveStatuses] = useState<FeedbackStatus[]>([]);
+  const [sortOrder, setSortOrder] = useState<SortOrder>("newest");
   const [savingId, setSavingId] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { open, resolved } = useMemo(() => {
-    const visible =
-      filter === "all"
-        ? feedback
-        : feedback.filter((item) => item.status === filter);
+  const hasFilters = search.trim().length > 0 || activeStatuses.length > 0;
+
+  const { open, resolved, matchCount } = useMemo(() => {
+    const visible = sortByDate(
+      feedback.filter(
+        (item) =>
+          (activeStatuses.length === 0 ||
+            activeStatuses.includes(item.status)) &&
+          matchesSearch(item, search),
+      ),
+      sortOrder,
+    );
     return {
       open: visible.filter((item) => isOpenStatus(item.status)),
       resolved: visible.filter((item) => !isOpenStatus(item.status)),
+      matchCount: visible.length,
     };
-  }, [feedback, filter]);
+  }, [feedback, activeStatuses, search, sortOrder]);
+
+  const toggleStatus = (status: FeedbackStatus) => {
+    setActiveStatuses((current) =>
+      current.includes(status)
+        ? current.filter((entry) => entry !== status)
+        : [...current, status],
+    );
+  };
+
+  const clearFilters = () => {
+    setSearch("");
+    setActiveStatuses([]);
+  };
 
   const handleStatusChange = async (id: string, status: FeedbackStatus) => {
     const previous = feedback;
@@ -234,34 +260,95 @@ export default function FeedbackBoard({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center gap-3">
-        <label htmlFor="status-filter" className="text-sm text-slate-600">
-          Filter
-        </label>
-        <select
-          id="status-filter"
-          value={filter}
-          onChange={(event) => setFilter(event.target.value as StatusFilter)}
-          className="rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm text-ink shadow-sm outline-none transition-colors focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
-        >
-          <option value="all">All statuses</option>
-          {FEEDBACK_STATUSES.map((status) => (
-            <option key={status} value={status}>
-              {STATUS_LABELS[status]}
-            </option>
-          ))}
-        </select>
-        <button
-          onClick={handleRefresh}
-          disabled={isRefreshing}
-          className="ml-auto flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-50"
-        >
-          <RefreshCw
-            className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
+      <div className="space-y-3 rounded-xl border border-slate-200 bg-white/70 p-3">
+        <div className="relative">
+          <Search
+            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
             strokeWidth={1.75}
           />
-          Refresh
-        </button>
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search subject, description or name…"
+            aria-label="Search feedback"
+            className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-9 text-sm text-ink shadow-sm outline-none transition-colors placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+          />
+          {search && (
+            <button
+              onClick={() => setSearch("")}
+              aria-label="Clear search"
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+            >
+              <X className="h-4 w-4" strokeWidth={2} />
+            </button>
+          )}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {FEEDBACK_STATUSES.map((status) => {
+            const isActive = activeStatuses.includes(status);
+            return (
+              <button
+                key={status}
+                onClick={() => toggleStatus(status)}
+                aria-pressed={isActive}
+                className={`rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset transition-colors ${
+                  isActive
+                    ? STATUS_STYLES[status]
+                    : "bg-white text-slate-500 ring-slate-300 hover:bg-slate-50"
+                }`}
+              >
+                {STATUS_LABELS[status]}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <label htmlFor="sort-order" className="text-sm text-slate-600">
+            Sort
+          </label>
+          <select
+            id="sort-order"
+            value={sortOrder}
+            onChange={(event) =>
+              setSortOrder(event.target.value as SortOrder)
+            }
+            className="cursor-pointer rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm text-ink shadow-sm outline-none transition-colors focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+          >
+            {(Object.keys(SORT_LABELS) as SortOrder[]).map((order) => (
+              <option key={order} value={order}>
+                {SORT_LABELS[order]}
+              </option>
+            ))}
+          </select>
+
+          {hasFilters && (
+            <>
+              <span className="text-xs text-slate-500">
+                {matchCount} of {feedback.length}
+              </span>
+              <button
+                onClick={clearFilters}
+                className="text-xs font-medium text-indigo-700 hover:underline"
+              >
+                Clear filters
+              </button>
+            </>
+          )}
+
+          <button
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="ml-auto flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-50"
+          >
+            <RefreshCw
+              className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
+              strokeWidth={1.75}
+            />
+            Refresh
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -270,20 +357,43 @@ export default function FeedbackBoard({
         </p>
       )}
 
-      <Section
-        title="New Feedback"
-        items={open}
-        emptyMessage="Nothing waiting — the queue is clear."
-        onStatusChange={handleStatusChange}
-        savingId={savingId}
-      />
-      <Section
-        title="Addressed Feedback"
-        items={resolved}
-        emptyMessage="Nothing has been closed out yet."
-        onStatusChange={handleStatusChange}
-        savingId={savingId}
-      />
+      {/* Distinct from the "nothing submitted yet" state above — here there IS
+          feedback, the filters just exclude all of it, so the fix is to relax
+          them rather than to wait for submissions. */}
+      {matchCount === 0 ? (
+        <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center">
+          <SearchX
+            className="mx-auto h-8 w-8 text-slate-400"
+            strokeWidth={1.75}
+          />
+          <p className="mt-2 text-sm text-slate-500">
+            No feedback matches those filters.
+          </p>
+          <button
+            onClick={clearFilters}
+            className="mt-2 text-sm font-medium text-indigo-700 hover:underline"
+          >
+            Clear filters
+          </button>
+        </div>
+      ) : (
+        <>
+          <Section
+            title="New Feedback"
+            items={open}
+            emptyMessage="Nothing waiting — the queue is clear."
+            onStatusChange={handleStatusChange}
+            savingId={savingId}
+          />
+          <Section
+            title="Addressed Feedback"
+            items={resolved}
+            emptyMessage="Nothing has been closed out yet."
+            onStatusChange={handleStatusChange}
+            savingId={savingId}
+          />
+        </>
+      )}
     </div>
   );
 }

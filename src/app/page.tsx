@@ -29,6 +29,7 @@ import ScratchpadModal from "@/components/game/ScratchpadModal";
 import LookingGlassModal from "@/components/game/LookingGlassModal";
 import HelpModal from "@/components/game/HelpModal";
 import CorrectGuessPopup from "@/components/game/CorrectGuessPopup";
+import AccountButton from "@/components/admin/AccountButton";
 import { computeGameMetrics } from "@/lib/metrics";
 import { playSound, stopSound, unlockSounds } from "@/lib/sounds";
 import { fireVictoryConfetti } from "@/lib/confetti";
@@ -1853,6 +1854,9 @@ export default function Home() {
           ) : undefined
         }
       >
+        {/* Renders nothing unless a dev-team member is signed in, so players
+            see the header exactly as before. */}
+        <AccountButton />
         <HeaderActions
           onNavigateAway={(event, destination) => {
             if (
