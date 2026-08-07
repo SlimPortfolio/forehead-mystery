@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getMongoDb } from "@/lib/mongodb";
+import { containsProfanity, PROFANITY_REJECTION } from "@/lib/profanity";
 
 // Fields a client is allowed to write on a room. Anything else in the PATCH
 // body is dropped so a stray/malicious key can't set arbitrary database
@@ -32,6 +33,17 @@ const POST_GAME_CHAT_LIMIT = 200;
 
 // A room can never hold more than this many players (humans + bots).
 const MAX_ROOM_PLAYERS = 8;
+
+/** True when a chat message payload carries blocked language. The chat box
+ * checks this too, but a client can be bypassed, so it's enforced here. */
+function hasProfanity(message: unknown): boolean {
+  if (!message || typeof message !== "object") return false;
+  const { text, playerName } = message as Record<string, unknown>;
+  return (
+    (typeof text === "string" && containsProfanity(text)) ||
+    (typeof playerName === "string" && containsProfanity(playerName))
+  );
+}
 
 export async function PATCH(
   request: Request,
@@ -116,8 +128,24 @@ export async function PATCH(
       // players sending a message in the same instant can't overwrite each
       // other's message (which a whole-array $set would risk).
       if (key === "postGameChatAppend") {
+        if (hasProfanity(value)) {
+          return NextResponse.json(
+            { error: PROFANITY_REJECTION },
+            { status: 400 },
+          );
+        }
         pushMessage = value;
         continue;
+      }
+      // A whole-array write (the client only ever sends [] to reset the log on
+      // a new game) gets the same treatment, so it can't be used as a bypass.
+      if (key === "postGameChat" && Array.isArray(value)) {
+        if (value.some(hasProfanity)) {
+          return NextResponse.json(
+            { error: PROFANITY_REJECTION },
+            { status: 400 },
+          );
+        }
       }
       if (isAllowedKey(key)) setUpdate[key] = value;
     }

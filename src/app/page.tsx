@@ -272,7 +272,16 @@ export default function Home() {
   const binkCloseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
-  const wasConfirmationPhaseRef = useRef(false);
+  // Whether the last room snapshot we saw was in the confirmation phase.
+  // Undefined until the first observation so arriving mid-confirmation — a
+  // fresh join into a game already in progress, or a refresh — primes the ref
+  // instead of firing a bink cue for a guess we never watched happen.
+  const wasConfirmationPhaseRef = useRef<boolean | undefined>(undefined);
+  // Armed once we've seen this room in a non-finished phase, so the perfect-game
+  // celebration only fires for a game that finished while we were watching.
+  // Someone who joins (or refreshes) straight onto a finished perfect-game
+  // screen would otherwise be met with the looping victory song out of nowhere.
+  const victoryCueArmedRef = useRef(false);
   // Tracks the last turn index we saw during an active turn phase, so we only
   // chime when the turn advances forward (someone finished their turn), not when
   // a new round resets the index to 0. Undefined until first observation so we
@@ -483,10 +492,23 @@ export default function Home() {
     }
   }, [room?.players, joined, playerId]);
 
-  // Reset the roster snapshot when we leave a room, so rejoining primes fresh
-  // (and doesn't announce everyone already there as a fresh "join").
+  // Reset every piece of "what did we see last" state when we leave a room, so
+  // joining the next one primes fresh instead of diffing against the room we
+  // just left. That covers the roster snapshot (so players already there aren't
+  // announced as fresh joins) and all the sound-cue refs (so the next room's
+  // first snapshot can't read as a turn advance or a phase change and fire a
+  // cue on arrival). Any deal-in flip timers still pending are cancelled too —
+  // otherwise they keep firing card-flip sounds after we're back on the lobby.
   useEffect(() => {
-    if (!joined) prevPlayerNamesRef.current = null;
+    if (joined) return;
+    prevPlayerNamesRef.current = null;
+    previousTurnIndexRef.current = undefined;
+    previousPhaseForSoundRef.current = undefined;
+    wasConfirmationPhaseRef.current = undefined;
+    victoryCueArmedRef.current = false;
+    revealPrevPhaseRef.current = null;
+    revealTimersRef.current.forEach(clearTimeout);
+    revealTimersRef.current = [];
   }, [joined]);
 
   // Default the winner-form date/time to "now" the moment a game finishes.
@@ -517,11 +539,12 @@ export default function Home() {
   useEffect(() => {
     if (!room) return;
 
-    const enteredConfirmation =
-      room.phase === "confirmation" && !wasConfirmationPhaseRef.current;
+    const wasConfirmation = wasConfirmationPhaseRef.current;
     wasConfirmationPhaseRef.current = room.phase === "confirmation";
 
-    if (!enteredConfirmation) return;
+    // First observation just primes the ref — see its declaration.
+    if (wasConfirmation === undefined) return;
+    if (room.phase !== "confirmation" || wasConfirmation) return;
 
     const actingPlayer = room.players.find(
       (player) => player.id === room.turnOrder[room.currentTurnIndex],
@@ -968,6 +991,16 @@ export default function Home() {
     activePlayers.every((player) => player.isCorrectlyIdentified),
   );
 
+  // Arm the victory song once we've seen this room mid-game. Declared above the
+  // celebration effect so it's already up to date for the snapshot where the
+  // phase flips to "finished" (on that snapshot it's a no-op — the ref was
+  // armed by the ranking/guessing snapshot before it).
+  useEffect(() => {
+    if (joined && room && room.phase !== "finished") {
+      victoryCueArmedRef.current = true;
+    }
+  }, [joined, room?.phase]);
+
   // Own the whole celebration while the perfect-game victory screen is up: start
   // the looping victory song, pop the confetti immediately, then re-pop it on an
   // interval. Cleanup (next game, leaving the room, etc.) stops the song and the
@@ -977,7 +1010,9 @@ export default function Home() {
   // `room` finished, so without this the celebration would keep running there.
   useEffect(() => {
     if (!joined || !allCorrectlyIdentified) return;
-    playSound("victory");
+    // Confetti greets anyone who lands on the screen, but the looping song only
+    // plays for people who were here when the game was won — see the ref.
+    if (victoryCueArmedRef.current) playSound("victory");
     fireVictoryConfetti();
     const intervalId = setInterval(
       fireVictoryConfetti,
