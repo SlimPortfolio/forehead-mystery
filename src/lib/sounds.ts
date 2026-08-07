@@ -166,8 +166,11 @@ function getAudio(sound: GameSound): HTMLAudioElement | null {
   if (!audio) {
     audio = new Audio(SOUND_FILES[sound]);
     audio.preload = "auto";
-    audio.volume = SOUND_VOLUMES[sound] ?? 1;
     audio.loop = LOOPING_SOUNDS[sound] ?? false;
+    // Elements REST SILENT. `playSound` arms the real volume/gain immediately
+    // before it plays — see `arm` for why audibility is never left switched on.
+    audio.muted = true;
+    audio.volume = 0;
     audioCache[sound] = audio;
   }
   // Wire boosted sounds into the gain graph once the context exists. If wiring
@@ -186,7 +189,10 @@ function wireGain(sound: GameSound, audio: HTMLAudioElement) {
   try {
     const source = audioContext.createMediaElementSource(audio);
     const gainNode = audioContext.createGain();
-    gainNode.gain.value = gain;
+    // Starts silent like the element itself; `arm` applies the real boost. This
+    // matters more than the element's own `muted`/`volume`, which stop being
+    // authoritative once the element is routed through the graph.
+    gainNode.gain.value = 0;
     source.connect(gainNode).connect(audioContext.destination);
     gainNodes[sound] = gainNode;
     wiredSounds.add(sound);
@@ -194,6 +200,35 @@ function wireGain(sound: GameSound, audio: HTMLAudioElement) {
     // Already wired elsewhere or unsupported — fall back to plain playback.
     wiredSounds.add(sound);
   }
+}
+
+/** Force a sound fully silent: muted element, zero element volume, and a zeroed
+ * gain node when it's routed through the Web Audio graph (where the element's
+ * own `muted`/`volume` stop being authoritative). This is the RESTING state for
+ * every sound — going silent is always safe, so this can be called at any time. */
+function silence(sound: GameSound, audio: HTMLAudioElement) {
+  audio.muted = true;
+  audio.volume = 0;
+  const gainNode = gainNodes[sound];
+  if (gainNode) gainNode.gain.value = 0;
+}
+
+/** Make a sound audible at its configured level. Called ONLY from `playSound`,
+ * in the same tick as the `play()` that's meant to be heard.
+ *
+ * Audibility is armed here — never at prime/stop time — because `pause()` does
+ * not reach the audio renderer synchronously. It flips `paused` right away, but
+ * the render thread stops at its next callback boundary (~10ms locally, 100ms+
+ * over Bluetooth or a shared-mode WASAPI device). Restoring volume/mute/gain
+ * alongside a `pause()` could therefore let the head of the file through before
+ * playback had actually stopped, which is exactly how priming used to leak an
+ * audible cue on first page load. Arming only where sound is intended makes that
+ * race impossible: an un-triggered sound is never in an audible state. */
+function arm(sound: GameSound, audio: HTMLAudioElement) {
+  audio.muted = false;
+  audio.volume = SOUND_VOLUMES[sound] ?? 1;
+  const gainNode = gainNodes[sound];
+  if (gainNode) gainNode.gain.value = SOUND_GAINS[sound] ?? 1;
 }
 
 /** Satisfy the browser's autoplay gesture requirement. Call once, from within a
@@ -243,30 +278,25 @@ export function unlockSounds() {
   // primeMusic(); // BACKGROUND MUSIC disabled — see the banner near the top.
 }
 
-/** Prime one element with a muted play so later programmatic playback is allowed
- * by the autoplay policy — without ever being audible. We force silence three
- * ways (muted, element volume 0, and a zeroed gain node when routed through Web
- * Audio) because `muted`/`volume` on an element can be bypassed once it's wired
- * into the graph, which is exactly how a "prime" could leak a real cue. All
- * three are restored the moment the priming play resolves. */
+/** Prime one element with a silent play so later programmatic playback is allowed
+ * by the autoplay policy — without ever being audible.
+ *
+ * The element is silenced going in and DELIBERATELY LEFT SILENT afterwards; only
+ * `playSound` ever arms it (see `arm` for the race that re-arming here caused).
+ * Note the settle handler runs on rejection too: a `play()` that the autoplay
+ * policy refuses can still leave a pending play request on the element, so it
+ * gets the same pause/rewind/re-silence treatment as a successful one. */
 function primeSilently(sound: GameSound, audio: HTMLAudioElement) {
-  const gainNode = gainNodes[sound];
-  const restoreVolume = audio.volume;
-  const restoreGain = gainNode?.gain.value ?? null;
+  silence(sound, audio);
 
-  audio.muted = true;
-  audio.volume = 0;
-  if (gainNode) gainNode.gain.value = 0;
-
-  const restore = () => {
+  const settle = () => {
     audio.pause();
     audio.currentTime = 0;
-    audio.muted = false;
-    audio.volume = restoreVolume;
-    if (gainNode && restoreGain !== null) gainNode.gain.value = restoreGain;
+    // Re-assert silence rather than restoring audibility — the whole point.
+    silence(sound, audio);
   };
 
-  audio.play().then(restore).catch(restore);
+  audio.play().then(settle).catch(settle);
 }
 
 // BACKGROUND MUSIC (disabled — see the banner near the top of this file):
@@ -283,23 +313,27 @@ function primeSilently(sound: GameSound, audio: HTMLAudioElement) {
 //
 // /** Unlock the music element within the user gesture, then leave it playing
 //  * unless music is muted. Priming (a muted play) is what lets a later unmute
-//  * start playback without its own gesture. */
+//  * start playback without its own gesture.
+//  *
+//  * Same rule as the sound effects: decide whether music is wanted BEFORE
+//  * unmuting, and never unmute alongside a `pause()` — see `arm`. */
 // function primeMusic() {
 //   const music = getMusicAudio();
 //   if (!music) return;
 //   music.muted = true;
-//   music
-//     .play()
-//     .then(() => {
-//       music.muted = false;
-//       if (loadMusicMuted()) {
-//         music.pause();
-//         music.currentTime = 0;
-//       }
-//     })
-//     .catch(() => {
-//       music.muted = false;
-//     });
+//   music.volume = 0;
+//   const settle = () => {
+//     if (loadMusicMuted()) {
+//       // Not wanted — stop and stay silent. `setMusicMuted(false)` starts it.
+//       music.pause();
+//       music.currentTime = 0;
+//       return;
+//     }
+//     // Wanted, and still playing from the prime — safe to make it audible.
+//     music.muted = false;
+//     music.volume = MUSIC_VOLUME;
+//   };
+//   music.play().then(settle).catch(settle);
 // }
 
 /** Play a game sound. No-op before `unlockSounds()`, when muted, or if the file
@@ -313,6 +347,10 @@ export function playSound(sound: GameSound) {
   if (audioContext?.state === "suspended") {
     void audioContext.resume().catch(() => {});
   }
+  // This is the only place a sound is ever made audible, and it happens in the
+  // same tick as the play it belongs to — so nothing can be heard that wasn't
+  // triggered by a real game event.
+  arm(sound, audio);
   audio.currentTime = 0;
   audio.play().catch(() => {
     // Autoplay still blocked or file missing — fail silently.
@@ -326,4 +364,7 @@ export function stopSound(sound: GameSound) {
   if (!audio) return;
   audio.pause();
   audio.currentTime = 0;
+  // Back to the resting state, so a stopped sound can't be audible through a
+  // pause that hasn't reached the audio renderer yet.
+  silence(sound, audio);
 }
