@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import {
   BarChart3,
   HelpCircle,
+  MessageSquarePlus,
   Menu,
   // Music, // BACKGROUND MUSIC disabled — see sounds.ts
   Trophy,
@@ -24,9 +25,15 @@ import {
 } from "@/lib/sounds";
 
 type HeaderActionsProps = {
-  /** Intercept the Hall of Fame link click, e.g. to confirm before leaving an
-   * active game. Omitted on pages (like /winners itself) that need no guard. */
-  onWinnersNavigate?: (event: { preventDefault: () => void }) => void;
+  /** Intercept any link in this menu that routes away from the game, e.g. to
+   * confirm before abandoning an active game. `destination` is a human-readable
+   * name for where the click leads ("the Hall of Fame"), so the caller can
+   * phrase one prompt for every link. Omitted on standalone pages (like
+   * /winners itself) that have no game to lose. */
+  onNavigateAway?: (
+    event: { preventDefault: () => void },
+    destination: string,
+  ) => void;
   /** Open the shared How to Play modal. Rendered by the page itself (rather
    * than locally here) so it isn't nested inside the header's backdrop-blur,
    * which would otherwise become the containing block for its fixed overlay. */
@@ -37,7 +44,7 @@ type HeaderActionsProps = {
  * AppHeader, so the header looks and behaves identically whether you're in
  * the game view or on the /winners page. */
 export default function HeaderActions({
-  onWinnersNavigate,
+  onNavigateAway,
   onShowHelp,
 }: HeaderActionsProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -104,7 +111,7 @@ export default function HeaderActions({
             href="/winners"
             onNavigate={(event) => {
               setIsOpen(false);
-              onWinnersNavigate?.(event);
+              onNavigateAway?.(event, "the Hall of Fame");
             }}
             className="flex w-full cursor-pointer items-center gap-3 px-3.5 py-2.5 text-left text-base text-slate-800 transition-colors hover:bg-slate-100"
           >
@@ -113,11 +120,28 @@ export default function HeaderActions({
           </Link>
           <Link
             href="/data"
-            onNavigate={() => setIsOpen(false)}
+            onNavigate={(event) => {
+              setIsOpen(false);
+              onNavigateAway?.(event, "the game data");
+            }}
             className="flex w-full cursor-pointer items-center gap-3 px-3.5 py-2.5 text-left text-base text-slate-800 transition-colors hover:bg-slate-100"
           >
             <BarChart3 className="h-5 w-5 text-indigo-500" strokeWidth={1.75} />
             Data
+          </Link>
+          <Link
+            href="/feedback"
+            onNavigate={(event) => {
+              setIsOpen(false);
+              onNavigateAway?.(event, "the feedback form");
+            }}
+            className="flex w-full cursor-pointer items-center gap-3 px-3.5 py-2.5 text-left text-base text-slate-800 transition-colors hover:bg-slate-100"
+          >
+            <MessageSquarePlus
+              className="h-5 w-5 text-emerald-600"
+              strokeWidth={1.75}
+            />
+            Send Feedback
           </Link>
           <button
             onClick={() => {

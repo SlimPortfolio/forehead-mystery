@@ -53,14 +53,27 @@ async function createOrUpdateTtlIndex(db: Awaited<ReturnType<MongoClient["db"]>>
   }
 }
 
+/** Backs the /admin dashboard's "open vs resolved, newest first" query. Unlike
+ * the rooms index this is a plain compound index — feedback is never swept, it
+ * has to stay readable for as long as the dev team cares about it. */
+async function createFeedbackIndex(db: Awaited<ReturnType<MongoClient["db"]>>) {
+  await db.collection("feedback").createIndex({ status: 1, createdAt: -1 });
+}
+
 function ensureIndexes(db: Awaited<ReturnType<MongoClient["db"]>>) {
   if (!indexesReady) {
-    indexesReady = createOrUpdateTtlIndex(db).catch((error) => {
-      // Don't let a failed index call wedge every future request; the
-      // room APIs still work without the TTL index, just without cleanup.
-      indexesReady = null;
-      console.error("[mongodb] failed to ensure rooms TTL index", error);
-    });
+    indexesReady = Promise.all([
+      createOrUpdateTtlIndex(db),
+      createFeedbackIndex(db),
+    ])
+      .then(() => undefined)
+      .catch((error) => {
+        // Don't let a failed index call wedge every future request; the room
+        // and feedback APIs still work without their indexes, just without
+        // TTL cleanup / with slower admin queries.
+        indexesReady = null;
+        console.error("[mongodb] failed to ensure indexes", error);
+      });
   }
   return indexesReady;
 }

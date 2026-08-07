@@ -1854,12 +1854,10 @@ export default function Home() {
         }
       >
         <HeaderActions
-          onWinnersNavigate={(event) => {
+          onNavigateAway={(event, destination) => {
             if (
               isInActiveGame &&
-              !window.confirm(
-                "Leave the current game to view the Hall of Fame?",
-              )
+              !window.confirm(`Leave the current game to view ${destination}?`)
             ) {
               event.preventDefault();
             }
