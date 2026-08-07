@@ -74,6 +74,76 @@ export type FeedbackRecord = FeedbackPayload & {
   statusUpdatedBy?: string;
 };
 
+// ─── Dashboard search & sort (used by /admin) ────────────────────────────────
+
+export type SortOrder = "newest" | "oldest";
+
+export const SORT_LABELS: Record<SortOrder, string> = {
+  newest: "Newest first",
+  oldest: "Oldest first",
+};
+
+/** Lowercase and strip accents, so "Café" and "cafe" match each other. */
+function normalize(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "");
+}
+
+/**
+ * Substring match, falling back to an in-order subsequence so "fedback" still
+ * finds "feedback". The subsequence pass is limited to terms of 4+ characters
+ * — on short ones nearly every document matches, which makes search feel
+ * broken rather than forgiving.
+ */
+function looseIncludes(haystack: string, term: string): boolean {
+  if (haystack.includes(term)) return true;
+  if (term.length < 4) return false;
+
+  let index = 0;
+  for (const char of term) {
+    index = haystack.indexOf(char, index);
+    if (index === -1) return false;
+    index += 1;
+  }
+  return true;
+}
+
+/**
+ * True when every whitespace-separated term in `query` appears somewhere in
+ * the item's subject, description, or sender name. Terms are AND-ed so typing
+ * more words narrows the list, which is what a search box is expected to do.
+ * An empty query matches everything.
+ */
+export function matchesSearch(
+  item: Pick<FeedbackRecord, "subject" | "description" | "name">,
+  query: string,
+): boolean {
+  const terms = normalize(query).split(/\s+/).filter(Boolean);
+  if (terms.length === 0) return true;
+
+  const haystack = normalize(
+    `${item.subject} ${item.description} ${item.name}`,
+  );
+  return terms.every((term) => looseIncludes(haystack, term));
+}
+
+/** Newest/oldest by `createdAt`. Unparseable dates sort last either way rather
+ * than randomly, so a malformed record can't scatter the list. */
+export function sortByDate<T extends Pick<FeedbackRecord, "createdAt">>(
+  items: T[],
+  order: SortOrder,
+): T[] {
+  return [...items].sort((a, b) => {
+    const aTime = new Date(a.createdAt).getTime();
+    const bTime = new Date(b.createdAt).getTime();
+    if (Number.isNaN(aTime)) return 1;
+    if (Number.isNaN(bTime)) return -1;
+    return order === "newest" ? bTime - aTime : aTime - bTime;
+  });
+}
+
 export type FeedbackValidationErrors = Partial<Record<keyof FeedbackPayload, string>>;
 
 /**
