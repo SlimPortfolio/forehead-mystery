@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { containsProfanity, PROFANITY_REJECTION } from "@/lib/profanity";
 import { PostGameChatMessage } from "./types";
 
 const REFRACTORY_MS = 2000;
@@ -27,15 +28,24 @@ export default function RoomChat({
 }: RoomChatProps) {
   const [draft, setDraft] = useState("");
   const [onCooldown, setOnCooldown] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSend = () => {
     const text = draft.trim();
     if (!text || onCooldown) return;
 
+    // Blocked here for instant feedback; /api/rooms/[roomCode] runs the same
+    // check so a client that skips this can't get a message through either.
+    if (containsProfanity(text)) {
+      setError(PROFANITY_REJECTION);
+      return;
+    }
+
     const sent = onSend(text);
     if (!sent) return;
 
     setDraft("");
+    setError(null);
     setOnCooldown(true);
     setTimeout(() => setOnCooldown(false), REFRACTORY_MS);
   };
@@ -64,7 +74,10 @@ export default function RoomChat({
       <div className="mt-3 flex gap-2">
         <input
           value={draft}
-          onChange={(event) => setDraft(event.target.value)}
+          onChange={(event) => {
+            setDraft(event.target.value);
+            if (error) setError(null);
+          }}
           onKeyDown={(event) => {
             if (event.key === "Enter") handleSend();
           }}
@@ -80,6 +93,11 @@ export default function RoomChat({
           Send
         </button>
       </div>
+      {error && (
+        <p role="alert" className="mt-2 text-xs font-medium text-red-600">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
