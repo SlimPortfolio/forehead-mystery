@@ -34,7 +34,6 @@ import { computeGameMetrics } from "@/lib/metrics";
 import { playSound, stopSound, unlockSounds } from "@/lib/sounds";
 import { fireVictoryConfetti } from "@/lib/confetti";
 import TransitionOverlay from "@/components/game/TransitionOverlay";
-import PendingJoinScreen from "@/components/game/PendingJoinScreen";
 import RemovedFromRoomScreen from "@/components/game/RemovedFromRoomScreen";
 import KickPlayerModal from "@/components/game/KickPlayerModal";
 import ToastStack, { ToastData } from "@/components/game/Toast";
@@ -127,19 +126,21 @@ function createRoom(
   };
 }
 
-// Strips a player out of the room: drops them from `players` and
-// `turnOrder`, shifts `currentTurnIndex` down if the removed seat was ahead
-// of it, and promotes the next remaining player to host if the departing
-// player was the host. Shared by both "leave" and "kick" so a removed
-// player never lingers as a ghost seat that a later "start next game" would
-// try to deal cards to.
-function removePlayerFromRoom(room: Room, removedPlayerId: string): Room {
-  const nextPlayers = room.players.filter(
-    (player) => player.id !== removedPlayerId,
-  );
-
-  const removedIndexInOrder = room.turnOrder.indexOf(removedPlayerId);
-  const nextTurnOrder = room.turnOrder.filter((id) => id !== removedPlayerId);
+// Pulls a player out of active play without deleting their Player record:
+// drops them from `turnOrder` and shifts `currentTurnIndex` down if the
+// departed seat was ahead of it (same as a hard removal would), and promotes
+// the next remaining (non-departed) player to host if the departing player
+// held it. Their card/ranking/guess stay on the record — flagged `departed`
+// instead — so the postgame debrief can still show them. Shared by both
+// "leave" and "kick"; `reason` drives the label shown on the debrief ghost
+// row. Purged for good once the next game is dealt (see startNextGame).
+function markPlayerAsGone(
+  room: Room,
+  departedPlayerId: string,
+  reason: "left" | "kicked",
+): Room {
+  const removedIndexInOrder = room.turnOrder.indexOf(departedPlayerId);
+  const nextTurnOrder = room.turnOrder.filter((id) => id !== departedPlayerId);
 
   let nextCurrentTurnIndex = room.currentTurnIndex;
   if (removedIndexInOrder !== -1 && removedIndexInOrder < room.currentTurnIndex) {
@@ -147,18 +148,21 @@ function removePlayerFromRoom(room: Room, removedPlayerId: string): Room {
   }
 
   const nextHostId =
-    room.hostId === removedPlayerId
-      ? (nextPlayers[0]?.id ?? "")
+    room.hostId === departedPlayerId
+      ? (room.players.find(
+          (player) => player.id !== departedPlayerId && !player.departed,
+        )?.id ?? "")
       : room.hostId;
 
-  const playersWithHost = nextPlayers.map((player) => ({
-    ...player,
-    isHost: player.id === nextHostId,
-  }));
+  const nextPlayers = room.players.map((player) =>
+    player.id === departedPlayerId
+      ? { ...player, departed: reason, isHost: false }
+      : { ...player, isHost: player.id === nextHostId },
+  );
 
   return {
     ...room,
-    players: playersWithHost,
+    players: nextPlayers,
     turnOrder: nextTurnOrder,
     currentTurnIndex: nextCurrentTurnIndex,
     hostId: nextHostId,
@@ -1033,8 +1037,13 @@ export default function Home() {
   const isHost = Boolean(room && playerId && room.hostId === playerId);
 
   // True once a poll picks up that the host removed this player from the
-  // room (they're still `joined` locally, but no longer in `room.players`).
-  const wasRemovedFromRoom = Boolean(joined && room && playerId && !myPlayer);
+  // room (they're still `joined` locally). Keyed on `departed === "kicked"`
+  // specifically — a player who left voluntarily already sets `joined` to
+  // false in the same action that writes `departed: "left"`, so this can't
+  // misfire for them on their own client.
+  const wasRemovedFromRoom = Boolean(
+    joined && room && playerId && myPlayer?.departed === "kicked",
+  );
 
   const isPendingForActiveGame = Boolean(
     myPlayer?.pendingJoin &&
@@ -1297,9 +1306,14 @@ export default function Home() {
         return;
       }
 
-      // Enforce the 8-player cap before letting anyone new in. The server
-      // re-checks this atomically, but this gives a clean message up front.
-      if (existingRoom.players.length >= MAX_ROOM_PLAYERS) {
+      // Enforce the 8-player cap before letting anyone new in. Departed
+      // (left/kicked) players are ghost seats kept only for the debrief —
+      // they don't hold a spot. The server re-checks this atomically, but
+      // this gives a clean message up front.
+      const activeSeatCount = existingRoom.players.filter(
+        (player) => !player.departed,
+      ).length;
+      if (activeSeatCount >= MAX_ROOM_PLAYERS) {
         setStatus(
           `Room ${normalizedCode} is full (${MAX_ROOM_PLAYERS} players max).`,
         );
@@ -1387,28 +1401,36 @@ export default function Home() {
     if (!room || !myPlayer) return;
     if (hasUnsavedPerfectGame && !confirmDiscardUnsavedWin()) return;
 
+    // Anyone who left or was kicked during the previous game (`departed`)
+    // only needed to stick around for that game's postgame debrief — purge
+    // them for good now that a new game is starting.
+    const carryoverPlayers = room.players.filter((player) => !player.departed);
+
     // Rotate the turn order so whoever went second last game goes first now.
     // Anyone who joined mid-previous-game (pendingJoin) was never part of
     // that turnOrder — fold them in now, in random order, since this is
-    // their first game. Also drop any id no longer in `players` (e.g. a
-    // player who left or was kicked since the last turnOrder was set).
+    // their first game. Also drop any id no longer in `carryoverPlayers`
+    // (e.g. a player who left or was kicked since the last turnOrder was
+    // set).
     const returningOrder = room.turnOrder.filter((id) =>
-      room.players.some((player) => player.id === id && !player.pendingJoin),
+      carryoverPlayers.some(
+        (player) => player.id === id && !player.pendingJoin,
+      ),
     );
     const [previousFirstPlayer, ...restOfOrder] = returningOrder;
     const rotatedReturningOrder = previousFirstPlayer
       ? [...restOfOrder, previousFirstPlayer]
       : restOfOrder;
     const newJoinerIds = shuffle(
-      room.players
+      carryoverPlayers
         .filter((player) => player.pendingJoin)
         .map((player) => player.id),
     );
     const rotatedTurnOrder = [...rotatedReturningOrder, ...newJoinerIds];
 
     // Deal new cards
-    const shuffledCards = shuffle(CARD_POOL).slice(0, room.players.length);
-    const nextPlayers = room.players.map((player, index) => ({
+    const shuffledCards = shuffle(CARD_POOL).slice(0, carryoverPlayers.length);
+    const nextPlayers = carryoverPlayers.map((player, index) => ({
       ...player,
       card: shuffledCards[index],
       ranking: null,
@@ -1643,9 +1665,9 @@ export default function Home() {
       return;
     }
     // An actively-playing player leaving still ends the game for the room
-    // (existing behavior), just without leaving a ghost seat behind for the
-    // next game.
-    const nextRoom = removePlayerFromRoom(room, myPlayer.id);
+    // (existing behavior). Their record stays (flagged `departed: "left"`)
+    // so the postgame debrief can still show their card.
+    const nextRoom = markPlayerAsGone(room, myPlayer.id, "left");
     submitRoomState({ ...nextRoom, phase: "finished" });
     setActiveModal(null);
     setJoined(false);
@@ -1667,7 +1689,7 @@ export default function Home() {
       return;
     }
 
-    let nextRoom = removePlayerFromRoom(room, targetPlayerId);
+    let nextRoom = markPlayerAsGone(room, targetPlayerId, "kicked");
 
     // If the kicked player was mid-turn (or every remaining turn has already
     // passed once they're removed), advance the phase the same way the
@@ -1901,8 +1923,6 @@ export default function Home() {
                   setStatus("");
                 }}
               />
-            ) : isPendingForActiveGame ? (
-              <PendingJoinScreen room={room} onLeave={handleLeaveGame} />
             ) : room.phase === "lobby" ? (
               <LobbyScreen
                 room={room}
@@ -1951,6 +1971,12 @@ export default function Home() {
                 {isTransitioning && (
                   <TransitionOverlay label="Loading new game..." />
                 )}
+                {isPendingForActiveGame && (
+                  <div className="mb-3 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                    A game is already in progress — you&apos;ll be dealt in
+                    once it wraps up. Here&apos;s what&apos;s happening:
+                  </div>
+                )}
                 <GameHeader
                   roomCode={room.id}
                   round={room.round}
@@ -1994,7 +2020,11 @@ export default function Home() {
 
       {activeModal?.type === "rank" && room && (
         <RankSelectModal
-          playerCount={activePlayers.length}
+          // turnOrder (not activePlayers) is the authoritative "who's being
+          // ranked this game" list — it's already shrunk if the host kicked
+          // someone mid-ranking without ending the game, whereas
+          // activePlayers would still count their departed record.
+          playerCount={room.turnOrder.length}
           onSelect={submitRanking}
           onClose={() => setActiveModal(null)}
         />
@@ -2041,7 +2071,7 @@ export default function Home() {
 
       {activeModal?.type === "kickPlayer" && room && (
         <KickPlayerModal
-          players={room.players}
+          players={room.players.filter((player) => !player.departed)}
           hostId={room.hostId}
           onKick={handleKickPlayer}
           onClose={() => setActiveModal(null)}

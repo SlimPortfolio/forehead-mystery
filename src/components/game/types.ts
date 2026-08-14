@@ -20,6 +20,12 @@ export type Player = {
    * sit out the current game (no card, not in turnOrder) and are dealt in
    * once the next game starts. */
   pendingJoin?: boolean;
+  /** Set when this player is no longer active — they left on their own, or
+   * the host removed them — after already being dealt into the game. Their
+   * card, ranking, and guess outcome are kept so the postgame debrief can
+   * still show them; they're just pulled out of turnOrder. Cleared out
+   * entirely (not carried forward) once the next game is dealt. */
+  departed?: "left" | "kicked";
 };
 
 export type ChatMessage = {
