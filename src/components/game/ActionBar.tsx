@@ -8,9 +8,10 @@ type ActionBarProps = {
   onOpenScratchpad: () => void;
   onGuessCard: () => void;
   onSendEmote: (text: string) => void;
-  /** Extra context-only emote (e.g. the "so simple" taunt), shown below the
-   * preset list when the game state warrants it. Null when not applicable. */
-  dynamicEmote?: string | null;
+  /** Extra context-only emotes (e.g. the "so simple" taunt, jester
+   * nomination), shown below the preset list when the game state warrants
+   * it. Falsy entries are skipped. */
+  dynamicEmotes?: (string | null | undefined)[];
 };
 
 function RankIcon() {
@@ -87,12 +88,15 @@ export default function ActionBar({
   onOpenScratchpad,
   onGuessCard,
   onSendEmote,
-  dynamicEmote,
+  dynamicEmotes,
 }: ActionBarProps) {
   const [isEmoteOpen, setIsEmoteOpen] = useState(false);
   const emoteWrapperRef = useRef<HTMLDivElement>(null);
   const canRank = phase === "ranking" && isMyTurn;
   const canGuess = phase === "guessing" && isMyTurn;
+  const activeDynamicEmotes = (dynamicEmotes ?? []).filter(
+    (text): text is string => Boolean(text),
+  );
 
   // Close on any click/tap outside the button+popover — the toggle button's
   // own click is inside this wrapper, so it still closes via its own onClick
@@ -136,20 +140,24 @@ export default function ActionBar({
                   {text}
                 </button>
               ))}
-              {/* Always last in the list, below the sorted presets — it's
-                  context-dependent, so it stays pinned to the bottom rather
-                  than jumping around as the named player changes. */}
-              {dynamicEmote && (
-                <button
-                  key={dynamicEmote}
-                  onClick={() => {
-                    onSendEmote(dynamicEmote);
-                    setIsEmoteOpen(false);
-                  }}
-                  className="mt-1 cursor-pointer rounded-xl border-t border-slate-200 px-3 pt-3 pb-2 text-left text-sm font-medium text-slate-700 hover:bg-slate-100"
-                >
-                  {dynamicEmote}
-                </button>
+              {/* Always last in the list, below the sorted presets — these
+                  are context-dependent, so they stay pinned to the bottom
+                  rather than jumping around as the named player changes. */}
+              {activeDynamicEmotes.length > 0 && (
+                <div className="mt-1 flex flex-col gap-1 border-t border-slate-200 pt-2">
+                  {activeDynamicEmotes.map((text) => (
+                    <button
+                      key={text}
+                      onClick={() => {
+                        onSendEmote(text);
+                        setIsEmoteOpen(false);
+                      }}
+                      className="cursor-pointer rounded-xl px-3 py-2 text-left text-sm font-medium text-slate-700 hover:bg-slate-100"
+                    >
+                      {text}
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
           )}

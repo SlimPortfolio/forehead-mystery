@@ -9,7 +9,10 @@ import {
   ChatMessage,
   GamePhase,
   getMostRecentWrongGuesserName,
+  getWrongGuesserCount,
   isBotPlayer,
+  jesterTaunt,
+  neverLetMeDownTaunt,
   Player,
   PostGameChatMessage,
   Room,
@@ -1923,6 +1926,19 @@ export default function Home() {
       : null;
   const simpleEmote = wrongGuesserName ? simpleTaunt(wrongGuesserName) : null;
 
+  // Jester-themed taunts: a lone wrong guesser is nominated for the "Jester"
+  // title (see FinishedScreen's jesterId), and a second wrong guesser takes
+  // that title off the table — see getWrongGuesserCount.
+  const wrongGuesserCount = room ? getWrongGuesserCount(room) : 0;
+  const jesterEmote =
+    wrongGuesserName && wrongGuesserCount === 1
+      ? jesterTaunt(wrongGuesserName)
+      : null;
+  const neverLetMeDownEmote =
+    wrongGuesserName && wrongGuesserCount >= 2
+      ? neverLetMeDownTaunt(wrongGuesserName)
+      : null;
+
   return (
     <main className="flex h-dvh w-full flex-col overflow-hidden bg-[radial-gradient(ellipse_at_top,#f6f4fe_0%,#e8ecfb_55%,#dde5f6_100%)] text-ink">
       <AppHeader
@@ -2076,7 +2092,7 @@ export default function Home() {
           onOpenScratchpad={() => setActiveModal({ type: "scratchpad" })}
           onGuessCard={() => setActiveModal({ type: "guess" })}
           onSendEmote={handleSendChat}
-          dynamicEmote={simpleEmote}
+          dynamicEmotes={[simpleEmote, jesterEmote, neverLetMeDownEmote]}
         />
       )}
 
