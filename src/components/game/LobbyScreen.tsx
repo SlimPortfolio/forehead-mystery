@@ -13,6 +13,7 @@ type LobbyScreenProps = {
   onSendChat: (text: string) => boolean;
   onStartGame: () => void;
   onStartWithBots: (totalPlayers: number) => void;
+  onLeaveLobby: () => void;
 };
 
 const MAX_PLAYERS = 8;
@@ -27,6 +28,7 @@ export default function LobbyScreen({
   onSendChat,
   onStartGame,
   onStartWithBots,
+  onLeaveLobby,
 }: LobbyScreenProps) {
   const [botsOpen, setBotsOpen] = useState(false);
 
@@ -141,6 +143,15 @@ export default function LobbyScreen({
       <p className="mt-4 text-sm text-slate-600">
         The host can begin the game once there are 4-8 players in the room.
       </p>
+
+      {isHost && humanCount > 1 && (
+        <button
+          onClick={onLeaveLobby}
+          className="mt-2 text-sm font-semibold text-rose-700"
+        >
+          Leave lobby (assign new host)
+        </button>
+      )}
 
       <RoomChat
         messages={chatMessages}

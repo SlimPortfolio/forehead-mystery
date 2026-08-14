@@ -68,6 +68,7 @@ type FinishedScreenProps = {
   onEndGame: () => void;
   onRemovePlayer: () => void;
   onLeaveGame: () => void;
+  onLeaveAsHost: () => void;
 };
 
 export default function FinishedScreen({
@@ -88,6 +89,7 @@ export default function FinishedScreen({
   onEndGame,
   onRemovePlayer,
   onLeaveGame,
+  onLeaveAsHost,
 }: FinishedScreenProps) {
   const [cityValid, setCityValid] = useState(false);
   const [countries, setCountries] = useState<string[]>([]);
@@ -109,9 +111,12 @@ export default function FinishedScreen({
     };
   }, [isInternational, countries.length]);
 
-  // Mid-game joiners sat this game out — exclude them from the results roll-up
-  // (jester tally, winner card list) even though they're shown as spectators.
-  const gamePlayers = orderedPlayers.filter((player) => !player.pendingJoin);
+  // Mid-game joiners sat this game out, and departed (left/kicked) players
+  // never finished it — exclude both from the results roll-up (jester tally,
+  // winner card list) even though they're both still shown as rows below.
+  const gamePlayers = orderedPlayers.filter(
+    (player) => !player.pendingJoin && !player.departed,
+  );
 
   // The jester label only appears when exactly one player guessed wrong.
   const incorrectPlayers = gamePlayers.filter(
@@ -138,6 +143,7 @@ export default function FinishedScreen({
           onEndGame={onEndGame}
           onRemovePlayer={onRemovePlayer}
           onLeaveGame={onLeaveGame}
+          onLeaveAsHost={onLeaveAsHost}
         />
       </div>
       <div className="mt-3 space-y-2">
@@ -155,6 +161,50 @@ export default function FinishedScreen({
                   <p className="text-sm text-slate-400">Will join next game</p>
                 </div>
                 <PlayingCard card={null} suit={suit} size="sm" special={special} />
+              </div>
+            );
+          }
+
+          // A player who left or was kicked mid-game still gets a real row —
+          // card, rank, and guess outcome (if they'd already guessed) — just
+          // muted and labeled, so the group can still debrief them properly.
+          if (player.departed) {
+            const departedOutcome = getGuessOutcome(player);
+            return (
+              <div
+                key={player.id}
+                className="flex items-center justify-between gap-3 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-3 opacity-80"
+              >
+                <div>
+                  <p className="font-semibold text-slate-500">{player.name}</p>
+                  <p className="text-sm text-slate-400">
+                    {player.departed === "kicked"
+                      ? "Removed from the room"
+                      : "Left the lobby"}
+                  </p>
+                  {departedOutcome && (
+                    <p
+                      className={`text-sm ${
+                        departedOutcome.tone === "success"
+                          ? "text-emerald-700"
+                          : "text-rose-700"
+                      }`}
+                    >
+                      {departedOutcome.text}
+                    </p>
+                  )}
+                </div>
+                <div className="flex flex-shrink-0 items-center gap-2">
+                  <PlayingCard card={player.card ?? null} suit={suit} size="sm" special={special} />
+                  <div className="flex flex-col items-center gap-0.5">
+                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-amber-800">
+                      Rank
+                    </span>
+                    <span className="text-sm font-bold leading-none text-ink">
+                      {player.ranking ? formatRank(player.ranking) : "???"}
+                    </span>
+                  </div>
+                </div>
               </div>
             );
           }

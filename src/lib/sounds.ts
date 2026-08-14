@@ -243,12 +243,28 @@ export function unlockSounds() {
   // primeMusic(); // BACKGROUND MUSIC disabled — see the banner near the top.
 }
 
-/** Prime one element with a muted play so later programmatic playback is allowed
- * by the autoplay policy — without ever being audible. We force silence three
- * ways (muted, element volume 0, and a zeroed gain node when routed through Web
- * Audio) because `muted`/`volume` on an element can be bypassed once it's wired
- * into the graph, which is exactly how a "prime" could leak a real cue. All
- * three are restored the moment the priming play resolves. */
+/** Prime one element with a muted play so later programmatic playback is
+ * allowed by the autoplay policy — without ever being audible. Playing a
+ * given element once from within a genuine user gesture is what Safari
+ * requires to allow that *same* element to be played later without a fresh
+ * gesture — so this has to run on the real, cached element `playSound` will
+ * reuse, not a throwaway one.
+ *
+ * Everything here runs synchronously — `play()` immediately followed by
+ * `pause()` in the same tick, no `await`/`.then()` in between — so priming
+ * never leaves the element in an in-between state. Deliberately NOT
+ * `audio.play().then(restore)`: that used to leave `restore()` pending on a
+ * promise that could resolve an unpredictable amount of time later (longer
+ * on a cold network fetch), while `unlockSounds()` had already flipped
+ * `unlocked = true` synchronously. A `playSound()` call landing in that
+ * window inherited the still-muted, volume-0 primed state instead of real
+ * playback — the legitimate cue came out silent, and the eventual delayed
+ * `restore()` would then pause/rewind the element out from under it. Muting
+ * and zeroing volume/gain here is defense in depth (belt-and-suspenders
+ * against the element being routed through Web Audio, where `muted`/`volume`
+ * aren't guaranteed to apply); the synchronous pause is what actually
+ * prevents any samples from reaching the speakers, and what closes the race.
+ */
 function primeSilently(sound: GameSound, audio: HTMLAudioElement) {
   const gainNode = gainNodes[sound];
   const restoreVolume = audio.volume;
@@ -258,15 +274,22 @@ function primeSilently(sound: GameSound, audio: HTMLAudioElement) {
   audio.volume = 0;
   if (gainNode) gainNode.gain.value = 0;
 
-  const restore = () => {
-    audio.pause();
-    audio.currentTime = 0;
-    audio.muted = false;
-    audio.volume = restoreVolume;
-    if (gainNode && restoreGain !== null) gainNode.gain.value = restoreGain;
-  };
+  let playResult: Promise<void> | undefined;
+  try {
+    playResult = audio.play();
+  } catch {
+    // Some older engines throw synchronously instead of rejecting; either
+    // way there's nothing more to prime.
+  }
 
-  audio.play().then(restore).catch(restore);
+  audio.pause();
+  audio.currentTime = 0;
+  audio.muted = false;
+  audio.volume = restoreVolume;
+  if (gainNode && restoreGain !== null) gainNode.gain.value = restoreGain;
+
+  // Expected to reject with "interrupted by pause()" — that's the point.
+  playResult?.catch(() => {});
 }
 
 // BACKGROUND MUSIC (disabled — see the banner near the top of this file):
@@ -302,12 +325,32 @@ function primeSilently(sound: GameSound, audio: HTMLAudioElement) {
 //     });
 // }
 
+// Guards against two calls for the *same* sound landing on top of each other
+// (e.g. a redundant effect re-run) restarting it twice in a row. Not a
+// substitute for fixing a caller that fires at the wrong time — it only
+// catches accidental near-simultaneous duplicates, well under the gap
+// between any two legitimate cues (the fastest, the deal-in card flips, are
+// paced hundreds of ms apart).
+const DUPLICATE_GUARD_MS = 50;
+const lastPlayedAt: Partial<Record<GameSound, number>> = {};
+
 /** Play a game sound. No-op before `unlockSounds()`, when muted, or if the file
- * is missing. */
+ * is missing. Looping sounds (currently just the victory fanfare) are only
+ * (re)started while not already playing — a repeat call while one is already
+ * looping is a no-op rather than restarting it from the top; use `stopSound`
+ * to end it. */
 export function playSound(sound: GameSound) {
   if (!unlocked || loadMuted()) return;
   const audio = getAudio(sound);
   if (!audio) return;
+
+  if (LOOPING_SOUNDS[sound] && !audio.paused) return;
+
+  const now = Date.now();
+  const last = lastPlayedAt[sound];
+  if (last !== undefined && now - last < DUPLICATE_GUARD_MS) return;
+  lastPlayedAt[sound] = now;
+
   // A boosted sound only reaches the speakers through the graph, so recover the
   // context if the OS suspended it (e.g. after a call/lock on mobile).
   if (audioContext?.state === "suspended") {

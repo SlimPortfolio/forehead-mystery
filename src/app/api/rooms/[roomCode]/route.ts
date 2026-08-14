@@ -81,7 +81,23 @@ export async function PATCH(
         {
           _id: normalizedRoomCode,
           "players.id": { $ne: joinId },
-          $expr: { $lt: [{ $size: "$players" }, MAX_ROOM_PLAYERS] },
+          // Departed (left/kicked) players are ghost seats kept only for the
+          // postgame debrief — they shouldn't count against the cap and
+          // block a new join.
+          $expr: {
+            $lt: [
+              {
+                $size: {
+                  $filter: {
+                    input: "$players",
+                    as: "p",
+                    cond: { $not: ["$$p.departed"] },
+                  },
+                },
+              },
+              MAX_ROOM_PLAYERS,
+            ],
+          },
         },
         { $push: { players: newPlayer }, $set: { updatedAt: new Date() } },
         { returnDocument: "after" },

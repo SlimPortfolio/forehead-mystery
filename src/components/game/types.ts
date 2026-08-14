@@ -6,6 +6,12 @@ export type GamePhase =
   | "confirmation"
   | "finished";
 
+// Bots are created with `createId("test-player")`. Detect them by id prefix
+// rather than display name so renaming the bot name pool never disables them.
+export function isBotPlayer(player: { id: string }) {
+  return player.id.startsWith("test-player");
+}
+
 export type Player = {
   id: string;
   name: string;
@@ -20,6 +26,12 @@ export type Player = {
    * sit out the current game (no card, not in turnOrder) and are dealt in
    * once the next game starts. */
   pendingJoin?: boolean;
+  /** Set when this player is no longer active — they left on their own, or
+   * the host removed them — after already being dealt into the game. Their
+   * card, ranking, and guess outcome are kept so the postgame debrief can
+   * still show them; they're just pulled out of turnOrder. Cleared out
+   * entirely (not carried forward) once the next game is dealt. */
+  departed?: "left" | "kicked";
 };
 
 export type ChatMessage = {
@@ -89,6 +101,30 @@ export const EMOTE_OPTIONS = [...EMOTE_LINES].sort((a, b) =>
  * once someone has actually guessed wrong (see getMostRecentWrongGuesserName). */
 export function simpleTaunt(name: string) {
   return `You're so simple, ${name}`;
+}
+
+/** Count of players who have guessed their own card wrong this game. Each
+ * player guesses at most once (see getMostRecentWrongGuesserName), so a
+ * non-empty eliminatedGuesses means exactly one wrong guess. Drives the
+ * jester-themed taunts: a lone wrong guesser is a jester nomination, a
+ * second one takes the title off the table. */
+export function getWrongGuesserCount(room: Room): number {
+  const { turnOrder, players } = room;
+  const byId = new Map(players.map((player) => [player.id, player]));
+  return turnOrder.filter((id) => (byId.get(id)?.eliminatedGuesses.length ?? 0) > 0)
+    .length;
+}
+
+/** Template for the "nominate the jester" taunt — shown only while exactly
+ * one player has guessed wrong, i.e. they're the sole jester candidate. */
+export function jesterTaunt(name: string) {
+  return `make ${name} the jester!`;
+}
+
+/** Template for the taunt once a second player has guessed wrong, meaning
+ * nobody can be the sole jester anymore. */
+export function neverLetMeDownTaunt(name: string) {
+  return `${name} has never let me down.`;
 }
 
 export const US_STATES = [
@@ -239,4 +275,5 @@ export type ActiveModal =
   | { type: "lookingGlass"; playerId: string }
   | { type: "help" }
   | { type: "kickPlayer" }
+  | { type: "assignHost" }
   | null;

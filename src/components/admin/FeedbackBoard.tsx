@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Inbox, RefreshCw, Search, SearchX, X } from "lucide-react";
+import { ChevronDown, Inbox, RefreshCw, Search, SearchX, X } from "lucide-react";
 import {
   FEEDBACK_STATUSES,
   isOpenStatus,
@@ -31,6 +31,66 @@ function StatusPill({ status }: { status: FeedbackStatus }) {
     >
       {STATUS_LABELS[status]}
     </span>
+  );
+}
+
+/**
+ * Native <select> dressed up with our own chevron.
+ *
+ * Deliberately not a custom popup: keeping the real control means mobile
+ * browsers open their own wheel/sheet picker, and keyboard plus screen-reader
+ * behaviour come for free.
+ *
+ * `tone` styles the wrapper (background, text, ring); the select itself is
+ * transparent and inherits that colour, so the chevron can use currentColor
+ * instead of repeating the palette. Options are reset to neutral because they
+ * would otherwise inherit the tone and tint the whole open list.
+ */
+function Select<T extends string>({
+  id,
+  value,
+  options,
+  onChange,
+  disabled = false,
+  tone = "bg-white text-ink ring-slate-300",
+}: {
+  id: string;
+  value: T;
+  options: readonly { value: T; label: string }[];
+  onChange: (value: T) => void;
+  disabled?: boolean;
+  tone?: string;
+}) {
+  return (
+    <div
+      className={`relative inline-flex items-center rounded-lg shadow-sm ring-1 ring-inset transition-colors focus-within:ring-2 focus-within:ring-indigo-400 ${
+        disabled ? "opacity-50" : ""
+      } ${tone}`}
+    >
+      <select
+        id={id}
+        value={value}
+        disabled={disabled}
+        onChange={(event) => onChange(event.target.value as T)}
+        /* text-base below sm keeps iOS Safari from zooming the page in when
+           the picker opens, which it does for any control under 16px. */
+        className="cursor-pointer appearance-none rounded-lg bg-transparent py-1.5 pl-3 pr-9 text-base font-medium text-inherit outline-none disabled:cursor-wait sm:text-sm"
+      >
+        {options.map((option) => (
+          <option
+            key={option.value}
+            value={option.value}
+            className="bg-white text-slate-800"
+          >
+            {option.label}
+          </option>
+        ))}
+      </select>
+      <ChevronDown
+        className="pointer-events-none absolute right-3 h-4 w-4 opacity-60"
+        strokeWidth={2}
+      />
+    </div>
   );
 }
 
@@ -82,21 +142,17 @@ function FeedbackCard({
         </label>
         {/* Carries the status colour so the control itself reads as the state,
             not just the pill above it. */}
-        <select
+        <Select
           id={`status-${item.id}`}
           value={item.status}
           disabled={isSaving}
-          onChange={(event) =>
-            onStatusChange(event.target.value as FeedbackStatus)
-          }
-          className={`cursor-pointer rounded-lg px-2.5 py-1.5 text-sm font-medium shadow-sm outline-none ring-1 ring-inset transition-colors focus:ring-2 focus:ring-indigo-300 disabled:cursor-wait disabled:opacity-50 ${STATUS_STYLES[item.status]}`}
-        >
-          {FEEDBACK_STATUSES.map((status) => (
-            <option key={status} value={status}>
-              {STATUS_LABELS[status]}
-            </option>
-          ))}
-        </select>
+          tone={STATUS_STYLES[item.status]}
+          onChange={onStatusChange}
+          options={FEEDBACK_STATUSES.map((status) => ({
+            value: status,
+            label: STATUS_LABELS[status],
+          }))}
+        />
         {isSaving && <span className="text-xs text-slate-400">Saving…</span>}
       </div>
     </article>
@@ -308,20 +364,15 @@ export default function FeedbackBoard({
           <label htmlFor="sort-order" className="text-sm text-slate-600">
             Sort
           </label>
-          <select
+          <Select
             id="sort-order"
             value={sortOrder}
-            onChange={(event) =>
-              setSortOrder(event.target.value as SortOrder)
-            }
-            className="cursor-pointer rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm text-ink shadow-sm outline-none transition-colors focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
-          >
-            {(Object.keys(SORT_LABELS) as SortOrder[]).map((order) => (
-              <option key={order} value={order}>
-                {SORT_LABELS[order]}
-              </option>
-            ))}
-          </select>
+            onChange={setSortOrder}
+            options={(Object.keys(SORT_LABELS) as SortOrder[]).map((order) => ({
+              value: order,
+              label: SORT_LABELS[order],
+            }))}
+          />
 
           {hasFilters && (
             <>

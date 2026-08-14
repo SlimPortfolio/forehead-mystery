@@ -28,7 +28,14 @@ export default function PlayerList({
   onOpenLookingGlass,
 }: PlayerListProps) {
   const currentPlayerId = room.turnOrder[room.currentTurnIndex];
-  const orderedPlayers = orderPlayersByTurn(room);
+  // A player who left/was kicked mid-game (`departed`) is stripped from
+  // turnOrder but kept in `room.players` for the postgame debrief — filter
+  // them back out here so they don't show up as a stale live row (kicking
+  // doesn't always end the game; see handleKickPlayer's isActiveTurnPhase
+  // logic). FinishedScreen deliberately does NOT filter them out.
+  const orderedPlayers = orderPlayersByTurn(room).filter(
+    (player) => !player.departed,
+  );
   const suit = suitForGame(room.gameNumber);
   // Host-synced special deck (see Room.bokSpecial). Passed explicitly so every
   // player's cards match the host's setting, not their own ?bok-special URL.
