@@ -165,37 +165,74 @@ function Section({
   emptyMessage,
   onStatusChange,
   savingId,
+  collapsible = false,
+  defaultOpen = true,
 }: {
   title: string;
   items: FeedbackRecord[];
   emptyMessage: string;
   onStatusChange: (id: string, status: FeedbackStatus) => void;
   savingId: string | null;
+  collapsible?: boolean;
+  defaultOpen?: boolean;
 }) {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+  const expanded = !collapsible || isOpen;
+
+  const heading = (
+    <span className="flex items-center gap-2 text-lg font-semibold text-ink">
+      {title}
+      <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-semibold text-slate-700">
+        {items.length}
+      </span>
+    </span>
+  );
+
   return (
     <section className="space-y-3">
-      <h2 className="flex items-center gap-2 text-lg font-semibold text-ink">
-        {title}
-        <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-semibold text-slate-700">
-          {items.length}
-        </span>
-      </h2>
-      {items.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-slate-300 p-4 text-sm text-slate-500">
-          {emptyMessage}
-        </p>
+      {collapsible ? (
+        <button
+          type="button"
+          onClick={() => setIsOpen((current) => !current)}
+          aria-expanded={expanded}
+          className="flex w-full items-center justify-between gap-2 text-left"
+        >
+          {heading}
+          <ChevronDown
+            className={`h-5 w-5 shrink-0 text-slate-400 transition-transform ${
+              expanded ? "rotate-180" : ""
+            }`}
+            strokeWidth={2}
+          />
+        </button>
       ) : (
-        <div className="space-y-3">
-          {items.map((item) => (
-            <FeedbackCard
-              key={item.id}
-              item={item}
-              isSaving={savingId === item.id}
-              onStatusChange={(status) => onStatusChange(item.id, status)}
-            />
-          ))}
-        </div>
+        <h2>{heading}</h2>
       )}
+      <div
+        aria-hidden={!expanded}
+        className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${
+          expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+        }`}
+      >
+        <div className="overflow-hidden">
+          {items.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-slate-300 p-4 text-sm text-slate-500">
+              {emptyMessage}
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {items.map((item) => (
+                <FeedbackCard
+                  key={item.id}
+                  item={item}
+                  isSaving={savingId === item.id}
+                  onStatusChange={(status) => onStatusChange(item.id, status)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </section>
   );
 }
@@ -442,6 +479,8 @@ export default function FeedbackBoard({
             emptyMessage="Nothing has been closed out yet."
             onStatusChange={handleStatusChange}
             savingId={savingId}
+            collapsible
+            defaultOpen={false}
           />
         </>
       )}
