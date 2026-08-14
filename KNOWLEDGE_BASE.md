@@ -58,6 +58,24 @@ The scratchpad toggle cycle (`possible → impossible → most-likely → possib
 
 Cards auto-disabled because another player visibly holds them are labeled **"That's not possible"** (distinct wording) rather than "Impossible", to differentiate system-inferred impossibility from a player's own manual marking.
 
+### Departed players are ghost seats, not deletions
+
+A player who leaves an active game or gets kicked is **not** removed from `room.players` — `markPlayerAsGone` (in `page.tsx`, replacing the older `removePlayerFromRoom`) instead flags them `departed: "left" | "kicked"`, drops them from `turnOrder`, and reassigns `hostId` if they held it. The record (card/ranking/guess) sticks around purely so `FinishedScreen` can render a debrief row for them — it's the one place that deliberately does **not** filter `departed` out.
+
+Everywhere else that reads `room.players` has to filter `departed` back out, since the ghost seat is otherwise indistinguishable from a live one:
+- `PlayerList` filters it out of the live in-game roster (a kick doesn't always end the game immediately — see `handleKickPlayer`'s `isActiveTurnPhase` branch — so a departed player can still be sitting in `room.players` while everyone else keeps playing).
+- `RankSelectModal`'s `playerCount` is sourced from `room.turnOrder.length`, not `activePlayers.length` — `activePlayers` only excludes `pendingJoin`, not `departed`, so it would overcount once someone's been kicked mid-ranking.
+- `KickPlayerModal` filters departed players out of the kick list (already gone, nothing to kick).
+- The room-cap check in `PATCH /api/rooms/[roomCode]` (join route) and the client-side pre-check in `joinOrCreateRoom` both count only non-departed players against `MAX_ROOM_PLAYERS`, so a ghost seat doesn't block a new player from joining.
+
+Ghost seats are purged for good in `startNextGame` (filtered out of `carryoverPlayers` before dealing the next hand) — they never persist across games.
+
+**Gotcha:** `wasRemovedFromRoom` (drives `RemovedFromRoomScreen`) is keyed specifically on `myPlayer?.departed === "kicked"`, not on "am I still in `room.players`" (which used to be the check, back when leaving/kicking deleted the record). It's narrowed to `"kicked"` because a player who leaves voluntarily already sets `joined = false` locally in the same action that writes `departed: "left"` — checking any `departed` value here would risk that screen flashing on the leaving player's own client.
+
+### Mid-game joiners no longer get a dedicated screen
+
+`PendingJoinScreen` was deleted; a player with `pendingJoin: true` now sees the normal in-game view with an inline dashed banner ("A game is already in progress...") instead of being routed to a separate component. Behavior (wait, get dealt in at the next game) is unchanged — this was a UI consolidation, not a logic change.
+
 ### Scratchpad / new-game reset
 
 Scratchpad clearing is driven by detecting a **phase transition into** `ranking` at `round === 1` (compared against the *previous* phase via a ref), not just by checking those two field values in isolation — matching on the raw values alone is fragile because a "new game" and "still mid-lobby" state can look identical on those two fields alone (see git history around this if it regresses).

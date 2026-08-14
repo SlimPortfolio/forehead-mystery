@@ -170,6 +170,10 @@ The results screen displays:
 
 If every player correctly identified their own card, a "Perfect game" banner is shown, and the host may save the win — see [Section 7](#7-win-condition).
 
+### Players Leaving or Being Removed
+
+If a player who has already been dealt into the active game leaves voluntarily or is removed by the host, the current game ends immediately for the whole room (same as a normal game end). Their seat is not simply erased, though — the results screen still shows a row for them (visually muted, labeled "Left the lobby" or "Removed from the room" as appropriate) along with their assigned card, ranking, and guess outcome if they had already guessed, so the group can still debrief the game. If the departing player was the host, host duties automatically pass to another remaining player. These leftover rows are cleared out for good once the host starts the next game, and in the meantime they do not count against the 4–8 player limits described in [Section 2](#2-game-rules).
+
 ---
 
 ## 3.6 Starting a New Game

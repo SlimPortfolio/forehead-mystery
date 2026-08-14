@@ -11,6 +11,7 @@ type GameHeaderProps = {
   onEndGame: () => void;
   onRemovePlayer: () => void;
   onLeaveGame: () => void;
+  onLeaveAsHost: () => void;
 };
 
 const PHASE_LABEL: Record<GamePhase, string> = {
@@ -31,6 +32,7 @@ export default function GameHeader({
   onEndGame,
   onRemovePlayer,
   onLeaveGame,
+  onLeaveAsHost,
 }: GameHeaderProps) {
   return (
     <div className="flex items-start justify-between">
@@ -47,6 +49,7 @@ export default function GameHeader({
         onEndGame={onEndGame}
         onRemovePlayer={onRemovePlayer}
         onLeaveGame={onLeaveGame}
+        onLeaveAsHost={onLeaveAsHost}
       />
     </div>
   );

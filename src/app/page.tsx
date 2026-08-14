@@ -9,6 +9,7 @@ import {
   ChatMessage,
   GamePhase,
   getMostRecentWrongGuesserName,
+  isBotPlayer,
   Player,
   PostGameChatMessage,
   Room,
@@ -36,6 +37,7 @@ import { fireVictoryConfetti } from "@/lib/confetti";
 import TransitionOverlay from "@/components/game/TransitionOverlay";
 import RemovedFromRoomScreen from "@/components/game/RemovedFromRoomScreen";
 import KickPlayerModal from "@/components/game/KickPlayerModal";
+import AssignHostModal from "@/components/game/AssignHostModal";
 import ToastStack, { ToastData } from "@/components/game/Toast";
 
 const POLL_INTERVAL_MS = 2000;
@@ -78,12 +80,6 @@ const appUrl = (
 
 function createId(prefix: string) {
   return `${prefix}-${Math.random().toString(36).slice(2, 8)}`;
-}
-
-// Bots are created with `createId("test-player")`. Detect them by id prefix
-// rather than display name so renaming the bot name pool never disables them.
-function isBotPlayer(player: { id: string }) {
-  return player.id.startsWith("test-player");
 }
 
 function shuffle<T>(values: T[]) {
@@ -129,15 +125,18 @@ function createRoom(
 // Pulls a player out of active play without deleting their Player record:
 // drops them from `turnOrder` and shifts `currentTurnIndex` down if the
 // departed seat was ahead of it (same as a hard removal would), and promotes
-// the next remaining (non-departed) player to host if the departing player
-// held it. Their card/ranking/guess stay on the record — flagged `departed`
-// instead — so the postgame debrief can still show them. Shared by both
-// "leave" and "kick"; `reason` drives the label shown on the debrief ghost
-// row. Purged for good once the next game is dealt (see startNextGame).
+// a remaining (non-departed) player to host if the departing player held it —
+// `preferredHostId` when the departing host chose a successor, otherwise the
+// next remaining player. Their card/ranking/guess stay on the record —
+// flagged `departed` instead — so the postgame debrief can still show them.
+// Shared by "leave", "kick", and the host hand-off flow; `reason` drives the
+// label shown on the debrief ghost row. Purged for good once the next game
+// is dealt (see startNextGame).
 function markPlayerAsGone(
   room: Room,
   departedPlayerId: string,
   reason: "left" | "kicked",
+  preferredHostId?: string,
 ): Room {
   const removedIndexInOrder = room.turnOrder.indexOf(departedPlayerId);
   const nextTurnOrder = room.turnOrder.filter((id) => id !== departedPlayerId);
@@ -149,9 +148,11 @@ function markPlayerAsGone(
 
   const nextHostId =
     room.hostId === departedPlayerId
-      ? (room.players.find(
-          (player) => player.id !== departedPlayerId && !player.departed,
-        )?.id ?? "")
+      ? (preferredHostId ??
+          room.players.find(
+            (player) => player.id !== departedPlayerId && !player.departed,
+          )?.id ??
+          "")
       : room.hostId;
 
   const nextPlayers = room.players.map((player) =>
@@ -269,6 +270,7 @@ export default function Home() {
   // name) used to diff who arrived or left between room updates.
   const [toasts, setToasts] = useState<ToastData[]>([]);
   const prevPlayerNamesRef = useRef<Map<string, string> | null>(null);
+  const prevHostIdRef = useRef<string | null>(null);
   const previousPhaseRef = useRef<GamePhase | null>(null);
   const roomRef = useRef<Room | null>(null);
   const suppressPollUntilRef = useRef<number>(0);
@@ -497,6 +499,32 @@ export default function Home() {
     }
   }, [room?.players, joined, playerId]);
 
+  // Tell a player when they've just become the host (e.g. the previous host
+  // handed off before leaving). Diffs hostId the same way the roster effect
+  // above diffs players: the first observation just primes the ref, so
+  // creating/joining a room where you're already (or not yet) host never
+  // fires this on arrival — only an actual mid-session change does.
+  useEffect(() => {
+    if (!room?.hostId || !joined || !playerId) return;
+
+    const previousHostId = prevHostIdRef.current;
+    prevHostIdRef.current = room.hostId;
+
+    if (previousHostId === null || previousHostId === room.hostId) return;
+    if (room.hostId !== playerId) return;
+
+    setToasts((current) =>
+      [
+        ...current,
+        {
+          id: `new-host-${playerId}-${Date.now()}`,
+          message: "You are now the host",
+          tone: "join" as const,
+        },
+      ].slice(-3),
+    );
+  }, [room?.hostId, joined, playerId]);
+
   // Reset every piece of "what did we see last" state when we leave a room, so
   // joining the next one primes fresh instead of diffing against the room we
   // just left. That covers the roster snapshot (so players already there aren't
@@ -507,6 +535,7 @@ export default function Home() {
   useEffect(() => {
     if (joined) return;
     prevPlayerNamesRef.current = null;
+    prevHostIdRef.current = null;
     previousTurnIndexRef.current = undefined;
     previousPhaseForSoundRef.current = undefined;
     wasConfirmationPhaseRef.current = undefined;
@@ -1674,6 +1703,36 @@ export default function Home() {
     setStatus("You left the game.");
   };
 
+  // Host-only counterpart to handleLeaveGame: lets the leaving host name a
+  // successor (picked in AssignHostModal) instead of leaving the room
+  // without anyone in charge. In the lobby there's no active game to end, so
+  // the departing host is simply dropped from the roster and everyone else
+  // stays put; anywhere past the lobby, leaving still ends the round for
+  // everyone (same as a normal leave) — the chosen player just inherits the
+  // host role for what happens next (finished screen, starting a new game).
+  const handleLeaveAsHost = (newHostId: string) => {
+    if (!room || !myPlayer || room.hostId !== playerId) return;
+
+    if (room.phase === "lobby") {
+      const nextPlayers = room.players
+        .filter((player) => player.id !== myPlayer.id)
+        .map((player) => ({ ...player, isHost: player.id === newHostId }));
+      submitRoomState({
+        ...room,
+        players: nextPlayers,
+        hostId: newHostId,
+        turnOrder: room.turnOrder.filter((id) => id !== myPlayer.id),
+      });
+    } else {
+      const nextRoom = markPlayerAsGone(room, myPlayer.id, "left", newHostId);
+      submitRoomState({ ...nextRoom, phase: "finished" });
+    }
+
+    setActiveModal(null);
+    setJoined(false);
+    setStatus("You left. A new host was assigned.");
+  };
+
   const handleKickPlayer = (targetPlayerId: string) => {
     if (!room || room.hostId !== playerId) return;
     const target = room.players.find((player) => player.id === targetPlayerId);
@@ -1935,6 +1994,7 @@ export default function Home() {
                 onStartWithBots={(totalPlayers) =>
                   startGame(true, false, totalPlayers)
                 }
+                onLeaveLobby={() => setActiveModal({ type: "assignHost" })}
               />
             ) : room.phase === "finished" ? (
               <FinishedScreen
@@ -1959,6 +2019,7 @@ export default function Home() {
                 onEndGame={handleEndGame}
                 onRemovePlayer={() => setActiveModal({ type: "kickPlayer" })}
                 onLeaveGame={handleLeaveGame}
+                onLeaveAsHost={() => setActiveModal({ type: "assignHost" })}
               />
             ) : (
               <div
@@ -1987,6 +2048,7 @@ export default function Home() {
                   onEndGame={handleEndGame}
                   onRemovePlayer={() => setActiveModal({ type: "kickPlayer" })}
                   onLeaveGame={handleLeaveGame}
+                  onLeaveAsHost={() => setActiveModal({ type: "assignHost" })}
                 />
 
                 <div className="mt-3">
@@ -2074,6 +2136,15 @@ export default function Home() {
           players={room.players.filter((player) => !player.departed)}
           hostId={room.hostId}
           onKick={handleKickPlayer}
+          onClose={() => setActiveModal(null)}
+        />
+      )}
+
+      {activeModal?.type === "assignHost" && room && playerId && (
+        <AssignHostModal
+          players={room.players}
+          currentHostId={playerId}
+          onAssign={handleLeaveAsHost}
           onClose={() => setActiveModal(null)}
         />
       )}

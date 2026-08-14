@@ -6,6 +6,12 @@ export type GamePhase =
   | "confirmation"
   | "finished";
 
+// Bots are created with `createId("test-player")`. Detect them by id prefix
+// rather than display name so renaming the bot name pool never disables them.
+export function isBotPlayer(player: { id: string }) {
+  return player.id.startsWith("test-player");
+}
+
 export type Player = {
   id: string;
   name: string;
@@ -245,4 +251,5 @@ export type ActiveModal =
   | { type: "lookingGlass"; playerId: string }
   | { type: "help" }
   | { type: "kickPlayer" }
+  | { type: "assignHost" }
   | null;

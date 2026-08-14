@@ -68,6 +68,7 @@ type FinishedScreenProps = {
   onEndGame: () => void;
   onRemovePlayer: () => void;
   onLeaveGame: () => void;
+  onLeaveAsHost: () => void;
 };
 
 export default function FinishedScreen({
@@ -88,6 +89,7 @@ export default function FinishedScreen({
   onEndGame,
   onRemovePlayer,
   onLeaveGame,
+  onLeaveAsHost,
 }: FinishedScreenProps) {
   const [cityValid, setCityValid] = useState(false);
   const [countries, setCountries] = useState<string[]>([]);
@@ -141,6 +143,7 @@ export default function FinishedScreen({
           onEndGame={onEndGame}
           onRemovePlayer={onRemovePlayer}
           onLeaveGame={onLeaveGame}
+          onLeaveAsHost={onLeaveAsHost}
         />
       </div>
       <div className="mt-3 space-y-2">

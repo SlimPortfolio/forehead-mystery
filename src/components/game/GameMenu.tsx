@@ -10,6 +10,7 @@ type GameMenuProps = {
   onEndGame: () => void;
   onRemovePlayer: () => void;
   onLeaveGame: () => void;
+  onLeaveAsHost: () => void;
 };
 
 function MenuItem({
@@ -49,6 +50,7 @@ export default function GameMenu({
   onEndGame,
   onRemovePlayer,
   onLeaveGame,
+  onLeaveAsHost,
 }: GameMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [justCopied, setJustCopied] = useState(false);
@@ -149,12 +151,20 @@ export default function GameMenu({
           />
           <div className="my-1 h-px bg-slate-100" />
           {isHost ? (
-            <MenuItem
-              icon={<XCircle className="h-5 w-5" strokeWidth={1.75} />}
-              label="End game and close room"
-              danger
-              onClick={runAndClose(onEndGame)}
-            />
+            <>
+              <MenuItem
+                icon={<LogOut className="h-5 w-5" strokeWidth={1.75} />}
+                label="Leave game (assign new host)"
+                danger
+                onClick={runAndClose(onLeaveAsHost)}
+              />
+              <MenuItem
+                icon={<XCircle className="h-5 w-5" strokeWidth={1.75} />}
+                label="End game and close room"
+                danger
+                onClick={runAndClose(onEndGame)}
+              />
+            </>
           ) : (
             <MenuItem
               icon={<LogOut className="h-5 w-5" strokeWidth={1.75} />}
