@@ -18,7 +18,7 @@ const EMPTY_FORM: FeedbackPayload = {
 };
 
 const inputClasses =
-  "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base text-ink shadow-sm outline-none transition-colors placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100";
+  "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base text-ink shadow-sm outline-none transition-colors placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:border-slate-600 dark:bg-slate-800 dark:placeholder:text-slate-500 dark:focus:border-indigo-500 dark:focus:ring-indigo-950";
 
 function Field({
   label,
@@ -37,15 +37,15 @@ function Field({
     <div className="space-y-1.5">
       <label
         htmlFor={htmlFor}
-        className="block text-sm font-medium text-slate-700"
+        className="block text-sm font-medium text-slate-700 dark:text-slate-200"
       >
         {label}
         {hint && (
-          <span className="ml-1.5 font-normal text-slate-400">{hint}</span>
+          <span className="ml-1.5 font-normal text-slate-400 dark:text-slate-500">{hint}</span>
         )}
       </label>
       {children}
-      {error && <p className="text-sm text-rose-600">{error}</p>}
+      {error && <p className="text-sm text-rose-600 dark:text-rose-400">{error}</p>}
     </div>
   );
 }
@@ -106,14 +106,14 @@ export default function FeedbackForm() {
 
   if (isSent) {
     return (
-      <div className="space-y-4 rounded-xl border border-emerald-200 bg-emerald-50 p-6 text-center">
+      <div className="space-y-4 rounded-xl border border-emerald-200 bg-emerald-50 p-6 text-center dark:border-emerald-700 dark:bg-emerald-950">
         <CheckCircle2
-          className="mx-auto h-10 w-10 text-emerald-600"
+          className="mx-auto h-10 w-10 text-emerald-600 dark:text-emerald-400"
           strokeWidth={1.75}
         />
         <div>
           <h2 className="text-xl font-semibold text-ink">Thanks for that!</h2>
-          <p className="mt-1 text-sm text-slate-600">
+          <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
             Your feedback is with the dev team. If you left a way to reach you,
             we&apos;ll follow up when we can.
           </p>
@@ -121,13 +121,13 @@ export default function FeedbackForm() {
         <div className="flex flex-wrap justify-center gap-2">
           <button
             onClick={() => setIsSent(false)}
-            className="rounded-lg border border-emerald-300 bg-white px-4 py-2 text-sm font-medium text-emerald-800 transition-colors hover:bg-emerald-100"
+            className="rounded-lg border border-emerald-300 bg-white px-4 py-2 text-sm font-medium text-emerald-800 transition-colors hover:bg-emerald-100 dark:border-emerald-700 dark:bg-slate-800 dark:text-emerald-300 dark:hover:bg-emerald-900"
           >
             Send more feedback
           </button>
           <Link
             href="/"
-            className="rounded-lg bg-ink px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+            className="rounded-lg bg-ink px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 dark:text-slate-900"
           >
             Back to the game
           </Link>
@@ -195,14 +195,14 @@ export default function FeedbackForm() {
           placeholder="Email, Instagram, Discord — whatever works"
           className={inputClasses}
         />
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-slate-500 dark:text-slate-400">
           We may have follow up questions, but only the dev team sees this.
           It&apos;s never shown in the game.
         </p>
       </Field>
 
       {submitError && (
-        <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+        <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:border-rose-700 dark:bg-rose-950 dark:text-rose-300">
           {submitError}
         </p>
       )}
@@ -210,7 +210,7 @@ export default function FeedbackForm() {
       <button
         type="submit"
         disabled={isSending}
-        className="flex w-full items-center justify-center gap-2 rounded-lg bg-ink px-4 py-3 text-base font-semibold text-white shadow-sm transition-opacity hover:opacity-90 disabled:opacity-50"
+        className="flex w-full items-center justify-center gap-2 rounded-lg bg-ink px-4 py-3 text-base font-semibold text-white shadow-sm transition-opacity hover:opacity-90 disabled:opacity-50 dark:text-slate-900"
       >
         <Send className="h-5 w-5" strokeWidth={1.75} />
         {isSending ? "Sending…" : "Send feedback"}

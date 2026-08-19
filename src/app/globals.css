@@ -1,16 +1,30 @@
 @import "tailwindcss";
 
+/* Tailwind v4 is CSS-first (no tailwind.config.js): this registers `dark:`
+   as a class-driven variant — toggled by adding/removing `.dark` on <html>
+   (see theme.ts + the inline script in layout.tsx) — instead of the default
+   `prefers-color-scheme` media query, so the in-app toggle can override the
+   OS setting. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --background: #eef1fb;
   --foreground: #211c4e;
+  /* Dark navy-indigo "ink" pulled from the doodle logo — used everywhere the
+     UI previously reached for near-black (slate-900/950) as its dark accent. */
+  --ink: #211c4e;
+}
+
+:root.dark {
+  --background: #14162b;
+  --foreground: #e7e6f5;
+  --ink: #e7e6f5;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  /* Dark navy-indigo "ink" pulled from the doodle logo — used everywhere the
-     UI previously reached for near-black (slate-900/950) as its dark accent. */
-  --color-ink: #211c4e;
+  --color-ink: var(--ink);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --font-display: var(--font-display);
@@ -131,6 +145,30 @@ body {
 .animate-turn-pulse {
   animation: turn-pulse 1.8s ease-in-out infinite;
 }
+
+/* Dark-mode take on the same breathe: the keyframes above hardcode amber-50
+   as their "light" endpoint, which reads as a glaring white patch against a
+   dark background, so dark mode gets its own darker-amber keyframes rather
+   than reusing turn-pulse's colors via a CSS variable. */
+@keyframes turn-pulse-dark {
+  0%,
+  100% {
+    border-color: #f59e0b; /* amber-500 */
+    background-color: #3f2d0a;
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.35);
+    animation-timing-function: ease-out;
+  }
+  50% {
+    border-color: #b45309; /* amber-700 */
+    background-color: #33240a;
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0);
+    animation-timing-function: ease-in;
+  }
+}
+.dark .animate-turn-pulse {
+  animation-name: turn-pulse-dark;
+}
+
 @media (prefers-reduced-motion: reduce) {
   /* Swap the 3D flip for a soft opacity cross-fade — a reveal without the
      vestibular motion that Reduce Motion is asking us to avoid (a full 3D spin
@@ -161,5 +199,11 @@ body {
     border-color: #fbbf24; /* amber-400 */
     background-color: #fffbeb; /* amber-50 */
     box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.3);
+  }
+  .dark .animate-turn-pulse {
+    animation: none;
+    border-color: #f59e0b; /* amber-500 */
+    background-color: #3f2d0a;
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.35);
   }
 }

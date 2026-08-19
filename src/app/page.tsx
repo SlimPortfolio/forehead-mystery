@@ -49,6 +49,12 @@ const NEW_GAME_TRANSITION_MS = 900;
 // A bit longer than each burst's own duration (see fireVictoryConfetti); the
 // trailing particles fall through the short gap so the screen stays covered.
 const VICTORY_CONFETTI_INTERVAL_MS = 6000;
+// How long the current-turn player can go without any detected activity
+// before other players see the "gone AFK?" clock indicator on their row.
+const AWAY_INDICATOR_THRESHOLD_MS = 10_000;
+// Minimum gap between activity pings the active player's own client sends —
+// no need to PATCH on every single pointermove.
+const ACTIVITY_PING_THROTTLE_MS = 5_000;
 const MAX_ROOM_PLAYERS = 8;
 // Bots draw a random (unique) name from this pool instead of "Test Player N".
 const TEST_PLAYER_NAMES = [
@@ -698,7 +704,13 @@ export default function Home() {
     if (!messages) return;
 
     for (const [senderId, message] of Object.entries(messages)) {
-      if (message.ts === lastChatTsRefs.current[senderId]) continue;
+      // "Newer than" rather than "different from": a poll response fetched
+      // before our own optimistic PATCH landed can carry a stale (earlier)
+      // message for a sender who has since emoted again. Treating that as
+      // "new" re-displayed the earlier emote on top of the one just picked;
+      // only actually-newer timestamps are allowed to (re)trigger a bubble.
+      const lastTs = lastChatTsRefs.current[senderId];
+      if (lastTs !== undefined && message.ts <= lastTs) continue;
       lastChatTsRefs.current[senderId] = message.ts;
 
       setActiveChatBubbles((current) => ({
@@ -760,6 +772,7 @@ export default function Home() {
               fetchedRoom.phase !== currentRoom.phase ||
               fetchedRoom.round !== currentRoom.round ||
               fetchedRoom.currentTurnIndex !== currentRoom.currentTurnIndex ||
+              fetchedRoom.turnActivityAt !== currentRoom.turnActivityAt ||
               fetchedRoom.players.length !== currentRoom.players.length ||
               fetchedRoom.turnOrder.join(",") !==
                 currentRoom.turnOrder.join(",") ||
@@ -1232,6 +1245,23 @@ export default function Home() {
   };
 
   const submitRoomState = (nextRoom: Room) => {
+    // A turn hand-off — a rank/guess submission, a bot auto-play, or the
+    // confirmation-phase auto-advance — restarts the inactivity clock for
+    // whoever's turn it is now. Without this a fresh turn would inherit the
+    // previous turn's (or a stale) activity timestamp and could immediately
+    // read as "away". Keyed on phase too, not just currentTurnIndex, since a
+    // new game's first turn can land back on index 0.
+    const turnContextChanged =
+      !room ||
+      nextRoom.currentTurnIndex !== room.currentTurnIndex ||
+      nextRoom.phase !== room.phase;
+    if (
+      turnContextChanged &&
+      (nextRoom.phase === "ranking" || nextRoom.phase === "guessing")
+    ) {
+      nextRoom = { ...nextRoom, turnActivityAt: Date.now() };
+    }
+
     setRoom(nextRoom);
     // Ignore poll responses for a moment after our own optimistic update,
     // so a slightly-lagging GET (fetched before our PATCH lands on the
@@ -1260,6 +1290,73 @@ export default function Home() {
       });
     });
   };
+
+  // ─── Turn-inactivity indicator ─────────────────────────────────────────
+  // Refresh `room.turnActivityAt` whenever the active player interacts with
+  // anything — not just when they submit a rank/guess/emote — so browsing the
+  // scratchpad or another modal counts as "still here" and doesn't trigger
+  // the away indicator on everyone else's screen.
+  const lastActivityPingRef = useRef<number>(0);
+
+  const pingTurnActivity = useCallback(() => {
+    if (!room || !isMyActiveTurn) return;
+    const now = Date.now();
+    if (now - lastActivityPingRef.current < ACTIVITY_PING_THROTTLE_MS) return;
+    lastActivityPingRef.current = now;
+
+    setRoom((current) =>
+      current ? { ...current, turnActivityAt: now } : current,
+    );
+    fetch(`${appUrl}/api/rooms/${room.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ turnActivityAt: now }),
+    }).catch(() => {});
+  }, [room, isMyActiveTurn]);
+
+  useEffect(() => {
+    if (!isMyActiveTurn) return;
+    const handleActivity = () => pingTurnActivity();
+    window.addEventListener("pointerdown", handleActivity);
+    window.addEventListener("pointermove", handleActivity);
+    window.addEventListener("keydown", handleActivity);
+    window.addEventListener("scroll", handleActivity, true);
+    return () => {
+      window.removeEventListener("pointerdown", handleActivity);
+      window.removeEventListener("pointermove", handleActivity);
+      window.removeEventListener("keydown", handleActivity);
+      window.removeEventListener("scroll", handleActivity, true);
+    };
+  }, [isMyActiveTurn, pingTurnActivity]);
+
+  // "Now", sampled once a second (only while it matters) and kept in state
+  // rather than read via Date.now() during render — reading the clock is an
+  // impure call, so it belongs in the effect that owns the interval, not in
+  // the render-time computation below. Starts at 0 (not Date.now()) so the
+  // very first render — before this effect has run even once — computes a
+  // negative/undersized elapsed time and simply hides the indicator instead
+  // of guessing.
+  const [awayCheckNow, setAwayCheckNow] = useState(0);
+  useEffect(() => {
+    if (!room || (room.phase !== "ranking" && room.phase !== "guessing")) {
+      return;
+    }
+    const interval = setInterval(() => setAwayCheckNow(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, [room?.phase]);
+
+  // Seconds since the current-turn player's last detected activity, once
+  // past the threshold — null hides the indicator entirely. Only ever
+  // attached to the current-turn player's row (see PlayerList).
+  const turnAwaySeconds = (() => {
+    if (!room || (room.phase !== "ranking" && room.phase !== "guessing")) {
+      return null;
+    }
+    if (!room.turnActivityAt || !awayCheckNow) return null;
+    const elapsedMs = awayCheckNow - room.turnActivityAt;
+    if (elapsedMs < AWAY_INDICATOR_THRESHOLD_MS) return null;
+    return Math.floor(elapsedMs / 1000);
+  })();
 
   const joinOrCreateRoom = async (code: string, createNew = false) => {
     if (!playerId || !playerName.trim()) {
@@ -1906,11 +2003,13 @@ export default function Home() {
   // The bottom action bar is only for active play. On the finished screen the
   // scratchpad is reached via a dedicated "Review Scratchpad" button instead,
   // so we don't show a bar full of grayed-out Rank/Guess actions there.
+  // Players waiting to join the next game (isPendingForActiveGame) get it too
+  // now, so they can emote — Rank/Guess stay effectively disabled for them
+  // since isMyTurn can never be true while they're outside turnOrder.
   const showActionBar = Boolean(
     joined &&
     room &&
     !wasRemovedFromRoom &&
-    !isPendingForActiveGame &&
     room.phase !== "lobby" &&
     room.phase !== "finished",
   );
@@ -1940,12 +2039,12 @@ export default function Home() {
       : null;
 
   return (
-    <main className="flex h-dvh w-full flex-col overflow-hidden bg-[radial-gradient(ellipse_at_top,#f6f4fe_0%,#e8ecfb_55%,#dde5f6_100%)] text-ink">
+    <main className="flex h-dvh w-full flex-col overflow-hidden bg-[radial-gradient(ellipse_at_top,#f6f4fe_0%,#e8ecfb_55%,#dde5f6_100%)] text-ink dark:bg-[radial-gradient(ellipse_at_top,#232544_0%,#1a1c35_55%,#131426_100%)]">
       <AppHeader
         onLogoClick={handleLogoClick}
         badge={
           isHighEloMatch ? (
-            <span className="rounded-full bg-pink-300 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide text-black">
+            <span className="rounded-full bg-pink-300 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide text-black dark:bg-pink-600 dark:text-white">
               High Elo
             </span>
           ) : undefined
@@ -2039,17 +2138,17 @@ export default function Home() {
               />
             ) : (
               <div
-                className={`relative flex-1 min-h-0 overflow-y-auto border border-slate-200 p-3 shadow-sm backdrop-blur transition-colors duration-500 sm:p-4 ${
+                className={`relative flex-1 min-h-0 overflow-y-auto border border-slate-200 p-3 shadow-sm backdrop-blur transition-colors duration-500 sm:p-4 dark:border-slate-700 ${
                   isMyActiveTurn
-                    ? "bg-[radial-gradient(ellipse_at_top,#f6f4fe_0%,#e8ecfb_55%,#dde5f6_100%)]"
-                    : "bg-white/80"
+                    ? "bg-[radial-gradient(ellipse_at_top,#f6f4fe_0%,#e8ecfb_55%,#dde5f6_100%)] dark:bg-[radial-gradient(ellipse_at_top,#232544_0%,#1a1c35_55%,#131426_100%)]"
+                    : "bg-white/80 dark:bg-slate-800/80"
                 }`}
               >
                 {isTransitioning && (
                   <TransitionOverlay label="Loading new game..." />
                 )}
                 {isPendingForActiveGame && (
-                  <div className="mb-3 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                  <div className="mb-3 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
                     A game is already in progress — you&apos;ll be dealt in
                     once it wraps up. Here&apos;s what&apos;s happening:
                   </div>
@@ -2073,6 +2172,7 @@ export default function Home() {
                     playerId={playerId}
                     activeChatBubbles={activeChatBubbles}
                     cardRevealCount={cardRevealCount}
+                    turnAwaySeconds={turnAwaySeconds}
                     onOpenLookingGlass={(id) =>
                       setActiveModal({ type: "lookingGlass", playerId: id })
                     }

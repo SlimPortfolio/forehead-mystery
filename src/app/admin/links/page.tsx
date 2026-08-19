@@ -56,22 +56,22 @@ export default async function AdminLinksPage() {
   const baseUrl = admin ? await resolveBaseUrl() : "";
 
   return (
-    <main className="flex h-dvh w-full flex-col overflow-hidden bg-[radial-gradient(ellipse_at_top,#f6f4fe_0%,#e8ecfb_55%,#dde5f6_100%)] text-ink">
+    <main className="flex h-dvh w-full flex-col overflow-hidden bg-[radial-gradient(ellipse_at_top,#f6f4fe_0%,#e8ecfb_55%,#dde5f6_100%)] text-ink dark:bg-[radial-gradient(ellipse_at_top,#232544_0%,#1a1c35_55%,#131426_100%)]">
       <WinnersHeader>{admin && <AccountButton />}</WinnersHeader>
       <div className="mx-auto flex w-full min-h-0 max-w-2xl flex-1 flex-col gap-3">
-        <section className="flex-1 min-h-0 space-y-6 overflow-y-auto border border-slate-200 bg-white/80 p-5 shadow-sm backdrop-blur">
+        <section className="flex-1 min-h-0 space-y-6 overflow-y-auto border border-slate-200 bg-white/80 p-5 shadow-sm backdrop-blur dark:border-slate-700 dark:bg-slate-800/80">
           {admin ? (
             <>
               <div>
                 <Link
                   href="/admin"
-                  className="inline-flex items-center gap-1.5 text-sm font-medium text-indigo-700 hover:underline"
+                  className="inline-flex items-center gap-1.5 text-sm font-medium text-indigo-700 hover:underline dark:text-indigo-400"
                 >
                   <ArrowLeft className="h-4 w-4" strokeWidth={1.75} />
                   Back to feedback
                 </Link>
                 <h1 className="mt-2 text-3xl font-semibold">Special links</h1>
-                <p className="mt-2 max-w-2xl text-sm text-slate-600">
+                <p className="mt-2 max-w-2xl text-sm text-slate-600 dark:text-slate-300">
                   URL flags usable to enable special features on the game.
                 </p>
                 {/* Stated explicitly because these links intentionally point at

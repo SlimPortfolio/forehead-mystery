@@ -27,33 +27,33 @@ function LinkRow({ link, baseUrl }: { link: SpecialLink; baseUrl: string }) {
   };
 
   return (
-    <article className="space-y-2 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+    <article className="space-y-2 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
       <div className="flex flex-wrap items-center gap-2">
         <h2 className="font-semibold text-ink">{link.label}</h2>
-        <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-700">
+        <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-700 dark:bg-slate-700 dark:text-slate-200">
           {link.query}
         </code>
       </div>
 
-      <p className="text-sm text-slate-600">{link.description}</p>
+      <p className="text-sm text-slate-600 dark:text-slate-300">{link.description}</p>
 
       <div className="flex items-center gap-2">
-        <code className="min-w-0 flex-1 truncate rounded-lg bg-slate-50 px-2.5 py-1.5 text-xs text-slate-700 ring-1 ring-inset ring-slate-200">
+        <code className="min-w-0 flex-1 truncate rounded-lg bg-slate-50 px-2.5 py-1.5 text-xs text-slate-700 ring-1 ring-inset ring-slate-200 dark:bg-slate-900 dark:text-slate-300 dark:ring-slate-700">
           {fullUrl}
         </code>
         {/* A ?room=CODE link is a template, not something you can paste as-is —
             copying it would just hand you a broken URL. */}
         {link.needsValue ? (
-          <span className="flex-shrink-0 text-xs text-slate-400">
+          <span className="flex-shrink-0 text-xs text-slate-400 dark:text-slate-500">
             fill in CODE
           </span>
         ) : (
           <button
             onClick={handleCopy}
-            className="flex flex-shrink-0 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-50"
+            className="flex flex-shrink-0 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
           >
             {copied ? (
-              <Check className="h-3.5 w-3.5 text-emerald-600" strokeWidth={2} />
+              <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" strokeWidth={2} />
             ) : (
               <Copy className="h-3.5 w-3.5" strokeWidth={1.75} />
             )}
@@ -80,7 +80,7 @@ export default function SpecialLinkList({
       {links.map((link) => (
         <LinkRow key={link.query} link={link} baseUrl={baseUrl} />
       ))}
-      <p className="rounded-lg bg-slate-100 px-3 py-2 text-xs text-slate-600">
+      <p className="rounded-lg bg-slate-100 px-3 py-2 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-300">
         {COMBINE_HINT}
       </p>
     </div>

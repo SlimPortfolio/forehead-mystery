@@ -29,8 +29,8 @@ function MenuItem({
       onClick={onClick}
       className={`flex w-full cursor-pointer items-center gap-3 px-3.5 py-2.5 text-left text-base transition-colors ${
         danger
-          ? "text-rose-700 hover:bg-rose-50"
-          : "text-slate-800 hover:bg-slate-100"
+          ? "text-rose-700 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950"
+          : "text-slate-800 hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-700"
       }`}
     >
       {icon}
@@ -112,21 +112,21 @@ export default function GameMenu({
         aria-expanded={isOpen}
         className={`cursor-pointer rounded-full px-2 py-1 text-2xl leading-none transition-colors ${
           isOpen
-            ? "bg-slate-200 text-slate-700"
-            : "text-slate-500 hover:bg-slate-100"
+            ? "bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200"
+            : "text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"
         }`}
       >
         &#8942;
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 top-full z-40 mt-1 w-72 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+        <div className="absolute right-0 top-full z-40 mt-1 w-72 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 shadow-lg dark:border-slate-700 dark:bg-slate-800">
           {isHost && (
             <>
               <MenuItem
                 icon={
                   <RefreshCw
-                    className="h-5 w-5 text-emerald-600"
+                    className="h-5 w-5 text-emerald-600 dark:text-emerald-400"
                     strokeWidth={1.75}
                   />
                 }
@@ -135,7 +135,7 @@ export default function GameMenu({
               />
               <MenuItem
                 icon={
-                  <UserX className="h-5 w-5 text-slate-500" strokeWidth={1.75} />
+                  <UserX className="h-5 w-5 text-slate-500 dark:text-slate-400" strokeWidth={1.75} />
                 }
                 label="Remove player from room"
                 onClick={runAndClose(onRemovePlayer)}
@@ -144,12 +144,12 @@ export default function GameMenu({
           )}
           <MenuItem
             icon={
-              <Share className="h-5 w-5 text-slate-500" strokeWidth={1.75} />
+              <Share className="h-5 w-5 text-slate-500 dark:text-slate-400" strokeWidth={1.75} />
             }
             label={justCopied ? "Link copied!" : "Share link for the game"}
             onClick={handleShareLink}
           />
-          <div className="my-1 h-px bg-slate-100" />
+          <div className="my-1 h-px bg-slate-100 dark:bg-slate-700" />
           {isHost ? (
             <>
               <MenuItem

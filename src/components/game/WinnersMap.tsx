@@ -128,7 +128,7 @@ export default function WinnersMap({ winners }: WinnersMapProps) {
 
   if (pins.length === 0) {
     return (
-      <p className="text-sm text-slate-500">
+      <p className="text-sm text-slate-500 dark:text-slate-400">
         No winners with a recognized location yet.
       </p>
     );
@@ -137,7 +137,7 @@ export default function WinnersMap({ winners }: WinnersMapProps) {
   return (
     <div
       ref={containerRef}
-      className="h-96 w-full rounded-xl border border-slate-200"
+      className="h-96 w-full rounded-xl border border-slate-200 dark:border-slate-700"
     />
   );
 }

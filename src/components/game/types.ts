@@ -68,6 +68,12 @@ export type Room = {
    * Appended to server-side via $push (see /api/rooms/[roomCode]) so
    * concurrent senders can't clobber each other's messages. */
   postGameChat?: PostGameChatMessage[];
+  /** Timestamp (ms) of the last detected activity from whoever's turn it
+   * currently is. Reset whenever the turn hands off (see submitRoomState in
+   * page.tsx) and refreshed by the active player's own client on any
+   * interaction. Drives the "gone AFK?" clock indicator shown on their row
+   * once it goes stale — see AWAY_INDICATOR_THRESHOLD_MS. */
+  turnActivityAt?: number;
 };
 
 /** Preset trash-talk lines players can fire off during a game. Kept

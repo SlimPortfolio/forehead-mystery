@@ -51,22 +51,22 @@ export default function RoomChat({
   };
 
   return (
-    <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+    <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900">
       <h4 className="font-semibold text-ink">{title}</h4>
       <div className="mt-2 h-56 space-y-1.5 overflow-y-auto pr-1">
         {messages.length === 0 ? (
-          <p className="text-sm text-slate-500">No messages yet.</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">No messages yet.</p>
         ) : (
           messages.map((message) => (
             <p key={message.id} className="text-sm">
               <span
                 className={`font-semibold ${
-                  message.playerId === playerId ? "text-ink" : "text-pink-600"
+                  message.playerId === playerId ? "text-ink" : "text-pink-600 dark:text-pink-400"
                 }`}
               >
                 {message.playerId === playerId ? "You" : message.playerName}:
               </span>{" "}
-              <span className="text-slate-700">{message.text}</span>
+              <span className="text-slate-700 dark:text-slate-200">{message.text}</span>
             </p>
           ))
         )}
@@ -83,18 +83,18 @@ export default function RoomChat({
           }}
           maxLength={200}
           placeholder="Say something..."
-          className="flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+          className="flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-800"
         />
         <button
           onClick={handleSend}
           disabled={!draft.trim() || onCooldown}
-          className="rounded-2xl bg-ink px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500"
+          className="rounded-2xl bg-ink px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500 dark:text-slate-900 dark:disabled:bg-slate-700 dark:disabled:text-slate-400"
         >
           Send
         </button>
       </div>
       {error && (
-        <p role="alert" className="mt-2 text-xs font-medium text-red-600">
+        <p role="alert" className="mt-2 text-xs font-medium text-red-600 dark:text-red-400">
           {error}
         </p>
       )}

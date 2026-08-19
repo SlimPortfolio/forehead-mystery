@@ -23,7 +23,7 @@ const INTERNATIONAL = "INTL";
 /** Chip shown next to the sole player who guessed wrong. */
 function JesterChip() {
   return (
-    <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-amber-300 bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+    <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-amber-300 bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-300">
       Jester!
       <span aria-hidden>🃏</span>
     </span>
@@ -34,7 +34,7 @@ function JesterChip() {
  * Jester (only one person correct instead of only one person wrong). */
 function KingChip() {
   return (
-    <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-emerald-300 bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800">
+    <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-emerald-300 bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800 dark:border-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
       King!
       <span aria-hidden>👑</span>
     </span>
@@ -133,7 +133,7 @@ export default function FinishedScreen({
   const kingId = correctPlayers.length === 1 ? correctPlayers[0].id : null;
 
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto border border-slate-200 bg-white/80 p-4 shadow-sm backdrop-blur">
+    <div className="flex-1 min-h-0 overflow-y-auto border border-slate-200 bg-white/80 p-4 shadow-sm backdrop-blur dark:border-slate-700 dark:bg-slate-800/80">
       <div className="flex items-start justify-between">
         <h3 className="text-lg font-semibold">Game complete</h3>
         <GameMenu
@@ -154,11 +154,11 @@ export default function FinishedScreen({
             return (
               <div
                 key={player.id}
-                className="flex items-center justify-between gap-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-3 opacity-60"
+                className="flex items-center justify-between gap-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-3 opacity-60 dark:border-slate-700 dark:bg-slate-900"
               >
                 <div>
-                  <p className="font-semibold text-slate-500">{player.name}</p>
-                  <p className="text-sm text-slate-400">Will join next game</p>
+                  <p className="font-semibold text-slate-500 dark:text-slate-400">{player.name}</p>
+                  <p className="text-sm text-slate-400 dark:text-slate-500">Will join next game</p>
                 </div>
                 <PlayingCard card={null} suit={suit} size="sm" special={special} />
               </div>
@@ -173,11 +173,11 @@ export default function FinishedScreen({
             return (
               <div
                 key={player.id}
-                className="flex items-center justify-between gap-3 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-3 opacity-80"
+                className="flex items-center justify-between gap-3 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-3 opacity-80 dark:border-slate-700 dark:bg-slate-900"
               >
                 <div>
-                  <p className="font-semibold text-slate-500">{player.name}</p>
-                  <p className="text-sm text-slate-400">
+                  <p className="font-semibold text-slate-500 dark:text-slate-400">{player.name}</p>
+                  <p className="text-sm text-slate-400 dark:text-slate-500">
                     {player.departed === "kicked"
                       ? "Removed from the room"
                       : "Left the lobby"}
@@ -186,8 +186,8 @@ export default function FinishedScreen({
                     <p
                       className={`text-sm ${
                         departedOutcome.tone === "success"
-                          ? "text-emerald-700"
-                          : "text-rose-700"
+                          ? "text-emerald-700 dark:text-emerald-300"
+                          : "text-rose-700 dark:text-rose-300"
                       }`}
                     >
                       {departedOutcome.text}
@@ -197,7 +197,7 @@ export default function FinishedScreen({
                 <div className="flex flex-shrink-0 items-center gap-2">
                   <PlayingCard card={player.card ?? null} suit={suit} size="sm" special={special} />
                   <div className="flex flex-col items-center gap-0.5">
-                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-amber-800">
+                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-amber-800 dark:bg-amber-950 dark:text-amber-300">
                       Rank
                     </span>
                     <span className="text-sm font-bold leading-none text-ink">
@@ -212,10 +212,10 @@ export default function FinishedScreen({
           const outcome = getGuessOutcome(player);
           const borderClass =
             outcome?.tone === "success"
-              ? "border-emerald-300 bg-emerald-50"
+              ? "border-emerald-300 bg-emerald-50 dark:border-emerald-700 dark:bg-emerald-950"
               : outcome?.tone === "error"
-                ? "border-rose-300 bg-rose-50"
-                : "border-slate-200 bg-slate-50";
+                ? "border-rose-300 bg-rose-50 dark:border-rose-700 dark:bg-rose-950"
+                : "border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900";
 
           return (
             <div
@@ -231,7 +231,7 @@ export default function FinishedScreen({
                     <button
                       onClick={() => onOpenLookingGlass(player.id)}
                       aria-label={`Open ${player.name}'s Looking Glass`}
-                      className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border border-slate-300 text-slate-500"
+                      className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border border-slate-300 text-slate-500 dark:border-slate-600 dark:text-slate-400"
                     >
                       <Telescope className="h-3.5 w-3.5" strokeWidth={2} />
                     </button>
@@ -241,8 +241,8 @@ export default function FinishedScreen({
                   <p
                     className={`text-sm ${
                       outcome.tone === "success"
-                        ? "text-emerald-700"
-                        : "text-rose-700"
+                        ? "text-emerald-700 dark:text-emerald-300"
+                        : "text-rose-700 dark:text-rose-300"
                     }`}
                   >
                     {outcome.text}
@@ -252,7 +252,7 @@ export default function FinishedScreen({
               <div className="flex flex-shrink-0 items-center gap-2">
                 <PlayingCard card={player.card ?? null} suit={suit} size="sm" special={special} />
                 <div className="flex flex-col items-center gap-0.5">
-                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-amber-800">
+                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase text-amber-800 dark:bg-amber-950 dark:text-amber-300">
                     Rank
                   </span>
                   <span className="text-sm font-bold leading-none text-ink">
@@ -266,12 +266,12 @@ export default function FinishedScreen({
       </div>
 
       {allCorrectlyIdentified && (
-        <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+        <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900">
           <h4 className="font-semibold text-ink">
             Perfect game! Everyone identified their card.
           </h4>
           {isBotGame ? (
-            <p className="mt-2 text-sm text-slate-600">
+            <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
               Nicely played! Bots always guess their own card correctly
               though, so this one won&apos;t be saved to the{" "}
               <Link href="/winners" className="underline">
@@ -280,7 +280,7 @@ export default function FinishedScreen({
               .
             </p>
           ) : !isHost ? (
-            <p className="mt-2 text-sm text-slate-600">
+            <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
               Ask your host to save this victory to the{" "}
               <Link href="/winners" className="underline">
                 winners page
@@ -288,7 +288,7 @@ export default function FinishedScreen({
               .
             </p>
           ) : winnerSaveStatus === "saved" ? (
-            <p className="mt-2 text-sm text-emerald-700">
+            <p className="mt-2 text-sm text-emerald-700 dark:text-emerald-300">
               Saved! View it on the{" "}
               <Link href="/winners" className="underline">
                 winners page
@@ -297,7 +297,7 @@ export default function FinishedScreen({
             </p>
           ) : (
             <div className="mt-3 space-y-3">
-              <label className="block text-sm font-medium text-slate-700">
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-200">
                 Team name
                 <input
                   value={winnerForm.teamName}
@@ -307,17 +307,17 @@ export default function FinishedScreen({
                       teamName: event.target.value,
                     })
                   }
-                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-800"
                   placeholder="e.g. The Card Sharks"
                 />
               </label>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-500 dark:text-slate-400">
                 {winnerForm.date && winnerForm.time
                   ? `Recorded at ${winnerForm.date} ${winnerForm.time}`
                   : "Recording current date and time."}
               </p>
               <div className="grid gap-3 sm:grid-cols-2">
-                <label className="block text-sm font-medium text-slate-700">
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-200">
                   {isInternational ? "Region" : "State"}
                   <select
                     value={winnerForm.state}
@@ -330,7 +330,7 @@ export default function FinishedScreen({
                         city: "",
                       })
                     }
-                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+                    className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-800"
                   >
                     <option value="">Select...</option>
                     <option value={INTERNATIONAL}>International</option>
@@ -344,7 +344,7 @@ export default function FinishedScreen({
                   </select>
                 </label>
                 {isInternational && (
-                  <label className="block text-sm font-medium text-slate-700">
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-200">
                     Country
                     <select
                       value={winnerForm.country}
@@ -356,7 +356,7 @@ export default function FinishedScreen({
                           city: "",
                         })
                       }
-                      className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+                      className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-800"
                     >
                       <option value="">Select...</option>
                       {countries.map((country) => (
@@ -367,7 +367,7 @@ export default function FinishedScreen({
                     </select>
                   </label>
                 )}
-                <label className="block text-sm font-medium text-slate-700">
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-200">
                   City
                   <CityAutocomplete
                     regionKey={
@@ -395,20 +395,20 @@ export default function FinishedScreen({
               {winnerForm.city.trim() &&
                 !cityValid &&
                 (isInternational ? winnerForm.country : winnerForm.state) && (
-                  <p className="text-xs text-rose-600">
+                  <p className="text-xs text-rose-600 dark:text-rose-400">
                     Pick a city from the list to match{" "}
                     {isInternational ? winnerForm.country : winnerForm.state}.
                   </p>
                 )}
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                   Cards
                 </p>
                 <div className="mt-1 flex flex-wrap gap-1.5">
                   {gamePlayers.map((player) => (
                     <span
                       key={player.id}
-                      className="rounded-full border border-slate-200 bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700"
+                      className="rounded-full border border-slate-200 bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
                     >
                       {player.name}: {player.card}
                     </span>
@@ -423,12 +423,12 @@ export default function FinishedScreen({
                   !winnerForm.state ||
                   !cityValid
                 }
-                className="rounded-2xl bg-ink px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500"
+                className="rounded-2xl bg-ink px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500 dark:text-slate-900 dark:disabled:bg-slate-700 dark:disabled:text-slate-400"
               >
                 {winnerSaveStatus === "saving" ? "Saving..." : "Save victory"}
               </button>
               {winnerSaveStatus === "error" && (
-                <p className="text-sm text-rose-600">
+                <p className="text-sm text-rose-600 dark:text-rose-400">
                   Something went wrong saving this. Please try again.
                 </p>
               )}
@@ -447,14 +447,14 @@ export default function FinishedScreen({
       <div className="mt-4 flex flex-wrap gap-2">
         <button
           onClick={onReviewScratchpad}
-          className="rounded-2xl border border-slate-300 bg-white px-4 py-2 font-semibold text-slate-700"
+          className="rounded-2xl border border-slate-300 bg-white px-4 py-2 font-semibold text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
         >
           Review Scratchpad
         </button>
         {isHost && (
           <button
             onClick={onStartNextGame}
-            className="rounded-2xl bg-ink px-4 py-2 font-semibold text-white"
+            className="rounded-2xl bg-ink px-4 py-2 font-semibold text-white dark:text-slate-900"
           >
             Next game
           </button>

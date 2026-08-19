@@ -31,7 +31,7 @@ function TabTitle({ children }: { children: ReactNode }) {
 /** Muted lead paragraph that sits under the title. */
 function Lead({ children }: { children: ReactNode }) {
   return (
-    <p className="mt-3 text-sm leading-relaxed text-slate-500">{children}</p>
+    <p className="mt-3 text-sm leading-relaxed text-slate-500 dark:text-slate-400">{children}</p>
   );
 }
 
@@ -48,10 +48,10 @@ function Section({
   return (
     <section className="mt-7">
       <h3 className="flex items-baseline gap-2 text-lg font-bold text-ink">
-        <span className="text-slate-400">{number}.</span>
+        <span className="text-slate-400 dark:text-slate-500">{number}.</span>
         {title}
       </h3>
-      <div className="mt-2 space-y-3 text-sm leading-relaxed text-slate-600">
+      <div className="mt-2 space-y-3 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
         {children}
       </div>
     </section>
@@ -64,7 +64,7 @@ function BulletList({ items }: { items: ReactNode[] }) {
     <ul className="grid gap-2 sm:grid-cols-2">
       {items.map((item, index) => (
         <li key={index} className="flex gap-2">
-          <span className="mt-0.5 text-slate-400">•</span>
+          <span className="mt-0.5 text-slate-400 dark:text-slate-500">•</span>
           <span>{item}</span>
         </li>
       ))}
@@ -74,7 +74,7 @@ function BulletList({ items }: { items: ReactNode[] }) {
 
 /** Small muted footnote, e.g. an exception or "coming soon" caveat. */
 function Note({ children }: { children: ReactNode }) {
-  return <p className="mt-3 text-xs text-slate-400">{children}</p>;
+  return <p className="mt-3 text-xs text-slate-400 dark:text-slate-500">{children}</p>;
 }
 
 /** A single tool entry: name + short description, with an optional demo gif. */
@@ -88,15 +88,15 @@ function Tool({
   children: ReactNode;
 }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
+    <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 dark:border-slate-700 dark:bg-slate-900/60">
       <h4 className="text-sm font-bold text-ink">{name}</h4>
-      <p className="mt-1 text-sm leading-relaxed text-slate-600">{children}</p>
+      <p className="mt-1 text-sm leading-relaxed text-slate-600 dark:text-slate-300">{children}</p>
       {gifSrc && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={gifSrc}
           alt={`${name} demo`}
-          className="mt-3 w-full rounded-xl border border-slate-200"
+          className="mt-3 w-full rounded-xl border border-slate-200 dark:border-slate-700"
         />
       )}
     </div>
@@ -193,7 +193,7 @@ export default function HelpModal({ onClose }: HelpModalProps) {
   const [activeTab, setActiveTab] = useState<TabKey>("rules");
 
   const tabBar = (
-    <div className="flex gap-1 rounded-full bg-slate-100 p-1">
+    <div className="flex gap-1 rounded-full bg-slate-100 p-1 dark:bg-slate-800">
       {TABS.map((tab) => {
         const isActive = tab.key === activeTab;
         return (
@@ -202,8 +202,8 @@ export default function HelpModal({ onClose }: HelpModalProps) {
             onClick={() => setActiveTab(tab.key)}
             className={`flex-1 rounded-full px-4 py-1.5 text-sm font-semibold transition-colors ${
               isActive
-                ? "bg-ink text-white shadow-sm"
-                : "text-slate-500 hover:text-ink"
+                ? "bg-ink text-white shadow-sm dark:text-slate-900"
+                : "text-slate-500 hover:text-ink dark:text-slate-400"
             }`}
           >
             {tab.label}

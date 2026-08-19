@@ -88,7 +88,7 @@ export default function Modal({
       onClick={onClose}
     >
       <div
-        className={`flex max-h-[94vh] w-full flex-col overflow-hidden rounded-t-3xl border border-slate-200 bg-white shadow-xl sm:rounded-3xl ${maxWidthClassName}`}
+        className={`flex max-h-[94vh] w-full flex-col overflow-hidden rounded-t-3xl border border-slate-200 bg-white shadow-xl sm:rounded-3xl dark:border-slate-700 dark:bg-slate-800 ${maxWidthClassName}`}
         style={{
           transform: translateY ? `translateY(${translateY}px)` : undefined,
           opacity: isOpen ? 1 : 0,
@@ -99,13 +99,13 @@ export default function Modal({
         onClick={(event) => event.stopPropagation()}
       >
         <div
-          className="flex-shrink-0 touch-none border-b border-slate-100 p-4"
+          className="flex-shrink-0 touch-none border-b border-slate-100 p-4 dark:border-slate-700"
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={endDrag}
           onPointerCancel={endDrag}
         >
-          <div className="mx-auto -mt-1 mb-2 h-1.5 w-10 shrink-0 rounded-full bg-slate-300 sm:hidden" />
+          <div className="mx-auto -mt-1 mb-2 h-1.5 w-10 shrink-0 rounded-full bg-slate-300 sm:hidden dark:bg-slate-600" />
           <div className="flex items-center justify-between gap-3">
             <h3 className="text-lg font-semibold text-ink">{title}</h3>
             <div className="flex flex-shrink-0 items-center gap-2">
@@ -113,7 +113,7 @@ export default function Modal({
               <button
                 onClick={onClose}
                 aria-label="Close"
-                className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-2xl leading-none text-slate-500 hover:bg-slate-100"
+                className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-2xl leading-none text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"
               >
                 &times;
               </button>

@@ -37,7 +37,7 @@ export default function GameHeader({
   return (
     <div className="flex items-start justify-between">
       <div>
-        <p className="text-sm font-semibold uppercase tracking-[0.3em] text-slate-400">
+        <p className="text-sm font-semibold uppercase tracking-[0.3em] text-slate-400 dark:text-slate-500">
           Room {roomCode} &middot; Round {round}
         </p>
         <h2 className="text-2xl font-bold text-ink">{PHASE_LABEL[phase]}</h2>
