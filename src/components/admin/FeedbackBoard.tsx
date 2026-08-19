@@ -52,7 +52,7 @@ function Select<T extends string>({
   options,
   onChange,
   disabled = false,
-  tone = "bg-white text-ink ring-slate-300",
+  tone = "bg-white text-ink ring-slate-300 dark:bg-slate-800 dark:ring-slate-600",
 }: {
   id: string;
   value: T;
@@ -80,7 +80,7 @@ function Select<T extends string>({
           <option
             key={option.value}
             value={option.value}
-            className="bg-white text-slate-800"
+            className="bg-white text-slate-800 dark:bg-slate-800 dark:text-slate-100"
           >
             {option.label}
           </option>
@@ -104,40 +104,40 @@ function FeedbackCard({
   isSaving: boolean;
 }) {
   return (
-    <article className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+    <article className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
           <h3 className="font-semibold break-words text-ink">{item.subject}</h3>
-          <p className="mt-0.5 text-xs text-slate-500">
+          <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
             {formatDate(item.createdAt)}
           </p>
         </div>
         <StatusPill status={item.status} />
       </div>
 
-      <p className="whitespace-pre-wrap break-words text-sm text-slate-700">
+      <p className="whitespace-pre-wrap break-words text-sm text-slate-700 dark:text-slate-200">
         {item.description}
       </p>
 
       <dl className="grid gap-x-4 gap-y-1 text-sm sm:grid-cols-2">
         <div className="flex gap-1.5">
-          <dt className="flex-shrink-0 text-slate-500">From:</dt>
-          <dd className="min-w-0 break-words text-slate-800">
-            {item.name || <span className="text-slate-400">Anonymous</span>}
+          <dt className="flex-shrink-0 text-slate-500 dark:text-slate-400">From:</dt>
+          <dd className="min-w-0 break-words text-slate-800 dark:text-slate-100">
+            {item.name || <span className="text-slate-400 dark:text-slate-500">Anonymous</span>}
           </dd>
         </div>
         <div className="flex gap-1.5">
-          <dt className="flex-shrink-0 text-slate-500">Contact:</dt>
-          <dd className="min-w-0 break-words text-slate-800">
+          <dt className="flex-shrink-0 text-slate-500 dark:text-slate-400">Contact:</dt>
+          <dd className="min-w-0 break-words text-slate-800 dark:text-slate-100">
             {item.contact || (
-              <span className="text-slate-400">None provided</span>
+              <span className="text-slate-400 dark:text-slate-500">None provided</span>
             )}
           </dd>
         </div>
       </dl>
 
-      <div className="flex items-center gap-2 border-t border-slate-100 pt-3">
-        <label htmlFor={`status-${item.id}`} className="text-sm text-slate-600">
+      <div className="flex items-center gap-2 border-t border-slate-100 pt-3 dark:border-slate-700">
+        <label htmlFor={`status-${item.id}`} className="text-sm text-slate-600 dark:text-slate-300">
           Status
         </label>
         {/* Carries the status colour so the control itself reads as the state,
@@ -153,7 +153,7 @@ function FeedbackCard({
             label: STATUS_LABELS[status],
           }))}
         />
-        {isSaving && <span className="text-xs text-slate-400">Saving…</span>}
+        {isSaving && <span className="text-xs text-slate-400 dark:text-slate-500">Saving…</span>}
       </div>
     </article>
   );
@@ -176,12 +176,12 @@ function Section({
     <section className="space-y-3">
       <h2 className="flex items-center gap-2 text-lg font-semibold text-ink">
         {title}
-        <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-semibold text-slate-700">
+        <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-semibold text-slate-700 dark:bg-slate-700 dark:text-slate-200">
           {items.length}
         </span>
       </h2>
       {items.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-slate-300 p-4 text-sm text-slate-500">
+        <p className="rounded-xl border border-dashed border-slate-300 p-4 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
           {emptyMessage}
         </p>
       ) : (
@@ -305,9 +305,9 @@ export default function FeedbackBoard({
 
   if (feedback.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center">
-        <Inbox className="mx-auto h-8 w-8 text-slate-400" strokeWidth={1.75} />
-        <p className="mt-2 text-sm text-slate-500">
+      <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center dark:border-slate-700">
+        <Inbox className="mx-auto h-8 w-8 text-slate-400 dark:text-slate-500" strokeWidth={1.75} />
+        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
           No feedback has come in yet.
         </p>
       </div>
@@ -316,10 +316,10 @@ export default function FeedbackBoard({
 
   return (
     <div className="space-y-6">
-      <div className="space-y-3 rounded-xl border border-slate-200 bg-white/70 p-3">
+      <div className="space-y-3 rounded-xl border border-slate-200 bg-white/70 p-3 dark:border-slate-700 dark:bg-slate-800/70">
         <div className="relative">
           <Search
-            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-slate-500"
             strokeWidth={1.75}
           />
           <input
@@ -327,13 +327,13 @@ export default function FeedbackBoard({
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Search subject, description or name…"
             aria-label="Search feedback"
-            className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-9 text-sm text-ink shadow-sm outline-none transition-colors placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+            className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-9 text-sm text-ink shadow-sm outline-none transition-colors placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:border-slate-600 dark:bg-slate-800 dark:placeholder:text-slate-500 dark:focus:border-indigo-500 dark:focus:ring-indigo-950"
           />
           {search && (
             <button
               onClick={() => setSearch("")}
               aria-label="Clear search"
-              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 dark:text-slate-500 dark:hover:bg-slate-700 dark:hover:text-slate-300"
             >
               <X className="h-4 w-4" strokeWidth={2} />
             </button>
@@ -351,7 +351,7 @@ export default function FeedbackBoard({
                 className={`rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset transition-colors ${
                   isActive
                     ? STATUS_STYLES[status]
-                    : "bg-white text-slate-500 ring-slate-300 hover:bg-slate-50"
+                    : "bg-white text-slate-500 ring-slate-300 hover:bg-slate-50 dark:bg-slate-800 dark:text-slate-400 dark:ring-slate-600 dark:hover:bg-slate-700"
                 }`}
               >
                 {STATUS_LABELS[status]}
@@ -361,7 +361,7 @@ export default function FeedbackBoard({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <label htmlFor="sort-order" className="text-sm text-slate-600">
+          <label htmlFor="sort-order" className="text-sm text-slate-600 dark:text-slate-300">
             Sort
           </label>
           <Select
@@ -376,12 +376,12 @@ export default function FeedbackBoard({
 
           {hasFilters && (
             <>
-              <span className="text-xs text-slate-500">
+              <span className="text-xs text-slate-500 dark:text-slate-400">
                 {matchCount} of {feedback.length}
               </span>
               <button
                 onClick={clearFilters}
-                className="text-xs font-medium text-indigo-700 hover:underline"
+                className="text-xs font-medium text-indigo-700 hover:underline dark:text-indigo-400"
               >
                 Clear filters
               </button>
@@ -391,7 +391,7 @@ export default function FeedbackBoard({
           <button
             onClick={handleRefresh}
             disabled={isRefreshing}
-            className="ml-auto flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-50"
+            className="ml-auto flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
           >
             <RefreshCw
               className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
@@ -403,7 +403,7 @@ export default function FeedbackBoard({
       </div>
 
       {error && (
-        <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+        <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:border-rose-700 dark:bg-rose-950 dark:text-rose-300">
           {error}
         </p>
       )}
@@ -412,17 +412,17 @@ export default function FeedbackBoard({
           feedback, the filters just exclude all of it, so the fix is to relax
           them rather than to wait for submissions. */}
       {matchCount === 0 ? (
-        <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center">
+        <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center dark:border-slate-700">
           <SearchX
-            className="mx-auto h-8 w-8 text-slate-400"
+            className="mx-auto h-8 w-8 text-slate-400 dark:text-slate-500"
             strokeWidth={1.75}
           />
-          <p className="mt-2 text-sm text-slate-500">
+          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
             No feedback matches those filters.
           </p>
           <button
             onClick={clearFilters}
-            className="mt-2 text-sm font-medium text-indigo-700 hover:underline"
+            className="mt-2 text-sm font-medium text-indigo-700 hover:underline dark:text-indigo-400"
           >
             Clear filters
           </button>

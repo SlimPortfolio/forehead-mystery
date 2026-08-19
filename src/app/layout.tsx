@@ -31,6 +31,11 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
+// Runs before hydration/paint so a returning dark-mode user never sees a
+// flash of the light theme. Kept out of theme.ts (a client module) since
+// this needs to run as a raw inline script, not imported JS.
+const themeInitScript = `(function(){try{if(localStorage.getItem('forehead-mystery:theme')==='dark'){document.documentElement.classList.add('dark');}}catch(e){}})();`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -41,7 +46,13 @@ export default function RootLayout({
       <html
         lang="en"
         className={`${geistSans.variable} ${geistMono.variable} ${caveat.variable} h-dvh overflow-hidden antialiased`}
+        // The inline theme script below adds/removes `dark` on this element
+        // before React hydrates, which would otherwise read as a mismatch.
+        suppressHydrationWarning
       >
+        <head>
+          <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        </head>
         <body className="h-dvh overflow-hidden flex flex-col">{children}</body>
       </html>
     </ClerkProvider>

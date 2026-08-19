@@ -24,8 +24,8 @@ export default function GuessCardModal({
             onClick={() => onSelectCard(card)}
             className={`rounded-2xl border px-3 py-2 text-sm font-medium ${
               pendingGuess === card
-                ? "border-amber-400 bg-amber-100 text-amber-800"
-                : "border-slate-300 bg-white text-slate-700"
+                ? "border-amber-400 bg-amber-100 text-amber-800 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-300"
+                : "border-slate-300 bg-white text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
             }`}
           >
             {card}

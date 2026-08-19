@@ -9,6 +9,10 @@ type PlayerListProps = {
    * flipped face-up so far. `null` means no reveal is running, so every card
    * shows face-up normally. */
   cardRevealCount: number | null;
+  /** Seconds the current-turn player has gone without any detected activity,
+   * once past the away-indicator threshold; null hides the indicator. Only
+   * ever applied to the current-turn player's own row below. */
+  turnAwaySeconds: number | null;
   onOpenLookingGlass: (playerId: string) => void;
 };
 
@@ -25,6 +29,7 @@ export default function PlayerList({
   playerId,
   activeChatBubbles,
   cardRevealCount,
+  turnAwaySeconds,
   onOpenLookingGlass,
 }: PlayerListProps) {
   const currentPlayerId = room.turnOrder[room.currentTurnIndex];
@@ -55,6 +60,7 @@ export default function PlayerList({
           special={special}
           chatText={activeChatBubbles[player.id]}
           faceDown={cardRevealCount !== null && index >= cardRevealCount}
+          awaySeconds={player.id === currentPlayerId ? turnAwaySeconds : null}
           onOpenLookingGlass={onOpenLookingGlass}
         />
       ))}

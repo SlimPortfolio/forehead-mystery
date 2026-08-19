@@ -72,8 +72,8 @@ function ToastItem({ toast, onDismiss }: ToastItemProps) {
 
   const accent =
     toast.tone === "join"
-      ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-      : "border-rose-200 bg-rose-50 text-rose-700";
+      ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+      : "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-700 dark:bg-rose-950 dark:text-rose-300";
 
   // Reduce opacity as the toast is dragged away; while hidden (entering or
   // leaving) the fade transition owns opacity instead.
@@ -104,7 +104,7 @@ function ToastItem({ toast, onDismiss }: ToastItemProps) {
         onClick={() => beginDismiss()}
         // Stop the click from starting a drag on the parent.
         onPointerDown={(event) => event.stopPropagation()}
-        className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-current/60 hover:bg-black/5"
+        className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-current/60 hover:bg-black/5 dark:hover:bg-white/10"
       >
         <X className="h-4 w-4" strokeWidth={2.5} />
       </button>

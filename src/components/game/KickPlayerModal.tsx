@@ -19,18 +19,18 @@ export default function KickPlayerModal({
   return (
     <Modal title="Remove a player" onClose={onClose}>
       {kickable.length === 0 ? (
-        <p className="text-sm text-slate-600">No other players in the room.</p>
+        <p className="text-sm text-slate-600 dark:text-slate-300">No other players in the room.</p>
       ) : (
         <div className="space-y-2">
           {kickable.map((player) => (
             <div
               key={player.id}
-              className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3"
+              className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-900"
             >
               <div>
                 <p className="font-semibold text-ink">{player.name}</p>
                 {player.pendingJoin && (
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
                     Waiting for next game
                   </p>
                 )}

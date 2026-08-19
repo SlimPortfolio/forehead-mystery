@@ -19,6 +19,7 @@ const ALLOWED_ROOM_FIELDS = new Set([
   "bokSpecial",
   "chatMessages",
   "postGameChat",
+  "turnActivityAt",
 ]);
 
 function isAllowedKey(key: string): boolean {

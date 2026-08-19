@@ -38,10 +38,10 @@ export const STATUS_LABELS: Record<FeedbackStatus, string> = {
 /** Tailwind classes for each status pill, kept beside the labels so a new
  * status can't be added with a label but no styling. */
 export const STATUS_STYLES: Record<FeedbackStatus, string> = {
-  new: "bg-emerald-100 text-emerald-800 ring-emerald-200",
-  in_progress: "bg-amber-100 text-amber-800 ring-amber-200",
-  addressed: "bg-slate-200 text-slate-700 ring-slate-300",
-  wont_fix: "bg-rose-100 text-rose-800 ring-rose-200",
+  new: "bg-emerald-100 text-emerald-800 ring-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:ring-emerald-700",
+  in_progress: "bg-amber-100 text-amber-800 ring-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:ring-amber-700",
+  addressed: "bg-slate-200 text-slate-700 ring-slate-300 dark:bg-slate-700 dark:text-slate-200 dark:ring-slate-600",
+  wont_fix: "bg-rose-100 text-rose-800 ring-rose-200 dark:bg-rose-950 dark:text-rose-300 dark:ring-rose-700",
 };
 
 // Length caps. Generous enough for a real bug report, tight enough that a

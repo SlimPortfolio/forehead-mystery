@@ -23,14 +23,14 @@ export default function AppHeader({
   children,
 }: AppHeaderProps) {
   return (
-    <header className="relative z-30 w-full flex-shrink-0 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur">
+    <header className="relative z-30 w-full flex-shrink-0 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur dark:border-slate-700 dark:bg-slate-800/95">
       <div className="mx-auto flex w-full max-w-2xl items-center justify-between gap-3 px-3 py-2.5 sm:px-6">
         <div className="flex min-w-0 items-center gap-3">
           <Link
             href="/"
             onClick={onLogoClick}
             aria-label="Return to home"
-            className="flex min-w-0 items-center gap-3 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
+            className="flex min-w-0 items-center gap-3 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 dark:focus-visible:ring-slate-600"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img

@@ -72,7 +72,7 @@ const LOGO_SIZE_CLASSES: Record<NonNullable<PlayingCardProps["size"]>, string> =
  * parent face; the diagonal stripe pattern reads at every card size. */
 function CardBack() {
   return (
-    <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-lg border-2 border-indigo-300 bg-indigo-500 shadow-sm">
+    <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-lg border-2 border-indigo-300 bg-indigo-500 shadow-sm dark:border-indigo-700">
       <div
         className="h-full w-full"
         style={{
@@ -101,22 +101,22 @@ export default function PlayingCard({
   const isSpecial = special ?? urlSpecial;
 
   const front = (
-    <div className="flex h-full w-full flex-col items-center justify-center rounded-lg border-2 border-slate-300 bg-white shadow-sm">
+    <div className="flex h-full w-full flex-col items-center justify-center rounded-lg border-2 border-slate-300 bg-white shadow-sm dark:border-slate-600 dark:bg-slate-800">
       <span
         className={`font-bold leading-none ${
-          isHidden ? "text-slate-400" : isRed ? "text-rose-600" : "text-ink"
+          isHidden ? "text-slate-400 dark:text-slate-500" : isRed ? "text-rose-600 dark:text-rose-400" : "text-ink"
         }`}
       >
         {display}
       </span>
       {isHidden ? (
-        <span className="leading-none text-slate-300">{""}</span>
+        <span className="leading-none text-slate-300 dark:text-slate-600">{""}</span>
       ) : isSpecial ? (
         <div className={`relative mt-0.5 ${LOGO_SIZE_CLASSES[size]}`}>
           <Image src={getCardImageSrc(display, SPECIAL_THEME)} alt="" fill sizes="40px" className="object-contain" />
         </div>
       ) : (
-        <span className={`leading-none ${isRed ? "text-rose-600" : "text-ink"}`}>{suit}</span>
+        <span className={`leading-none ${isRed ? "text-rose-600 dark:text-rose-400" : "text-ink"}`}>{suit}</span>
       )}
     </div>
   );

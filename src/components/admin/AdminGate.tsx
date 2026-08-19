@@ -15,26 +15,26 @@ import { ShieldAlert } from "lucide-react";
 export default function AdminGate({ signedIn }: { signedIn: boolean }) {
   if (signedIn) {
     return (
-      <div className="mx-auto max-w-md space-y-4 rounded-xl border border-amber-200 bg-amber-50 p-6 text-center">
+      <div className="mx-auto max-w-md space-y-4 rounded-xl border border-amber-200 bg-amber-50 p-6 text-center dark:border-amber-700 dark:bg-amber-950">
         <ShieldAlert
-          className="mx-auto h-10 w-10 text-amber-600"
+          className="mx-auto h-10 w-10 text-amber-600 dark:text-amber-400"
           strokeWidth={1.75}
         />
         <div>
           <h1 className="text-xl font-semibold text-ink">
             This account can&apos;t open the admin area
           </h1>
-          <p className="mt-1 text-sm text-slate-600">
+          <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
             You&apos;re signed in, but this account isn&apos;t on the dev team
             allowlist. Sign out and try the account whose email is listed in{" "}
-            <code className="rounded bg-amber-100 px-1 py-0.5 text-xs">
+            <code className="rounded bg-amber-100 px-1 py-0.5 text-xs dark:bg-amber-900">
               ADMIN_EMAILS
             </code>
             .
           </p>
         </div>
         <SignOutButton>
-          <button className="rounded-lg bg-ink px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90">
+          <button className="rounded-lg bg-ink px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 dark:text-slate-900">
             Sign out
           </button>
         </SignOutButton>

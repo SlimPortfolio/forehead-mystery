@@ -6,7 +6,7 @@ type ChatBubbleProps = {
 export default function ChatBubble({ text }: ChatBubbleProps) {
   return (
     <div className="absolute top-0.5 right-0 z-50 w-max max-w-[16rem] -translate-y-full">
-      <div className="whitespace-normal rounded-2xl rounded-br-sm bg-ink px-3 py-2 text-xs font-medium text-white shadow-lg">
+      <div className="whitespace-normal rounded-2xl rounded-br-sm bg-ink px-3 py-2 text-xs font-medium text-white shadow-lg dark:text-slate-900">
         {text}
       </div>
       <div className="ml-auto mr-2 h-0 w-0 border-x-[6px] border-t-[7px] border-x-transparent border-t-ink" />

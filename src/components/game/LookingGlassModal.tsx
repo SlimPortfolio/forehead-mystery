@@ -38,20 +38,20 @@ export default function LookingGlassModal({
           <div className="flex items-center gap-3">
             <PlayingCard card={targetPlayer.card ?? null} suit={suit} size="sm" special={special} />
             <div className="flex flex-col items-start gap-0.5">
-              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-950 dark:text-amber-300">
                 Rank
               </span>
               <span className="text-sm font-bold text-ink">
                 {targetPlayer.ranking ? formatRank(targetPlayer.ranking) : "???"}
               </span>
               {targetPlayer.ranking && (
-                <span className="text-xs text-slate-500">
+                <span className="text-xs text-slate-500 dark:text-slate-400">
                   {targetPlayer.ranking - 1} above - {players.length - targetPlayer.ranking} below
                 </span>
               )}
             </div>
           </div>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-slate-500 dark:text-slate-400">
             This view shows what {targetPlayer.name} sees, not including your card.
           </p>
         </div>
@@ -64,8 +64,8 @@ export default function LookingGlassModal({
           );
 
           const className = isRuledOut
-            ? "rounded-lg border border-slate-200 bg-slate-100 px-2.5 py-1 text-left text-xs font-medium text-slate-400"
-            : "rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-left text-xs font-medium text-slate-700";
+            ? "rounded-lg border border-slate-200 bg-slate-100 px-2.5 py-1 text-left text-xs font-medium text-slate-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-500"
+            : "rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-left text-xs font-medium text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200";
 
           return (
             <div key={card} className={className}>

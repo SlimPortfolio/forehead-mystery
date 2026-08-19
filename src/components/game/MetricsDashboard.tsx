@@ -49,12 +49,12 @@ function StatCard({
   sub?: string;
 }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm">
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+    <div className="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800/80">
+      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
         {label}
       </p>
       <p className="mt-1 text-2xl font-bold text-ink">{value}</p>
-      {sub && <p className="mt-0.5 text-xs text-slate-500">{sub}</p>}
+      {sub && <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{sub}</p>}
     </div>
   );
 }
@@ -155,13 +155,13 @@ export default function MetricsDashboard({
   return (
     <>
       <div className="space-y-1">
-        <p className="px-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+        <p className="px-1 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
           Date Range
         </p>
         <div
           role="tablist"
           aria-label="Date range"
-          className="flex gap-1 rounded-2xl border border-slate-200 bg-slate-100/70 p-1"
+          className="flex gap-1 rounded-2xl border border-slate-200 bg-slate-100/70 p-1 dark:border-slate-700 dark:bg-slate-800/70"
         >
           {METRIC_RANGES.map(({ id, label }) => {
           const active = range === id;
@@ -174,8 +174,8 @@ export default function MetricsDashboard({
               onClick={() => setRange(id)}
               className={`flex-1 rounded-xl px-3 py-1.5 text-sm font-semibold transition ${
                 active
-                  ? "bg-white text-ink shadow-sm"
-                  : "text-slate-500 hover:text-slate-700"
+                  ? "bg-white text-ink shadow-sm dark:bg-slate-700"
+                  : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
               }`}
             >
               {label}
@@ -186,13 +186,13 @@ export default function MetricsDashboard({
       </div>
 
       <div className="space-y-1">
-        <p className="px-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+        <p className="px-1 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
           Number of Players
         </p>
         <div
           role="tablist"
           aria-label="Number of players"
-          className="flex gap-1 rounded-2xl border border-slate-200 bg-slate-100/70 p-1"
+          className="flex gap-1 rounded-2xl border border-slate-200 bg-slate-100/70 p-1 dark:border-slate-700 dark:bg-slate-800/70"
         >
           {PLAYER_COUNTS.map(({ id, label }) => {
           const active = playerCount === id;
@@ -205,8 +205,8 @@ export default function MetricsDashboard({
               onClick={() => setPlayerCount(id)}
               className={`flex-1 rounded-xl px-3 py-1.5 text-sm font-semibold transition ${
                 active
-                  ? "bg-white text-ink shadow-sm"
-                  : "text-slate-500 hover:text-slate-700"
+                  ? "bg-white text-ink shadow-sm dark:bg-slate-700"
+                  : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
               }`}
             >
               {label}
@@ -219,7 +219,7 @@ export default function MetricsDashboard({
       <div
         role="tablist"
         aria-label="Game type"
-        className="flex gap-1 rounded-2xl border border-slate-200 bg-slate-100/70 p-1"
+        className="flex gap-1 rounded-2xl border border-slate-200 bg-slate-100/70 p-1 dark:border-slate-700 dark:bg-slate-800/70"
       >
         {tabs.map(({ id, label, count }) => {
           const active = tab === id;
@@ -232,16 +232,16 @@ export default function MetricsDashboard({
               onClick={() => setTab(id)}
               className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition ${
                 active
-                  ? "bg-white text-ink shadow-sm"
-                  : "text-slate-500 hover:text-slate-700"
+                  ? "bg-white text-ink shadow-sm dark:bg-slate-700"
+                  : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
               }`}
             >
               {label}
               <span
                 className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
                   active
-                    ? "bg-slate-100 text-slate-600"
-                    : "bg-slate-200/70 text-slate-500"
+                    ? "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                    : "bg-slate-200/70 text-slate-500 dark:bg-slate-700/70 dark:text-slate-400"
                 }`}
               >
                 {count}
@@ -252,7 +252,7 @@ export default function MetricsDashboard({
       </div>
 
       {totalGames === 0 ? (
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-slate-500 dark:text-slate-400">
           No {tabLabel} games
           {range === "ALL" && playerCount === "any"
             ? " have been logged yet"

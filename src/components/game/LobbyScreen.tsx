@@ -48,13 +48,13 @@ export default function LobbyScreen({
   };
 
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto border border-slate-200 bg-white/80 p-4 shadow-sm backdrop-blur">
+    <div className="flex-1 min-h-0 overflow-y-auto border border-slate-200 bg-white/80 p-4 shadow-sm backdrop-blur dark:border-slate-700 dark:bg-slate-800/80">
       {status && (
         <p className="mb-3 text-xs font-medium text-ink/70">{status}</p>
       )}
       <div className="flex items-center justify-between gap-4">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.25em] text-slate-500">
+          <p className="text-sm font-semibold uppercase tracking-[0.25em] text-slate-500 dark:text-slate-400">
             Lobby
           </p>
           <h2 className="text-xl font-semibold">{room.id}</h2>
@@ -64,7 +64,7 @@ export default function LobbyScreen({
           <div className="flex flex-nowrap items-start justify-end gap-2">
             <button
               onClick={onStartGame}
-              className="whitespace-nowrap rounded-2xl bg-ink px-2.5 py-1.5 text-sm font-semibold text-white"
+              className="whitespace-nowrap rounded-2xl bg-ink px-2.5 py-1.5 text-sm font-semibold text-white dark:text-slate-900"
             >
               Start game
             </button>
@@ -73,7 +73,7 @@ export default function LobbyScreen({
               <button
                 onClick={() => setBotsOpen((open) => !open)}
                 disabled={botOptions.length === 0}
-                className="flex items-center gap-1.5 whitespace-nowrap rounded-2xl border border-slate-300 px-2.5 py-1.5 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex items-center gap-1.5 whitespace-nowrap rounded-2xl border border-slate-300 px-2.5 py-1.5 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:text-slate-200"
               >
                 Start with bots
                 <span
@@ -91,8 +91,8 @@ export default function LobbyScreen({
                     className="fixed inset-0 z-10 cursor-default"
                     onClick={() => setBotsOpen(false)}
                   />
-                  <div className="absolute right-0 top-full z-20 mt-1 w-56 rounded-2xl border border-slate-200 bg-white p-1 shadow-lg">
-                    <p className="px-3 py-1.5 text-xs text-slate-500">
+                  <div className="absolute right-0 top-full z-20 mt-1 w-56 rounded-2xl border border-slate-200 bg-white p-1 shadow-lg dark:border-slate-700 dark:bg-slate-800">
+                    <p className="px-3 py-1.5 text-xs text-slate-500 dark:text-slate-400">
                       Fill seats with bots
                     </p>
                     {botOptions.map((total) => {
@@ -101,10 +101,10 @@ export default function LobbyScreen({
                         <button
                           key={total}
                           onClick={() => handleSelectBots(total)}
-                          className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm font-medium text-ink hover:bg-slate-100"
+                          className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm font-medium text-ink hover:bg-slate-100 dark:hover:bg-slate-700"
                         >
                           <span>{total} players</span>
-                          <span className="text-xs text-slate-500">
+                          <span className="text-xs text-slate-500 dark:text-slate-400">
                             {humanCount}{" "}
                             {humanCount === 1 ? "player" : "players"} + {bots}{" "}
                             {bots === 1 ? "bot" : "bots"}
@@ -124,30 +124,30 @@ export default function LobbyScreen({
         {room.players.map((player) => (
           <div
             key={player.id}
-            className="rounded-2xl border border-slate-200 bg-slate-50 p-3"
+            className="rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-900"
           >
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-semibold">{player.name}</p>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-slate-500 dark:text-slate-400">
                   {player.isHost ? "Host" : "Player"}
                 </p>
               </div>
-              <span className="rounded-full bg-emerald-100 px-2 py-1 text-xs font-medium text-emerald-700">
+              <span className="rounded-full bg-emerald-100 px-2 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
                 {player.isReady ? "Ready" : "Connecting"}
               </span>
             </div>
           </div>
         ))}
       </div>
-      <p className="mt-4 text-sm text-slate-600">
+      <p className="mt-4 text-sm text-slate-600 dark:text-slate-300">
         The host can begin the game once there are 4-8 players in the room.
       </p>
 
       {isHost && humanCount > 1 && (
         <button
           onClick={onLeaveLobby}
-          className="mt-2 text-sm font-semibold text-rose-700"
+          className="mt-2 text-sm font-semibold text-rose-700 dark:text-rose-400"
         >
           Leave lobby (assign new host)
         </button>

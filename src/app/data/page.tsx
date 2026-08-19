@@ -46,19 +46,19 @@ export default async function DataPage() {
   const metrics = await getMetrics();
 
   return (
-    <main className="flex h-dvh w-full flex-col overflow-hidden bg-[radial-gradient(ellipse_at_top,#f6f4fe_0%,#e8ecfb_55%,#dde5f6_100%)] text-ink">
+    <main className="flex h-dvh w-full flex-col overflow-hidden bg-[radial-gradient(ellipse_at_top,#f6f4fe_0%,#e8ecfb_55%,#dde5f6_100%)] text-ink dark:bg-[radial-gradient(ellipse_at_top,#232544_0%,#1a1c35_55%,#131426_100%)]">
       <WinnersHeader />
       <div className="mx-auto flex w-full min-h-0 max-w-2xl flex-1 flex-col gap-3">
-        <section className="flex-1 min-h-0 space-y-6 overflow-y-auto border border-slate-200 bg-white/80 p-5 shadow-sm backdrop-blur">
+        <section className="flex-1 min-h-0 space-y-6 overflow-y-auto border border-slate-200 bg-white/80 p-5 shadow-sm backdrop-blur dark:border-slate-700 dark:bg-slate-800/80">
           <div>
             <h1 className="text-3xl font-semibold">Game Data</h1>
-            <p className="mt-2 max-w-2xl text-sm text-slate-600">
+            <p className="mt-2 max-w-2xl text-sm text-slate-600 dark:text-slate-300">
               Data and trends gathered from completed games
             </p>
           </div>
 
           {metrics.length === 0 ? (
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-slate-500 dark:text-slate-400">
               No games have been logged yet. Play a game to the end to start
               collecting data.
             </p>
